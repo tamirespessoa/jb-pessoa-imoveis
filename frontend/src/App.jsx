@@ -14,6 +14,7 @@ import Clients from "./pages/Clients";
 import Owners from "./pages/Owners";
 import Properties from "./pages/Properties";
 import Documents from "./pages/Documents";
+import Appointments from "./pages/Appointments"; // ✅ ADICIONAR
 
 function App() {
   const [logged, setLogged] = useState(!!localStorage.getItem("token"));
@@ -32,6 +33,7 @@ function App() {
           <Route path="/proprietarios" element={<Owners />} />
           <Route path="/imoveis" element={<Properties />} />
           <Route path="/documentos" element={<Documents />} />
+          <Route path="/agendamentos" element={<Appointments />} /> {/* ✅ ADICIONAR */}
         </Route>
       </Routes>
     </BrowserRouter>

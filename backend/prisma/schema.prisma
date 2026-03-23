@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,89 +11,107 @@ datasource db {
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  name      String
+  id        String   @id @default(cuid())
   email     String   @unique
   password  String
-  role      String
+  name      String
+  role      String   @default("USER")
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
 }
 
 model Person {
-  id               Int      @id @default(autoincrement())
-  type             String
-  fullName         String
-  cpf              String?  @unique
-  rg               String?
-  phone            String?
-  email            String?
-  maritalStatus    String?
-  profession       String?
-  monthlyIncome    Float?
-  fgtsBalance      Float?
-  hasDependents    Boolean  @default(false)
-  dependentsCount  Int      @default(0)
-  addressZipCode   String?
-  addressStreet    String?
-  addressNumber    String?
-  addressDistrict  String?
-  addressCity      String?
-  addressState     String?
-  notes            String?
+  id                  String   @id @default(cuid())
+  type                String   // CLIENTE_COMPRADOR, CLIENTE_ALUGUEL, PROPRIETARIO
+  fullName            String
+  cpf                 String?  @unique
+  rg                  String?
+  email               String?  @unique
+  phone               String?
+  company             String?
+  commercialPhone     String?
+  residentialPhone    String?
+  contactPhone        String?
+  whatsapp            String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  company          String?
-  commercialPhone  String?
-  residentialPhone String?
-  contactPhone     String?
-  whatsapp         Boolean  @default(false)
+  properties          Property[]
+  clientAppointments  Appointment[] @relation("clientAppointments")
+  documents           Document[]
 
-  createdAt        DateTime @default(now())
-
-  documents        Document[]
-  propertiesOwned  Property[] @relation("OwnerProperties")
+  @@map("persons")
 }
 
 model Property {
-  id               Int      @id @default(autoincrement())
-  title            String
-  code             String   @unique
-  description      String?
-  purpose          String?
-  type             String?
-  price            Float?
-  condominiumFee   Float?
-  iptuValue        Float?
-  status           String?
-  bedrooms         Int?
-  bathrooms        Int?
-  suites           Int?
-  parkingSpaces    Int?
-  builtArea        Float?
-  landArea         Float?
-  zipCode          String?
-  street           String?
-  number           String?
-  district         String?
-  city             String?
-  state            String?
-  ownerId          Int?
-  createdAt        DateTime @default(now())
+  id            String   @id @default(cuid())
+  title         String
+  code          String   @unique
+  type          String   // RESIDENCIAL, COMERCIAL, TERRENO, etc
+  status        String   @default("DISPONIVEL") // DISPONIVEL, ALUGADO, VENDIDO
+  price         Float
+  rentPrice     Float?
+  area          Float
+  rooms         Int
+  bathrooms     Int
+  garage         Int?
+  street        String
+  number        String
+  complement    String?
+  zipCode       String
+  district      String
+  city          String
+  state         String
+  description   String?
+  ownerId       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  owner            Person?  @relation("OwnerProperties", fields: [ownerId], references: [id])
-  documents        Document[]
+  owner         Person   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  documents     Document[]
+  appointments  Appointment[]
+
+  @@index([ownerId])
+  @@map("properties")
 }
 
 model Document {
-  id         Int       @id @default(autoincrement())
-  title      String
-  type       String
+  id         String   @id @default(cuid())
   fileName   String
-  filePath   String
-  mimeType   String?
-  personId   Int?
-  propertyId Int?
-  createdAt  DateTime  @default(now())
+  fileUrl    String
+  fileType   String
+  fileSize   Int
+  personId   String?
+  propertyId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
-  person     Person?   @relation(fields: [personId], references: [id])
-  property   Property? @relation(fields: [propertyId], references: [id])
+  person     Person?   @relation(fields: [personId], references: [id], onDelete: Cascade)
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@index([propertyId])
+  @@map("documents")
+}
+
+model Appointment {
+  id              String   @id @default(cuid())
+  propertyId      String
+  clientId        String
+  appointmentDate DateTime
+  duration        Int      @default(60)
+  status          String   @default("AGENDADO") // AGENDADO, CONFIRMADO, CANCELADO, REALIZADO, NAO_COMPARECEU
+  notes           String?
+  outcome         String?  // INTERESSADO, NAO_INTERESSADO, PENDENTE
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  client          Person   @relation("clientAppointments", fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([clientId])
+  @@map("appointments")
 }
