@@ -20,7 +20,8 @@ function Layout() {
     { label: "GESTÃO DE LEADS", path: "/clientes" },
     { label: "ATENDIMENTOS", path: "/clientes" },
     { label: "CENTRAL DE NEGÓCIOS", path: "/imoveis" },
-    { label: "PROPRIETÁRIOS", path: "/proprietarios" }, // ��� ADICIONADO
+    { label: "PROPRIETÁRIOS", path: "/proprietarios" },
+    { label: "AGENDAMENTOS", path: "/agendamentos" }, // ✅ ADICIONADO
     { label: "PORTAIS", path: "/documentos" },
     { label: "MEU SITE", path: "/dashboard" }
   ];
