@@ -18,8 +18,9 @@ function Layout() {
   const topTabs = [
     { label: "DASHBOARD", path: "/dashboard" },
     { label: "GESTÃO DE LEADS", path: "/clientes" },
-    { label: "ATENDIMENTOS", path: "/proprietarios" },
+    { label: "ATENDIMENTOS", path: "/clientes" },
     { label: "CENTRAL DE NEGÓCIOS", path: "/imoveis" },
+    { label: "PROPRIETÁRIOS", path: "/proprietarios" }, // ��� ADICIONADO
     { label: "PORTAIS", path: "/documentos" },
     { label: "MEU SITE", path: "/dashboard" }
   ];
