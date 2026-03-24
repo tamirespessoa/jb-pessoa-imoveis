@@ -1,33 +1,43 @@
 import { useState } from "react";
-import axios from "axios";
+import { useNavigate } from "react-router-dom";
+import api from "../services/api";
 
-function Login({ onLogin }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+function Login() {
+  const navigate = useNavigate();
+
+  const [form, setForm] = useState({
+    email: "",
+    password: ""
+  });
+
   const [loading, setLoading] = useState(false);
 
-  async function handleLogin(e) {
+  function handleChange(e) {
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value
+    });
+  }
+
+  async function handleSubmit(e) {
     e.preventDefault();
+    setLoading(true);
 
     try {
-      setLoading(true);
-
-      const response = await axios.post("http://localhost:3001/auth/login", {
-        email,
-        password
+      const response = await api.post("/auth/login", {
+        email: form.email,
+        password: form.password
       });
 
-      const token = response.data.token;
-
-      localStorage.setItem("token", token);
+      localStorage.setItem("token", response.data.token);
       localStorage.setItem("user", JSON.stringify(response.data.user));
 
-      onLogin();
+      navigate("/dashboard");
     } catch (error) {
       console.error(error);
 
-      if (error.response) {
-        alert(error.response.data.error || "Erro no login.");
+      if (error.response?.status === 401) {
+        alert("E-mail ou senha inválidos.");
       } else {
         alert("Erro ao conectar com o backend.");
       }
@@ -37,26 +47,28 @@ function Login({ onLogin }) {
   }
 
   return (
-    <div style={styles.container}>
+    <div style={styles.page}>
       <div style={styles.card}>
-        <h1 style={styles.title}>JB Pessoa Imóveis</h1>
+        <h1 style={styles.logo}>JB Pessoa Imóveis</h1>
         <p style={styles.subtitle}>Acesse o sistema</p>
 
-        <form onSubmit={handleLogin}>
+        <form onSubmit={handleSubmit}>
           <input
             style={styles.input}
             type="email"
+            name="email"
             placeholder="Digite seu e-mail"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={form.email}
+            onChange={handleChange}
           />
 
           <input
             style={styles.input}
             type="password"
+            name="password"
             placeholder="Digite sua senha"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            value={form.password}
+            onChange={handleChange}
           />
 
           <button style={styles.button} type="submit" disabled={loading}>
@@ -69,49 +81,51 @@ function Login({ onLogin }) {
 }
 
 const styles = {
-  container: {
+  page: {
     minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#EDEDED",
-    padding: "20px"
+    backgroundColor: "#efefef"
   },
   card: {
-    width: "100%",
-    maxWidth: "420px",
-    backgroundColor: "#FFFFFF",
-    borderRadius: "16px",
-    padding: "32px",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.12)"
-  },
-  title: {
-    margin: 0,
-    marginBottom: "8px",
-    color: "#C79A2B",
+    width: "420px",
+    backgroundColor: "#ffffff",
+    borderRadius: "20px",
+    padding: "40px",
+    boxShadow: "0 8px 25px rgba(0,0,0,0.12)",
     textAlign: "center"
   },
+  logo: {
+    margin: 0,
+    fontSize: "56px",
+    lineHeight: "0.95",
+    color: "#c99a1a",
+    fontWeight: "700"
+  },
   subtitle: {
-    marginTop: 0,
-    marginBottom: "24px",
-    textAlign: "center",
-    color: "#555"
+    marginTop: "8px",
+    marginBottom: "30px",
+    fontSize: "18px",
+    color: "#444"
   },
   input: {
     width: "100%",
-    padding: "12px",
+    padding: "14px 16px",
     marginBottom: "16px",
-    borderRadius: "8px",
-    border: "1px solid #CCC",
+    borderRadius: "10px",
+    border: "1px solid #d1d1d1",
+    fontSize: "16px",
     boxSizing: "border-box"
   },
   button: {
     width: "100%",
-    padding: "12px",
+    padding: "14px",
+    backgroundColor: "#c99a1a",
+    color: "#fff",
     border: "none",
-    borderRadius: "10px",
-    backgroundColor: "#C79A2B",
-    color: "#FFF",
+    borderRadius: "12px",
+    fontSize: "18px",
     fontWeight: "bold",
     cursor: "pointer"
   }
