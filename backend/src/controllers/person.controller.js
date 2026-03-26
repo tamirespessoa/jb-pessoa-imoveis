@@ -46,16 +46,22 @@ async function createPerson(req, res) {
         maritalStatus,
         profession,
         monthlyIncome:
-          monthlyIncome !== undefined && monthlyIncome !== null && monthlyIncome !== ""
+          monthlyIncome !== undefined &&
+          monthlyIncome !== null &&
+          monthlyIncome !== ""
             ? Number(monthlyIncome)
             : null,
         fgtsBalance:
-          fgtsBalance !== undefined && fgtsBalance !== null && fgtsBalance !== ""
+          fgtsBalance !== undefined &&
+          fgtsBalance !== null &&
+          fgtsBalance !== ""
             ? Number(fgtsBalance)
             : null,
         hasDependents: hasDependents === true || hasDependents === "true",
         dependentsCount:
-          dependentsCount !== undefined && dependentsCount !== null && dependentsCount !== ""
+          dependentsCount !== undefined &&
+          dependentsCount !== null &&
+          dependentsCount !== ""
             ? Number(dependentsCount)
             : 0,
         addressZipCode,
@@ -78,6 +84,7 @@ async function createPerson(req, res) {
       person
     });
   } catch (error) {
+    console.error("Erro em createPerson:", error);
     return res.status(500).json({
       error: "Erro ao cadastrar pessoa.",
       details: error.message
@@ -90,15 +97,12 @@ async function listPersons(req, res) {
     const persons = await prisma.person.findMany({
       orderBy: {
         id: "asc"
-      },
-      include: {
-        documents: true,
-        propertiesOwned: true
       }
     });
 
     return res.json(persons);
   } catch (error) {
+    console.error("Erro em listPersons:", error);
     return res.status(500).json({
       error: "Erro ao listar pessoas.",
       details: error.message
@@ -113,10 +117,6 @@ async function getPersonById(req, res) {
     const person = await prisma.person.findUnique({
       where: {
         id: Number(id)
-      },
-      include: {
-        documents: true,
-        propertiesOwned: true
       }
     });
 
@@ -128,6 +128,7 @@ async function getPersonById(req, res) {
 
     return res.json(person);
   } catch (error) {
+    console.error("Erro em getPersonById:", error);
     return res.status(500).json({
       error: "Erro ao buscar pessoa.",
       details: error.message
@@ -190,16 +191,22 @@ async function updatePerson(req, res) {
         maritalStatus,
         profession,
         monthlyIncome:
-          monthlyIncome !== undefined && monthlyIncome !== null && monthlyIncome !== ""
+          monthlyIncome !== undefined &&
+          monthlyIncome !== null &&
+          monthlyIncome !== ""
             ? Number(monthlyIncome)
             : null,
         fgtsBalance:
-          fgtsBalance !== undefined && fgtsBalance !== null && fgtsBalance !== ""
+          fgtsBalance !== undefined &&
+          fgtsBalance !== null &&
+          fgtsBalance !== ""
             ? Number(fgtsBalance)
             : null,
         hasDependents: hasDependents === true || hasDependents === "true",
         dependentsCount:
-          dependentsCount !== undefined && dependentsCount !== null && dependentsCount !== ""
+          dependentsCount !== undefined &&
+          dependentsCount !== null &&
+          dependentsCount !== ""
             ? Number(dependentsCount)
             : 0,
         addressZipCode,
@@ -222,6 +229,7 @@ async function updatePerson(req, res) {
       person
     });
   } catch (error) {
+    console.error("Erro em updatePerson:", error);
     return res.status(500).json({
       error: "Erro ao atualizar pessoa.",
       details: error.message
@@ -253,6 +261,7 @@ async function deletePerson(req, res) {
       message: "Pessoa excluída com sucesso."
     });
   } catch (error) {
+    console.error("Erro em deletePerson:", error);
     return res.status(500).json({
       error: "Erro ao excluir pessoa.",
       details: error.message
