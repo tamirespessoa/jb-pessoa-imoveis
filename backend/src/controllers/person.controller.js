@@ -2,6 +2,9 @@ const prisma = require("../config/prisma");
 
 async function createPerson(req, res) {
   try {
+    console.log("===> createPerson iniciado");
+    console.log("Body recebido:", req.body);
+
     const {
       type,
       fullName,
@@ -34,6 +37,8 @@ async function createPerson(req, res) {
         error: "Tipo e nome completo são obrigatórios."
       });
     }
+
+    console.log("===> Antes do prisma.person.create");
 
     const person = await prisma.person.create({
       data: {
@@ -79,6 +84,8 @@ async function createPerson(req, res) {
       }
     });
 
+    console.log("===> Depois do prisma.person.create");
+
     return res.status(201).json({
       message: "Pessoa cadastrada com sucesso.",
       person
@@ -94,11 +101,15 @@ async function createPerson(req, res) {
 
 async function listPersons(req, res) {
   try {
+    console.log("===> listPersons iniciado");
+
     const persons = await prisma.person.findMany({
       orderBy: {
         id: "asc"
       }
     });
+
+    console.log("===> listPersons retornou", persons.length, "registro(s)");
 
     return res.json(persons);
   } catch (error) {
