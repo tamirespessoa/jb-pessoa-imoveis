@@ -21,7 +21,7 @@ function Layout() {
     { label: "ATENDIMENTOS", path: "/clientes" },
     { label: "CENTRAL DE NEGÓCIOS", path: "/imoveis" },
     { label: "PROPRIETÁRIOS", path: "/proprietarios" },
-    { label: "AGENDAMENTOS", path: "/agendamentos" }, // ✅ ADICIONADO
+    { label: "AGENDAMENTOS", path: "/agendamentos" },
     { label: "PORTAIS", path: "/documentos" },
     { label: "MEU SITE", path: "/dashboard" }
   ];
@@ -31,70 +31,74 @@ function Layout() {
       <Sidebar open={sidebarOpen} />
 
       <div style={styles.main}>
-        <div style={styles.topBarWrapper}>
-          <div style={styles.topBar}>
-            <button
-              type="button"
-              style={styles.menuButton}
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-            >
-              ☰
-            </button>
+        <div style={styles.inner}>
+          <div style={styles.topBarWrapper}>
+            <div style={styles.topBar}>
+              <button
+                type="button"
+                style={styles.menuButton}
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+              >
+                ☰
+              </button>
 
-            <input
-              style={styles.searchInput}
-              placeholder="Pesquisar imóveis ou clientes..."
-            />
+              <div style={styles.searchWrapper}>
+                <input
+                  style={styles.searchInput}
+                  placeholder="Pesquisar imóveis ou clientes..."
+                />
+              </div>
 
-            <div style={styles.topIcons}>
-              <span style={styles.icon}>🏠</span>
-              <span style={styles.icon}>👤</span>
-              <span style={styles.icon}>🗓️</span>
-              <span style={styles.icon}>💬</span>
-              <span style={styles.icon}>🔔</span>
+              <div style={styles.topIcons}>
+                <span style={styles.icon}>🏠</span>
+                <span style={styles.icon}>👤</span>
+                <span style={styles.icon}>🗓️</span>
+                <span style={styles.icon}>💬</span>
+                <span style={styles.icon}>🔔</span>
+              </div>
+            </div>
+
+            <div style={styles.topTabs}>
+              {topTabs.map((tab) => {
+                const active = location.pathname === tab.path;
+                return (
+                  <button
+                    key={`${tab.label}-${tab.path}`}
+                    type="button"
+                    onClick={() => navigate(tab.path)}
+                    style={{
+                      ...styles.topTabButton,
+                      ...(active ? styles.topTabActive : {})
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
-          <div style={styles.topTabs}>
-            {topTabs.map((tab) => {
-              const active = location.pathname === tab.path;
-              return (
-                <button
-                  key={`${tab.label}-${tab.path}`}
-                  type="button"
-                  onClick={() => navigate(tab.path)}
-                  style={{
-                    ...styles.topTabButton,
-                    ...(active ? styles.topTabActive : {})
-                  }}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        <div style={styles.headerInfo}>
-          <div>
-            <h1 style={styles.pageTitle}>JB Pessoa Imóveis</h1>
-          </div>
-
-          <div style={styles.userBox}>
-            <div style={styles.userInfo}>
-              <strong>{user.name || "Administrador"}</strong>
-              <div style={styles.userRole}>{user.role || "GERENTE"}</div>
+          <div style={styles.headerInfo}>
+            <div style={styles.titleBlock}>
+              <h1 style={styles.pageTitle}>JB Pessoa Imóveis</h1>
             </div>
 
-            <button style={styles.logoutButton} onClick={handleLogout}>
-              Sair
-            </button>
-          </div>
-        </div>
+            <div style={styles.userBox}>
+              <div style={styles.userInfo}>
+                <strong>{user.name || "Administrador"}</strong>
+                <div style={styles.userRole}>{user.role || "GERENTE"}</div>
+              </div>
 
-        <main style={styles.content}>
-          <Outlet />
-        </main>
+              <button style={styles.logoutButton} onClick={handleLogout}>
+                Sair
+              </button>
+            </div>
+          </div>
+
+          <main style={styles.content}>
+            <Outlet />
+          </main>
+        </div>
       </div>
     </div>
   );
@@ -104,26 +108,46 @@ const styles = {
   container: {
     display: "flex",
     minHeight: "100vh",
-    backgroundColor: "#efefef"
+    width: "100%",
+    backgroundColor: "#efefef",
+    overflowX: "hidden"
   },
+
   main: {
     flex: 1,
     minWidth: 0,
+    width: "100%",
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    overflowX: "hidden"
   },
+
+  inner: {
+    width: "100%",
+    maxWidth: "100%",
+    margin: 0,
+    boxSizing: "border-box"
+  },
+
   topBarWrapper: {
-    padding: "22px 24px 0 24px"
+    width: "100%",
+    padding: "22px 16px 0 16px",
+    boxSizing: "border-box"
   },
+
   topBar: {
-    height: "76px",
+    width: "100%",
+    minHeight: "76px",
     backgroundColor: "#06153b",
     borderRadius: "18px",
     display: "flex",
     alignItems: "center",
     gap: "18px",
-    padding: "0 18px"
+    padding: "14px 18px",
+    boxSizing: "border-box",
+    flexWrap: "wrap"
   },
+
   menuButton: {
     width: "48px",
     height: "48px",
@@ -132,37 +156,53 @@ const styles = {
     backgroundColor: "transparent",
     color: "#fff",
     fontSize: "24px",
-    cursor: "pointer"
+    cursor: "pointer",
+    flexShrink: 0
   },
-  searchInput: {
+
+  searchWrapper: {
     flex: 1,
-    maxWidth: "650px",
+    minWidth: "220px"
+  },
+
+  searchInput: {
+    width: "100%",
+    minWidth: 0,
     height: "42px",
     borderRadius: "10px",
     border: "none",
     outline: "none",
     padding: "0 18px",
-    fontSize: "16px"
+    fontSize: "16px",
+    boxSizing: "border-box"
   },
+
   topIcons: {
-    marginLeft: "auto",
     display: "flex",
     alignItems: "center",
     gap: "18px",
     color: "#fff",
-    fontSize: "22px"
+    fontSize: "22px",
+    flexWrap: "wrap",
+    flexShrink: 0
   },
+
   icon: {
     cursor: "pointer"
   },
+
   topTabs: {
     display: "flex",
     gap: "28px",
     padding: "18px 0 14px 0",
     borderBottom: "1px solid #bdbdbd",
     marginTop: "10px",
-    overflowX: "auto"
+    overflowX: "auto",
+    whiteSpace: "nowrap",
+    width: "100%",
+    boxSizing: "border-box"
   },
+
   topTabButton: {
     border: "none",
     background: "transparent",
@@ -171,35 +211,52 @@ const styles = {
     fontSize: "15px",
     cursor: "pointer",
     whiteSpace: "nowrap",
-    padding: 0
+    padding: 0,
+    flexShrink: 0
   },
+
   topTabActive: {
     color: "#c7a22b"
   },
+
   headerInfo: {
+    width: "100%",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: "10px 24px 0 24px"
+    gap: "16px",
+    padding: "10px 16px 0 16px",
+    boxSizing: "border-box",
+    flexWrap: "wrap"
   },
+
+  titleBlock: {
+    minWidth: 0
+  },
+
   pageTitle: {
     margin: 0,
     fontSize: "22px",
     color: "#404040"
   },
+
   userBox: {
     display: "flex",
     alignItems: "center",
-    gap: "14px"
+    gap: "14px",
+    flexWrap: "wrap"
   },
+
   userInfo: {
     textAlign: "right",
     color: "#54607a"
   },
+
   userRole: {
     marginTop: "4px",
     color: "#777"
   },
+
   logoutButton: {
     backgroundColor: "#cfa52b",
     color: "#fff",
@@ -207,10 +264,16 @@ const styles = {
     borderRadius: "12px",
     padding: "10px 18px",
     fontWeight: "700",
-    cursor: "pointer"
+    cursor: "pointer",
+    flexShrink: 0
   },
+
   content: {
-    padding: "18px 24px 24px 24px"
+    width: "100%",
+    maxWidth: "100%",
+    padding: "18px 16px 24px 16px",
+    boxSizing: "border-box",
+    overflowX: "hidden"
   }
 };
 

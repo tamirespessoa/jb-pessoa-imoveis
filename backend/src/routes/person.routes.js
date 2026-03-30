@@ -10,6 +10,13 @@ const {
   deletePerson
 } = require("../controllers/person.controller");
 
+console.log("authMiddleware:", typeof authMiddleware);
+console.log("createPerson:", typeof createPerson);
+console.log("listPersons:", typeof listPersons);
+console.log("getPersonById:", typeof getPersonById);
+console.log("updatePerson:", typeof updatePerson);
+console.log("deletePerson:", typeof deletePerson);
+
 router.post("/", authMiddleware, createPerson);
 router.get("/", authMiddleware, listPersons);
 router.get("/:id", authMiddleware, getPersonById);

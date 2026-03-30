@@ -41,6 +41,7 @@ model Person {
   properties          Property[]
   clientAppointments  Appointment[] @relation("clientAppointments")
   documents           Document[]
+  proposals           Proposal[] @relation("ProposalClient")
 
   @@map("persons")
 }
@@ -56,7 +57,7 @@ model Property {
   area          Float
   rooms         Int
   bathrooms     Int
-  garage         Int?
+  garage        Int?
   street        String
   number        String
   complement    String?
@@ -69,9 +70,10 @@ model Property {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  owner         Person   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner         Person     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   documents     Document[]
   appointments  Appointment[]
+  proposals     Proposal[] @relation("ProposalProperty")
 
   @@index([ownerId])
   @@map("properties")
@@ -114,4 +116,22 @@ model Appointment {
   @@index([propertyId])
   @@index([clientId])
   @@map("appointments")
+}
+
+model Proposal {
+  id         String   @id @default(cuid())
+  propertyId String
+  clientId   String
+  value      Float
+  status     String   @default("PENDENTE") // PENDENTE, ACEITA, RECUSADA, etc.
+  notes      String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  property   Property @relation("ProposalProperty", fields: [propertyId], references: [id], onDelete: Cascade)
+  client     Person   @relation("ProposalClient", fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([propertyId])
+  @@index([clientId])
+  @@map("proposals")
 }

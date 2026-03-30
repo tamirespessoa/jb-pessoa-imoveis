@@ -9,6 +9,7 @@ const personRoutes = require("./src/routes/person.routes");
 const propertyRoutes = require("./src/routes/property.routes");
 const documentRoutes = require("./src/routes/document.routes");
 const appointmentRoutes = require("./src/routes/appointment.routes");
+const proposalRoutes = require("./src/routes/proposal.routes"); // 👈 ADICIONE
 
 const app = express();
 
@@ -48,6 +49,7 @@ app.use("/persons", personRoutes);
 app.use("/properties", propertyRoutes);
 app.use("/documents", documentRoutes);
 app.use("/appointments", appointmentRoutes);
+app.use("/proposals", proposalRoutes); // 👈 ADICIONE ESTA LINHA
 
 const PORT = process.env.PORT || 10000;
 

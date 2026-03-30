@@ -34,7 +34,7 @@ async function createPerson(req, res) {
         commercialPhone,
         residentialPhone,
         contactPhone,
-        whatsapp
+        whatsapp: whatsapp === undefined ? null : Boolean(whatsapp)
       }
     });
 
@@ -148,7 +148,7 @@ async function updatePerson(req, res) {
         commercialPhone,
         residentialPhone,
         contactPhone,
-        whatsapp
+        whatsapp: whatsapp === undefined ? null : Boolean(whatsapp)
       }
     });
 

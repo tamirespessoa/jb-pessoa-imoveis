@@ -23,7 +23,8 @@ function Dashboard() {
         const documents = documentsRes.data || [];
 
         setMetrics({
-          clients: persons.filter((item) => item.type === "CLIENTE_COMPRADOR").length,
+          // 🔥 corrigido para CLIENTE
+          clients: persons.filter((item) => item.type === "CLIENTE").length,
           owners: persons.filter((item) => item.type === "PROPRIETARIO").length,
           properties: properties.length,
           documents: documents.length
@@ -37,16 +38,22 @@ function Dashboard() {
   }, []);
 
   return (
-    <div>
+    <div style={styles.page}>
       <div style={styles.gridTop}>
         <div style={styles.bigCard}>
           <div style={styles.cardTitle}>Meus imóveis</div>
           <div style={styles.bigNumber}>{metrics.properties}</div>
           <div style={styles.subtitle}>ativos</div>
 
-          <div style={styles.infoLine}><span style={styles.gold}>0</span> publicados no site</div>
-          <div style={styles.infoLine}><span style={styles.blue}>0</span> captados no mês</div>
-          <div style={styles.infoLine}><span style={styles.red}>0</span> desatualizados</div>
+          <div style={styles.infoLine}>
+            <span style={styles.gold}>0</span> publicados no site
+          </div>
+          <div style={styles.infoLine}>
+            <span style={styles.blue}>0</span> captados no mês
+          </div>
+          <div style={styles.infoLine}>
+            <span style={styles.red}>0</span> desatualizados
+          </div>
         </div>
 
         <div style={styles.bigCard}>
@@ -54,8 +61,12 @@ function Dashboard() {
           <div style={styles.bigNumber}>{metrics.clients}</div>
           <div style={styles.subtitle}>ativos</div>
 
-          <div style={styles.infoLine}><span style={styles.blue}>0</span> captados no mês</div>
-          <div style={styles.infoLine}><span style={styles.red}>0</span> desatualizados</div>
+          <div style={styles.infoLine}>
+            <span style={styles.blue}>0</span> captados no mês
+          </div>
+          <div style={styles.infoLine}>
+            <span style={styles.red}>0</span> desatualizados
+          </div>
         </div>
       </div>
 
@@ -80,12 +91,23 @@ function Dashboard() {
 }
 
 const styles = {
+  page: {
+    width: "100%",
+    maxWidth: "1280px",
+    margin: "0 auto",
+    padding: "20px",
+    boxSizing: "border-box",
+    overflowX: "hidden"
+  },
+
+  // 🔥 grid responsivo (antes era fixo)
   gridTop: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
     gap: "24px",
     marginBottom: "24px"
   },
+
   bigCard: {
     backgroundColor: "#fff",
     borderRadius: "18px",
@@ -93,11 +115,13 @@ const styles = {
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     minHeight: "240px"
   },
+
   cardTitle: {
     fontSize: "18px",
     color: "#596674",
     marginBottom: "24px"
   },
+
   bigNumber: {
     fontSize: "66px",
     textAlign: "center",
@@ -105,6 +129,7 @@ const styles = {
     fontWeight: "500",
     lineHeight: 1
   },
+
   subtitle: {
     textAlign: "center",
     color: "#6c747d",
@@ -112,28 +137,35 @@ const styles = {
     marginTop: "6px",
     marginBottom: "24px"
   },
+
   infoLine: {
     fontSize: "16px",
     color: "#434b55",
     marginBottom: "8px"
   },
+
   gold: {
     color: "#c7a22b",
     fontWeight: "700"
   },
+
   blue: {
     color: "#2d63d6",
     fontWeight: "700"
   },
+
   red: {
     color: "#db3d3d",
     fontWeight: "700"
   },
+
+  // 🔥 grid responsivo também aqui
   gridBottom: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
+    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
     gap: "24px"
   },
+
   smallCard: {
     backgroundColor: "#fff",
     borderRadius: "18px",
@@ -141,12 +173,14 @@ const styles = {
     boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
     minHeight: "130px"
   },
+
   smallTitle: {
     fontSize: "18px",
     color: "#4b5560",
     marginBottom: "18px",
     fontWeight: "600"
   },
+
   smallNumber: {
     fontSize: "56px",
     color: "#c7a22b",

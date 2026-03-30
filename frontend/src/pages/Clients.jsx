@@ -13,7 +13,7 @@ function Clients() {
   const [editingId, setEditingId] = useState(null);
 
   const [form, setForm] = useState({
-    type: "CLIENTE_COMPRADOR",
+    type: "CLIENTE",
     fullName: "",
     cpf: "",
     rg: "",
@@ -29,8 +29,9 @@ function Clients() {
   async function loadClients(selectId = null) {
     try {
       const response = await api.get("/persons");
+
       const filtered = response.data.filter(
-        (item) => item.type === "CLIENTE_COMPRADOR"
+        (item) => item.type === "CLIENTE"
       );
 
       setClients(filtered);
@@ -47,7 +48,7 @@ function Clients() {
         handleSelectClient(filtered[0]);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao carregar clientes:", error.response?.data || error.message);
       alert("Erro ao carregar clientes.");
     }
   }
@@ -85,7 +86,7 @@ function Clients() {
     setEditingId(client.id);
 
     setForm({
-      type: "CLIENTE_COMPRADOR",
+      type: "CLIENTE",
       fullName: client.fullName || "",
       cpf: client.cpf || "",
       rg: client.rg || "",
@@ -105,7 +106,7 @@ function Clients() {
     setShowMenu(false);
 
     setForm({
-      type: "CLIENTE_COMPRADOR",
+      type: "CLIENTE",
       fullName: "",
       cpf: "",
       rg: "",
@@ -133,7 +134,7 @@ function Clients() {
 
     try {
       const payload = {
-        type: "CLIENTE_COMPRADOR",
+        type: "CLIENTE",
         fullName: form.fullName,
         cpf: form.cpf,
         rg: form.rg,
@@ -149,14 +150,14 @@ function Clients() {
       if (editingId) {
         const response = await api.put(`/persons/${editingId}`, payload);
         alert("Cliente atualizado com sucesso.");
-        await loadClients(response.data.person.id);
+        await loadClients(response.data.person?.id || editingId);
       } else {
         const response = await api.post("/persons", payload);
         alert("Cliente cadastrado com sucesso.");
-        await loadClients(response.data.person.id);
+        await loadClients(response.data.person?.id || null);
       }
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao salvar cliente:", error.response?.data || error.message);
       alert("Erro ao salvar cliente.");
     }
   }
@@ -176,7 +177,7 @@ function Clients() {
       handleNewClient();
       await loadClients();
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao excluir cliente:", error.response?.data || error.message);
       alert("Erro ao excluir cliente.");
     }
   }
@@ -251,7 +252,7 @@ E-mail: ${selectedClient.email || "-"}
       await navigator.clipboard.writeText(text);
       alert("Resumo do cliente copiado.");
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao copiar resumo:", error);
       alert("Não foi possível copiar o resumo.");
     }
   }
