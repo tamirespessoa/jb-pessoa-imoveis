@@ -1,209 +1,411 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
 
-export default function Appointments() {
-  const [appointments, setAppointments] = useState([]); // sempre array!
+function Appointments() {
+  const [appointments, setAppointments] = useState([]);
   const [clients, setClients] = useState([]);
   const [properties, setProperties] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState(null);
+  const [error, setError] = useState("");
 
   const [form, setForm] = useState({
     clientId: "",
     propertyId: "",
     date: "",
     time: "",
-    status: "PENDENTE",
-    notes: ""
+    status: "AGENDADO",
+    notes: "",
+    outcome: ""
   });
-  const [editingId, setEditingId] = useState(null);
-  const [formMsg, setFormMsg] = useState("");
 
-  useEffect(() => {
-    fetchAll();
-    // eslint-disable-next-line
-  }, []);
-
-  async function fetchAll() {
-    setLoading(true);
+  async function loadClients() {
     try {
-      const [a, c, p] = await Promise.all([
-        api.get("/appointments"),
-        api.get("/persons"),
-        api.get("/properties"),
-      ]);
-      // Corrige: se data NÃO é array, tente a.data.data ou []
-      setAppointments(
-        Array.isArray(a.data)
-          ? a.data
-          : Array.isArray(a.data.data)
-          ? a.data.data
-          : []
+      const response = await api.get("/persons");
+      const list = (response.data || []).filter(
+        (item) => item.type === "CLIENTE"
       );
-      setClients(
-        Array.isArray(c.data)
-          ? c.data.filter((cl) => cl.type === "CLIENTE")
-          : Array.isArray(c.data.data)
-          ? c.data.data.filter((cl) => cl.type === "CLIENTE")
-          : []
-      );
-      setProperties(
-        Array.isArray(p.data)
-          ? p.data
-          : Array.isArray(p.data.data)
-          ? p.data.data
-          : []
-      );
-      setLoading(false);
+      setClients(list);
     } catch (err) {
-      setAppointments([]);
-      setClients([]);
-      setProperties([]);
-      setLoading(false);
+      console.error("Erro ao carregar clientes:", err.response?.data || err.message);
     }
   }
 
-  function handleChange(e) {
-    const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+  async function loadProperties() {
+    try {
+      const response = await api.get("/properties");
+      setProperties(response.data || []);
+    } catch (err) {
+      console.error("Erro ao carregar imóveis:", err.response?.data || err.message);
+    }
   }
 
-  function handleEdit(app) {
-    setEditingId(app.id);
-    setForm({
-      clientId: app.clientId || "",
-      propertyId: app.propertyId || "",
-      date: app.date ? app.date.slice(0, 10) : "",
-      time: app.date ? app.date.slice(11, 16) : "",
-      status: app.status || "PENDENTE",
-      notes: app.notes || ""
-    });
-    setFormMsg("");
+  async function loadAppointments() {
+    try {
+      const response = await api.get("/appointments");
+      setAppointments(response.data || []);
+    } catch (err) {
+      console.error("Erro ao carregar agendamentos:", err.response?.data || err.message);
+    }
+  }
+
+  useEffect(() => {
+    loadClients();
+    loadProperties();
+    loadAppointments();
+  }, []);
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: value
+    }));
   }
 
   function handleNew() {
     setEditingId(null);
+    setError("");
     setForm({
       clientId: "",
       propertyId: "",
       date: "",
       time: "",
-      status: "PENDENTE",
-      notes: ""
+      status: "AGENDADO",
+      notes: "",
+      outcome: ""
     });
-    setFormMsg("");
+  }
+
+  function formatDateToInput(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toISOString().slice(0, 10);
+  }
+
+  function formatTimeToInput(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "";
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    return `${hours}:${minutes}`;
+  }
+
+  function handleEdit(appointment) {
+    setEditingId(appointment.id);
+    setError("");
+
+    setForm({
+      clientId: appointment.clientId || "",
+      propertyId: appointment.propertyId || "",
+      date: formatDateToInput(appointment.appointmentDate),
+      time: formatTimeToInput(appointment.appointmentDate),
+      status: appointment.status || "AGENDADO",
+      notes: appointment.notes || "",
+      outcome: appointment.outcome || ""
+    });
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
-    setFormMsg("");
-    const fullDate = form.date && form.time ? `${form.date}T${form.time}` : "";
-    const payload = {
-      clientId: form.clientId,
-      propertyId: form.propertyId,
-      date: fullDate,
-      status: form.status,
-      notes: form.notes
-    };
+
+    if (!form.clientId) {
+      setError("Selecione o cliente.");
+      return;
+    }
+
+    if (!form.propertyId) {
+      setError("Selecione o imóvel.");
+      return;
+    }
+
+    if (!form.date) {
+      setError("Selecione a data.");
+      return;
+    }
+
+    if (!form.time) {
+      setError("Selecione o horário.");
+      return;
+    }
 
     try {
+      setError("");
+
+      const payload = {
+        clientId: String(form.clientId).trim(),
+        propertyId: String(form.propertyId).trim(),
+        appointmentDate: `${form.date}T${form.time}:00`,
+        duration: 60,
+        status: form.status || "AGENDADO",
+        notes: form.notes?.trim() || null,
+        outcome: form.outcome?.trim() || null
+      };
+
+      console.log("Payload do agendamento:", JSON.stringify(payload, null, 2));
+
       if (editingId) {
         await api.put(`/appointments/${editingId}`, payload);
-        setFormMsg("Agendamento atualizado!");
+        alert("Agendamento atualizado com sucesso.");
       } else {
         await api.post("/appointments", payload);
-        setFormMsg("Agendamento criado!");
+        alert("Agendamento criado com sucesso.");
       }
+
+      await loadAppointments();
       handleNew();
-      fetchAll();
-    } catch {
-      setFormMsg("Erro ao salvar agendamento!");
+    } catch (err) {
+      console.error("Erro ao salvar agendamento:", err);
+      console.error("Status:", err.response?.status);
+      console.error(
+        "Resposta da API:",
+        JSON.stringify(err.response?.data, null, 2)
+      );
+
+      const apiMessage =
+        err.response?.data?.error ||
+        err.response?.data?.details ||
+        err.message;
+
+      alert(`Erro ao salvar agendamento:\n${apiMessage}`);
+      setError(apiMessage || "Erro ao salvar agendamento.");
     }
   }
 
   async function handleDelete(id) {
-    if (!window.confirm("Excluir este agendamento?")) return;
+    const confirmed = window.confirm("Deseja excluir este agendamento?");
+    if (!confirmed) return;
+
     try {
       await api.delete(`/appointments/${id}`);
-      fetchAll();
-    } catch {
-      alert("Erro ao excluir agendamento!");
+      alert("Agendamento excluído com sucesso.");
+      await loadAppointments();
+
+      if (editingId === id) {
+        handleNew();
+      }
+    } catch (err) {
+      console.error("Erro ao excluir agendamento:", err.response?.data || err.message);
+      setError("Erro ao excluir agendamento.");
     }
   }
 
+  const orderedAppointments = useMemo(() => {
+    return [...appointments].sort(
+      (a, b) => new Date(a.appointmentDate) - new Date(b.appointmentDate)
+    );
+  }, [appointments]);
+
+  function formatDateTime(dateValue) {
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "-";
+
+    return date.toLocaleString("pt-BR", {
+      dateStyle: "short",
+      timeStyle: "short"
+    });
+  }
+
   return (
-    <div style={{ padding: 24 }}>
-      <h1>Agendamentos / Visitas</h1>
-      <form onSubmit={handleSubmit} style={{ background: "#eee", padding: 16, borderRadius: 8, marginBottom: 24 }}>
-        <select required name="clientId" value={form.clientId} onChange={handleChange} style={{ marginRight: 8 }}>
-          <option value="">Cliente</option>
-          {clients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.fullName}
+    <div style={styles.page}>
+      <h1 style={styles.title}>Agendamentos / Visitas</h1>
+
+      <form onSubmit={handleSubmit} style={styles.formRow}>
+        <select
+          name="clientId"
+          value={form.clientId}
+          onChange={handleChange}
+          style={styles.input}
+        >
+          <option value="">Selecione o cliente</option>
+          {clients.map((client) => (
+            <option key={client.id} value={client.id}>
+              {client.fullName}
             </option>
           ))}
         </select>
-        <select required name="propertyId" value={form.propertyId} onChange={handleChange} style={{ marginRight: 8 }}>
-          <option value="">Imóvel</option>
-          {properties.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.title}
+
+        <select
+          name="propertyId"
+          value={form.propertyId}
+          onChange={handleChange}
+          style={styles.input}
+        >
+          <option value="">Selecione o imóvel</option>
+          {properties.map((property) => (
+            <option key={property.id} value={property.id}>
+              {property.title}
             </option>
           ))}
         </select>
-        <input required name="date" type="date" value={form.date} onChange={handleChange} style={{ marginRight: 8 }} />
-        <input required name="time" type="time" value={form.time} onChange={handleChange} style={{ marginRight: 8, width: 120 }} />
-        <select name="status" value={form.status} onChange={handleChange} style={{ marginRight: 8 }}>
-          <option value="PENDENTE">PENDENTE</option>
-          <option value="REALIZADO">REALIZADO</option>
+
+        <input
+          type="date"
+          name="date"
+          value={form.date}
+          onChange={handleChange}
+          style={styles.input}
+        />
+
+        <input
+          type="time"
+          name="time"
+          value={form.time}
+          onChange={handleChange}
+          style={styles.input}
+        />
+
+        <select
+          name="status"
+          value={form.status}
+          onChange={handleChange}
+          style={styles.input}
+        >
+          <option value="AGENDADO">AGENDADO</option>
+          <option value="CONFIRMADO">CONFIRMADO</option>
           <option value="CANCELADO">CANCELADO</option>
+          <option value="REALIZADO">REALIZADO</option>
+          <option value="NAO_COMPARECEU">NAO_COMPARECEU</option>
         </select>
-        <input name="notes" placeholder="Observações" value={form.notes} onChange={handleChange} style={{ marginRight: 8, width: 200 }} />
-        <button type="submit">{editingId ? "Atualizar" : "Criar"}</button>
-        <button type="button" onClick={handleNew} style={{ marginLeft: 8 }}>Novo</button>
-        {formMsg && <span style={{ marginLeft: 12, color: formMsg.includes("Erro") ? "red" : "green" }}>{formMsg}</span>}
+
+        <input
+          type="text"
+          name="notes"
+          value={form.notes}
+          onChange={handleChange}
+          placeholder="Observações"
+          style={styles.inputNotes}
+        />
+
+        <button type="submit" style={styles.button}>
+          {editingId ? "Atualizar" : "Criar"}
+        </button>
+
+        <button type="button" onClick={handleNew} style={styles.buttonSecondary}>
+          Novo
+        </button>
       </form>
 
-      {loading ? (
-        <p>Carregando...</p>
-      ) : appointments.length === 0 ? (
-        <p>Nenhum agendamento.</p>
-      ) : (
-        <table border={1} cellPadding={6} style={{ width: "100%" }}>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Cliente</th>
-              <th>Imóvel</th>
-              <th>Data</th>
-              <th>Status</th>
-              <th>Obs</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Só faz o .map se for array! */}
-            {Array.isArray(appointments) &&
-              appointments.map((app) => (
-                <tr key={app.id}>
-                  <td>{app.id}</td>
-                  <td>{app.client?.fullName || "-"}</td>
-                  <td>{app.property?.title || "-"}</td>
-                  <td>
-                    {app.date
-                      ? new Date(app.date).toLocaleString("pt-BR")
-                      : ""}
-                  </td>
-                  <td>{app.status}</td>
-                  <td>{app.notes}</td>
-                  <td>
-                    <button onClick={() => handleEdit(app)} style={{ marginRight: 8 }}>Editar</button>
-                    <button onClick={() => handleDelete(app.id)} style={{ color: "red" }}>Excluir</button>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      )}
+      {error && <p style={styles.error}>{error}</p>}
+
+      <div style={styles.list}>
+        {orderedAppointments.length === 0 ? (
+          <p>Nenhum agendamento.</p>
+        ) : (
+          orderedAppointments.map((appointment) => (
+            <div key={appointment.id} style={styles.card}>
+              <div style={styles.cardTitle}>
+                {appointment.client?.fullName || "-"} — {appointment.property?.title || "-"}
+              </div>
+
+              <div style={styles.cardText}>
+                <strong>Data:</strong> {formatDateTime(appointment.appointmentDate)}
+              </div>
+
+              <div style={styles.cardText}>
+                <strong>Status:</strong> {appointment.status || "-"}
+              </div>
+
+              <div style={styles.cardText}>
+                <strong>Observações:</strong> {appointment.notes || "-"}
+              </div>
+
+              <div style={styles.actions}>
+                <button
+                  type="button"
+                  onClick={() => handleEdit(appointment)}
+                  style={styles.smallButton}
+                >
+                  Editar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDelete(appointment.id)}
+                  style={styles.smallDelete}
+                >
+                  Excluir
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
+
+const styles = {
+  page: {
+    padding: "32px"
+  },
+  title: {
+    marginBottom: "24px",
+    fontSize: "28px"
+  },
+  formRow: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "10px",
+    alignItems: "center",
+    marginBottom: "20px"
+  },
+  input: {
+    padding: "10px",
+    fontSize: "16px",
+    minWidth: "180px"
+  },
+  inputNotes: {
+    padding: "10px",
+    fontSize: "16px",
+    minWidth: "220px"
+  },
+  button: {
+    padding: "10px 16px",
+    border: "none",
+    cursor: "pointer"
+  },
+  buttonSecondary: {
+    padding: "10px 16px",
+    border: "none",
+    cursor: "pointer"
+  },
+  error: {
+    color: "red",
+    marginBottom: "16px"
+  },
+  list: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px"
+  },
+  card: {
+    border: "1px solid #ddd",
+    padding: "14px",
+    borderRadius: "8px"
+  },
+  cardTitle: {
+    fontWeight: "bold",
+    marginBottom: "8px"
+  },
+  cardText: {
+    marginBottom: "6px"
+  },
+  actions: {
+    display: "flex",
+    gap: "8px",
+    marginTop: "10px"
+  },
+  smallButton: {
+    padding: "8px 12px",
+    border: "none",
+    cursor: "pointer"
+  },
+  smallDelete: {
+    padding: "8px 12px",
+    border: "none",
+    cursor: "pointer"
+  }
+};
+
+export default Appointments;
