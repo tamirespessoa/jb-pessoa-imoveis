@@ -1,13 +1,18 @@
 const express = require("express");
 const router = express.Router();
-const authMiddleware = require("../middlewares/auth.middleware");
-const upload = require("../middlewares/upload.middleware");
+
 const {
-  uploadDocument,
-  listDocuments
+  createDocument,
+  listDocuments,
+  getDocumentById,
+  updateDocument,
+  deleteDocument
 } = require("../controllers/document.controller");
 
-router.post("/", authMiddleware, upload.single("file"), uploadDocument);
-router.get("/", authMiddleware, listDocuments);
+router.post("/", createDocument);
+router.get("/", listDocuments);
+router.get("/:id", getDocumentById);
+router.put("/:id", updateDocument);
+router.delete("/:id", deleteDocument);
 
 module.exports = router;
