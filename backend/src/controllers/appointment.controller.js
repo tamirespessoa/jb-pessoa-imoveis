@@ -25,21 +25,15 @@ async function createAppointment(req, res) {
     } = req.body;
 
     if (!propertyId || !String(propertyId).trim()) {
-      return res.status(400).json({
-        error: "Imóvel é obrigatório."
-      });
+      return res.status(400).json({ error: "Imóvel é obrigatório." });
     }
 
     if (!clientId || !String(clientId).trim()) {
-      return res.status(400).json({
-        error: "Cliente é obrigatório."
-      });
+      return res.status(400).json({ error: "Cliente é obrigatório." });
     }
 
     if (!appointmentDate || !String(appointmentDate).trim()) {
-      return res.status(400).json({
-        error: "Data do agendamento é obrigatória."
-      });
+      return res.status(400).json({ error: "Data do agendamento é obrigatória." });
     }
 
     const propertyExists = await prisma.property.findUnique({
@@ -47,9 +41,7 @@ async function createAppointment(req, res) {
     });
 
     if (!propertyExists) {
-      return res.status(400).json({
-        error: "Imóvel não encontrado."
-      });
+      return res.status(400).json({ error: "Imóvel não encontrado." });
     }
 
     const clientExists = await prisma.person.findUnique({
@@ -57,17 +49,27 @@ async function createAppointment(req, res) {
     });
 
     if (!clientExists) {
-      return res.status(400).json({
-        error: "Cliente não encontrado."
-      });
+      return res.status(400).json({ error: "Cliente não encontrado." });
     }
 
     const parsedDate = new Date(appointmentDate);
 
     if (Number.isNaN(parsedDate.getTime())) {
-      return res.status(400).json({
-        error: "Data do agendamento inválida."
-      });
+      return res.status(400).json({ error: "Data do agendamento inválida." });
+    }
+
+    const validStatuses = [
+      "AGENDADO",
+      "CONFIRMADO",
+      "CANCELADO",
+      "REALIZADO",
+      "NAO_COMPARECEU"
+    ];
+
+    const finalStatus = normalizeString(status) || "AGENDADO";
+
+    if (!validStatuses.includes(finalStatus)) {
+      return res.status(400).json({ error: "Status inválido." });
     }
 
     const appointment = await prisma.appointment.create({
@@ -76,7 +78,7 @@ async function createAppointment(req, res) {
         clientId: String(clientId).trim(),
         appointmentDate: parsedDate,
         duration: toInt(duration, 60),
-        status: normalizeString(status) || "AGENDADO",
+        status: finalStatus,
         notes: normalizeString(notes),
         outcome: normalizeString(outcome)
       },
@@ -177,6 +179,7 @@ async function updateAppointment(req, res) {
 
     let finalPropertyId = existing.propertyId;
     let finalClientId = existing.clientId;
+    let finalDate = existing.appointmentDate;
 
     if (propertyId !== undefined) {
       const propertyExists = await prisma.property.findUnique({
@@ -184,9 +187,7 @@ async function updateAppointment(req, res) {
       });
 
       if (!propertyExists) {
-        return res.status(400).json({
-          error: "Imóvel não encontrado."
-        });
+        return res.status(400).json({ error: "Imóvel não encontrado." });
       }
 
       finalPropertyId = String(propertyId).trim();
@@ -198,26 +199,40 @@ async function updateAppointment(req, res) {
       });
 
       if (!clientExists) {
-        return res.status(400).json({
-          error: "Cliente não encontrado."
-        });
+        return res.status(400).json({ error: "Cliente não encontrado." });
       }
 
       finalClientId = String(clientId).trim();
     }
 
-    let finalDate = existing.appointmentDate;
-
     if (appointmentDate !== undefined) {
       const parsedDate = new Date(appointmentDate);
 
       if (Number.isNaN(parsedDate.getTime())) {
-        return res.status(400).json({
-          error: "Data do agendamento inválida."
-        });
+        return res.status(400).json({ error: "Data do agendamento inválida." });
       }
 
       finalDate = parsedDate;
+    }
+
+    const validStatuses = [
+      "AGENDADO",
+      "CONFIRMADO",
+      "CANCELADO",
+      "REALIZADO",
+      "NAO_COMPARECEU"
+    ];
+
+    let finalStatus = existing.status;
+
+    if (status !== undefined) {
+      const normalizedStatus = normalizeString(status) || "AGENDADO";
+
+      if (!validStatuses.includes(normalizedStatus)) {
+        return res.status(400).json({ error: "Status inválido." });
+      }
+
+      finalStatus = normalizedStatus;
     }
 
     const appointment = await prisma.appointment.update({
@@ -228,14 +243,9 @@ async function updateAppointment(req, res) {
         appointmentDate: finalDate,
         duration:
           duration !== undefined ? toInt(duration, 60) : existing.duration,
-        status:
-          status !== undefined
-            ? normalizeString(status) || "AGENDADO"
-            : existing.status,
-        notes:
-          notes !== undefined ? normalizeString(notes) : existing.notes,
-        outcome:
-          outcome !== undefined ? normalizeString(outcome) : existing.outcome
+        status: finalStatus,
+        notes: notes !== undefined ? normalizeString(notes) : existing.notes,
+        outcome: outcome !== undefined ? normalizeString(outcome) : existing.outcome
       },
       include: {
         property: true,
