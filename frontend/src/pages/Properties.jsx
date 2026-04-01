@@ -16,27 +16,42 @@ function Properties() {
   const [form, setForm] = useState({
     title: "",
     code: "",
-    description: "",
-    purpose: "",
     type: "",
+    status: "DISPONIVEL",
     price: "",
-    condominiumFee: "",
-    iptuValue: "",
-    status: "",
-    bedrooms: "",
+    rentPrice: "",
+    area: "",
+    rooms: "",
     bathrooms: "",
-    suites: "",
-    parkingSpaces: "",
-    builtArea: "",
-    landArea: "",
-    zipCode: "",
+    garage: "",
     street: "",
     number: "",
+    complement: "",
+    zipCode: "",
     district: "",
     city: "",
     state: "",
+    description: "",
     ownerId: ""
   });
+
+  function normalizeString(value) {
+    if (value === undefined || value === null) return null;
+    const text = String(value).trim();
+    return text === "" ? null : text;
+  }
+
+  function numberOrNull(value) {
+    if (value === "" || value === null || value === undefined) return null;
+    const parsed = Number(value);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
+
+  function intOrNull(value) {
+    if (value === "" || value === null || value === undefined) return null;
+    const parsed = parseInt(value, 10);
+    return Number.isNaN(parsed) ? null : parsed;
+  }
 
   async function loadProperties(selectId = null) {
     try {
@@ -56,7 +71,10 @@ function Properties() {
         handleSelectProperty(list[0]);
       }
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Erro ao carregar imóveis:",
+        error.response?.data || error.message
+      );
       alert("Erro ao carregar imóveis.");
     }
   }
@@ -64,12 +82,15 @@ function Properties() {
   async function loadOwners() {
     try {
       const response = await api.get("/persons");
-      const filtered = response.data.filter(
+      const filtered = (response.data || []).filter(
         (item) => item.type === "PROPRIETARIO"
       );
       setOwners(filtered);
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Erro ao carregar proprietários:",
+        error.response?.data || error.message
+      );
       alert("Erro ao carregar proprietários.");
     }
   }
@@ -97,7 +118,7 @@ function Properties() {
 
   const filteredProperties = useMemo(() => {
     return properties.filter((property) =>
-      `${property.title} ${property.code} ${property.city || ""} ${
+      `${property.title || ""} ${property.code || ""} ${property.city || ""} ${
         property.owner?.fullName || ""
       }`
         .toLowerCase()
@@ -112,25 +133,22 @@ function Properties() {
     setForm({
       title: property.title || "",
       code: property.code || "",
-      description: property.description || "",
-      purpose: property.purpose || "",
       type: property.type || "",
+      status: property.status || "DISPONIVEL",
       price: property.price ?? "",
-      condominiumFee: property.condominiumFee ?? "",
-      iptuValue: property.iptuValue ?? "",
-      status: property.status || "",
-      bedrooms: property.bedrooms ?? "",
+      rentPrice: property.rentPrice ?? "",
+      area: property.area ?? "",
+      rooms: property.rooms ?? "",
       bathrooms: property.bathrooms ?? "",
-      suites: property.suites ?? "",
-      parkingSpaces: property.parkingSpaces ?? "",
-      builtArea: property.builtArea ?? "",
-      landArea: property.landArea ?? "",
-      zipCode: property.zipCode || "",
+      garage: property.garage ?? "",
       street: property.street || "",
       number: property.number || "",
+      complement: property.complement || "",
+      zipCode: property.zipCode || "",
       district: property.district || "",
       city: property.city || "",
       state: property.state || "",
+      description: property.description || "",
       ownerId: property.ownerId ? String(property.ownerId) : ""
     });
   }
@@ -143,77 +161,175 @@ function Properties() {
     setForm({
       title: "",
       code: "",
-      description: "",
-      purpose: "",
       type: "",
+      status: "DISPONIVEL",
       price: "",
-      condominiumFee: "",
-      iptuValue: "",
-      status: "",
-      bedrooms: "",
+      rentPrice: "",
+      area: "",
+      rooms: "",
       bathrooms: "",
-      suites: "",
-      parkingSpaces: "",
-      builtArea: "",
-      landArea: "",
-      zipCode: "",
+      garage: "",
       street: "",
       number: "",
+      complement: "",
+      zipCode: "",
       district: "",
       city: "",
       state: "",
+      description: "",
       ownerId: ""
     });
   }
 
   function handleChange(e) {
+    const { name, value } = e.target;
+
     setForm((prev) => ({
       ...prev,
-      [e.target.name]: e.target.value
+      [name]: value
     }));
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!form.title.trim()) {
+      alert("Título do imóvel é obrigatório.");
+      return;
+    }
+
+    if (!form.code.trim()) {
+      alert("Código é obrigatório.");
+      return;
+    }
+
+    if (!form.type.trim()) {
+      alert("Tipo é obrigatório.");
+      return;
+    }
+
+    if (!form.price.toString().trim()) {
+      alert("Preço é obrigatório.");
+      return;
+    }
+
+    if (!form.area.toString().trim()) {
+      alert("Área é obrigatória.");
+      return;
+    }
+
+    if (!form.rooms.toString().trim()) {
+      alert("Quantidade de quartos é obrigatória.");
+      return;
+    }
+
+    if (!form.bathrooms.toString().trim()) {
+      alert("Quantidade de banheiros é obrigatória.");
+      return;
+    }
+
+    if (!form.street.trim()) {
+      alert("Rua é obrigatória.");
+      return;
+    }
+
+    if (!form.number.trim()) {
+      alert("Número é obrigatório.");
+      return;
+    }
+
+    if (!form.zipCode.trim()) {
+      alert("CEP é obrigatório.");
+      return;
+    }
+
+    if (!form.district.trim()) {
+      alert("Bairro é obrigatório.");
+      return;
+    }
+
+    if (!form.city.trim()) {
+      alert("Cidade é obrigatória.");
+      return;
+    }
+
+    if (!form.state.trim()) {
+      alert("Estado é obrigatório.");
+      return;
+    }
+
+    if (!form.ownerId) {
+      alert("Selecione o proprietário.");
+      return;
+    }
+
+    const payload = {
+      title: form.title.trim(),
+      code: form.code.trim(),
+      type: form.type.trim(),
+      status: normalizeString(form.status) || "DISPONIVEL",
+      price: numberOrNull(form.price),
+      rentPrice: numberOrNull(form.rentPrice),
+      area: numberOrNull(form.area),
+      rooms: intOrNull(form.rooms),
+      bathrooms: intOrNull(form.bathrooms),
+      garage: intOrNull(form.garage),
+      street: form.street.trim(),
+      number: form.number.trim(),
+      complement: normalizeString(form.complement),
+      zipCode: form.zipCode.trim(),
+      district: form.district.trim(),
+      city: form.city.trim(),
+      state: form.state.trim(),
+      description: normalizeString(form.description),
+      ownerId: form.ownerId
+    };
+
+    if (payload.price === null) {
+      alert("Preço inválido.");
+      return;
+    }
+
+    if (payload.area === null) {
+      alert("Área inválida.");
+      return;
+    }
+
+    if (payload.rooms === null) {
+      alert("Quantidade de quartos inválida.");
+      return;
+    }
+
+    if (payload.bathrooms === null) {
+      alert("Quantidade de banheiros inválida.");
+      return;
+    }
+
     try {
-      const payload = {
-        title: form.title,
-        code: form.code,
-        description: form.description,
-        purpose: form.purpose,
-        type: form.type,
-        price: form.price,
-        condominiumFee: form.condominiumFee,
-        iptuValue: form.iptuValue,
-        status: form.status,
-        bedrooms: form.bedrooms,
-        bathrooms: form.bathrooms,
-        suites: form.suites,
-        parkingSpaces: form.parkingSpaces,
-        builtArea: form.builtArea,
-        landArea: form.landArea,
-        zipCode: form.zipCode,
-        street: form.street,
-        number: form.number,
-        district: form.district,
-        city: form.city,
-        state: form.state,
-        ownerId: form.ownerId || null
-      };
+      console.log("Enviando payload do imóvel:", payload);
 
       if (editingId) {
         const response = await api.put(`/properties/${editingId}`, payload);
         alert("Imóvel atualizado com sucesso.");
-        await loadProperties(response.data.property.id);
+        await loadProperties(response.data.property?.id || editingId);
       } else {
         const response = await api.post("/properties", payload);
         alert("Imóvel cadastrado com sucesso.");
-        await loadProperties(response.data.property.id);
+        await loadProperties(response.data.property?.id || null);
       }
     } catch (error) {
-      console.error(error);
-      alert("Erro ao salvar imóvel.");
+      console.error("Erro ao salvar imóvel:", error);
+      console.error("Status:", error.response?.status);
+      console.error("Resposta da API:", error.response?.data);
+
+      const apiMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.response?.data?.details ||
+        JSON.stringify(error.response?.data) ||
+        error.message;
+
+      alert(`Erro ao salvar imóvel:\n${apiMessage}`);
     }
   }
 
@@ -232,7 +348,10 @@ function Properties() {
       handleNewProperty();
       await loadProperties();
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Erro ao excluir imóvel:",
+        error.response?.data || error.message
+      );
       alert("Erro ao excluir imóvel.");
     }
   }
@@ -272,25 +391,22 @@ function Properties() {
         <body>
           <h1>${selectedProperty.title}</h1>
           <p><strong>Código:</strong> ${selectedProperty.code || "-"}</p>
-          <p><strong>Descrição:</strong> ${selectedProperty.description || "-"}</p>
-          <p><strong>Finalidade:</strong> ${selectedProperty.purpose || "-"}</p>
           <p><strong>Tipo:</strong> ${selectedProperty.type || "-"}</p>
-          <p><strong>Preço:</strong> ${selectedProperty.price ?? "-"}</p>
-          <p><strong>Condomínio:</strong> ${selectedProperty.condominiumFee ?? "-"}</p>
-          <p><strong>IPTU:</strong> ${selectedProperty.iptuValue ?? "-"}</p>
           <p><strong>Status:</strong> ${selectedProperty.status || "-"}</p>
-          <p><strong>Quartos:</strong> ${selectedProperty.bedrooms ?? "-"}</p>
+          <p><strong>Preço:</strong> ${selectedProperty.price ?? "-"}</p>
+          <p><strong>Aluguel:</strong> ${selectedProperty.rentPrice ?? "-"}</p>
+          <p><strong>Área:</strong> ${selectedProperty.area ?? "-"}</p>
+          <p><strong>Quartos:</strong> ${selectedProperty.rooms ?? "-"}</p>
           <p><strong>Banheiros:</strong> ${selectedProperty.bathrooms ?? "-"}</p>
-          <p><strong>Suítes:</strong> ${selectedProperty.suites ?? "-"}</p>
-          <p><strong>Vagas:</strong> ${selectedProperty.parkingSpaces ?? "-"}</p>
-          <p><strong>Área construída:</strong> ${selectedProperty.builtArea ?? "-"}</p>
-          <p><strong>Área terreno:</strong> ${selectedProperty.landArea ?? "-"}</p>
+          <p><strong>Garagem:</strong> ${selectedProperty.garage ?? "-"}</p>
           <p><strong>CEP:</strong> ${selectedProperty.zipCode || "-"}</p>
           <p><strong>Rua:</strong> ${selectedProperty.street || "-"}</p>
           <p><strong>Número:</strong> ${selectedProperty.number || "-"}</p>
+          <p><strong>Complemento:</strong> ${selectedProperty.complement || "-"}</p>
           <p><strong>Bairro:</strong> ${selectedProperty.district || "-"}</p>
           <p><strong>Cidade:</strong> ${selectedProperty.city || "-"}</p>
           <p><strong>Estado:</strong> ${selectedProperty.state || "-"}</p>
+          <p><strong>Descrição:</strong> ${selectedProperty.description || "-"}</p>
           <p><strong>Proprietário:</strong> ${selectedProperty.owner?.fullName || "-"}</p>
         </body>
       </html>
@@ -310,6 +426,7 @@ function Properties() {
     const text = `
 Imóvel: ${selectedProperty.title}
 Código: ${selectedProperty.code || "-"}
+Tipo: ${selectedProperty.type || "-"}
 Cidade: ${selectedProperty.city || "-"}
 Estado: ${selectedProperty.state || "-"}
 Proprietário: ${selectedProperty.owner?.fullName || "-"}
@@ -383,16 +500,32 @@ Preço: ${selectedProperty.price ?? "-"}
 
           {showMenu && (
             <div style={styles.dropdownMenu}>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenHistory}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenHistory}
+              >
                 Histórico do imóvel
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenDocuments}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenDocuments}
+              >
                 Documentos do imóvel
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenOwner}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenOwner}
+              >
                 Proprietário vinculado
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenVisits}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenVisits}
+              >
                 Visitas e negociações
               </button>
             </div>
@@ -406,8 +539,12 @@ Preço: ${selectedProperty.price ?? "-"}
             <h3 style={styles.leftPanelTitle}>Lista de imóveis</h3>
             <div style={styles.leftIcons}>
               <span>⏷</span>
-              <span onClick={handleRefresh} style={styles.iconClickable}>↻</span>
-              <span onClick={handleNewProperty} style={styles.iconClickable}>⊕</span>
+              <span onClick={handleRefresh} style={styles.iconClickable}>
+                ↻
+              </span>
+              <span onClick={handleNewProperty} style={styles.iconClickable}>
+                ⊕
+              </span>
             </div>
           </div>
 
@@ -490,36 +627,13 @@ Preço: ${selectedProperty.price ?? "-"}
               </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Finalidade</label>
-                <input
-                  style={styles.lineInput}
-                  name="purpose"
-                  value={form.purpose}
-                  onChange={handleChange}
-                  placeholder="Venda, Aluguel..."
-                />
-              </div>
-
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Tipo</label>
+                <label style={styles.label}>*Tipo</label>
                 <input
                   style={styles.lineInput}
                   name="type"
                   value={form.type}
                   onChange={handleChange}
                   placeholder="Casa, Apartamento..."
-                />
-              </div>
-            </div>
-
-            <div style={styles.rowDouble}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Descrição</label>
-                <input
-                  style={styles.lineInput}
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
                 />
               </div>
 
@@ -530,14 +644,14 @@ Preço: ${selectedProperty.price ?? "-"}
                   name="status"
                   value={form.status}
                   onChange={handleChange}
-                  placeholder="Disponível, Reservado..."
+                  placeholder="DISPONIVEL, VENDIDO, ALUGADO..."
                 />
               </div>
             </div>
 
-            <div style={styles.rowTriple}>
+            <div style={styles.rowDouble}>
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Preço</label>
+                <label style={styles.label}>*Preço de venda</label>
                 <input
                   style={styles.lineInput}
                   name="price"
@@ -547,21 +661,11 @@ Preço: ${selectedProperty.price ?? "-"}
               </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Condomínio</label>
+                <label style={styles.label}>Preço de aluguel</label>
                 <input
                   style={styles.lineInput}
-                  name="condominiumFee"
-                  value={form.condominiumFee}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>IPTU</label>
-                <input
-                  style={styles.lineInput}
-                  name="iptuValue"
-                  value={form.iptuValue}
+                  name="rentPrice"
+                  value={form.rentPrice}
                   onChange={handleChange}
                 />
               </div>
@@ -569,17 +673,27 @@ Preço: ${selectedProperty.price ?? "-"}
 
             <div style={styles.rowFour}>
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Quartos</label>
+                <label style={styles.label}>*Área</label>
                 <input
                   style={styles.lineInput}
-                  name="bedrooms"
-                  value={form.bedrooms}
+                  name="area"
+                  value={form.area}
                   onChange={handleChange}
                 />
               </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Banheiros</label>
+                <label style={styles.label}>*Quartos</label>
+                <input
+                  style={styles.lineInput}
+                  name="rooms"
+                  value={form.rooms}
+                  onChange={handleChange}
+                />
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>*Banheiros</label>
                 <input
                   style={styles.lineInput}
                   name="bathrooms"
@@ -589,47 +703,17 @@ Preço: ${selectedProperty.price ?? "-"}
               </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Suítes</label>
+                <label style={styles.label}>Garagem</label>
                 <input
                   style={styles.lineInput}
-                  name="suites"
-                  value={form.suites}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Vagas</label>
-                <input
-                  style={styles.lineInput}
-                  name="parkingSpaces"
-                  value={form.parkingSpaces}
+                  name="garage"
+                  value={form.garage}
                   onChange={handleChange}
                 />
               </div>
             </div>
 
-            <div style={styles.rowFour}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Área construída</label>
-                <input
-                  style={styles.lineInput}
-                  name="builtArea"
-                  value={form.builtArea}
-                  onChange={handleChange}
-                />
-              </div>
-
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Área terreno</label>
-                <input
-                  style={styles.lineInput}
-                  name="landArea"
-                  value={form.landArea}
-                  onChange={handleChange}
-                />
-              </div>
-
+            <div style={styles.rowDouble}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>CEP</label>
                 <input
@@ -651,7 +735,7 @@ Preço: ${selectedProperty.price ?? "-"}
               </div>
             </div>
 
-            <div style={styles.rowTriple}>
+            <div style={styles.rowDouble}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Rua</label>
                 <input
@@ -662,6 +746,18 @@ Preço: ${selectedProperty.price ?? "-"}
                 />
               </div>
 
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Complemento</label>
+                <input
+                  style={styles.lineInput}
+                  name="complement"
+                  value={form.complement}
+                  onChange={handleChange}
+                />
+              </div>
+            </div>
+
+            <div style={styles.rowTriple}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Bairro</label>
                 <input
@@ -681,9 +777,7 @@ Preço: ${selectedProperty.price ?? "-"}
                   onChange={handleChange}
                 />
               </div>
-            </div>
 
-            <div style={styles.rowDouble}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Estado</label>
                 <input
@@ -693,9 +787,21 @@ Preço: ${selectedProperty.price ?? "-"}
                   onChange={handleChange}
                 />
               </div>
+            </div>
+
+            <div style={styles.rowDouble}>
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Descrição</label>
+                <input
+                  style={styles.lineInput}
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                />
+              </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Proprietário</label>
+                <label style={styles.label}>*Proprietário</label>
                 <select
                   style={styles.selectInput}
                   name="ownerId"
@@ -758,7 +864,7 @@ const styles = {
   },
   backButton: {
     border: "none",
-    background: "transparent",
+    backgroundColor: "transparent",
     color: "#fff",
     fontSize: "26px",
     cursor: "pointer"
@@ -775,7 +881,7 @@ const styles = {
   },
   topIcon: {
     border: "none",
-    background: "transparent",
+    backgroundColor: "transparent",
     color: "#fff",
     fontSize: "22px",
     cursor: "pointer"
@@ -794,7 +900,7 @@ const styles = {
     width: "100%",
     textAlign: "left",
     border: "none",
-    background: "#fffdf8",
+    backgroundColor: "#fffdf8",
     padding: "14px 16px",
     fontSize: "15px",
     cursor: "pointer",
