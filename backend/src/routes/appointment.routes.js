@@ -1,11 +1,18 @@
 const express = require("express");
 const router = express.Router();
 
-const authMiddleware = require("../middlewares/auth.middleware");
+const {
+  createAppointment,
+  listAppointments,
+  getAppointmentById,
+  updateAppointment,
+  deleteAppointment
+} = require("../controllers/appointment.controller");
 
-// exemplo de rota teste
-router.get("/", authMiddleware, (req, res) => {
-  res.json({ message: "Rotas de agendamento funcionando." });
-});
+router.post("/", createAppointment);
+router.get("/", listAppointments);
+router.get("/:id", getAppointmentById);
+router.put("/:id", updateAppointment);
+router.delete("/:id", deleteAppointment);
 
 module.exports = router;
