@@ -26,13 +26,32 @@ function Clients() {
     whatsapp: false
   });
 
+  function parseWhatsapp(value) {
+    if (
+      value === true ||
+      value === "true" ||
+      value === "Sim" ||
+      value === "sim" ||
+      value === 1 ||
+      value === "1"
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function normalizeString(value) {
+    if (value === undefined || value === null) return null;
+    const text = String(value).trim();
+    return text === "" ? null : text;
+  }
+
   async function loadClients(selectId = null) {
     try {
       const response = await api.get("/persons");
 
-      const filtered = response.data.filter(
-        (item) => item.type === "CLIENTE"
-      );
+      const filtered = response.data.filter((item) => item.type === "CLIENTE");
 
       setClients(filtered);
 
@@ -48,7 +67,10 @@ function Clients() {
         handleSelectClient(filtered[0]);
       }
     } catch (error) {
-      console.error("Erro ao carregar clientes:", error.response?.data || error.message);
+      console.error(
+        "Erro ao carregar clientes:",
+        error.response?.data || error.message
+      );
       alert("Erro ao carregar clientes.");
     }
   }
@@ -96,7 +118,7 @@ function Clients() {
       commercialPhone: client.commercialPhone || "",
       residentialPhone: client.residentialPhone || "",
       contactPhone: client.contactPhone || "",
-      whatsapp: client.whatsapp || false
+      whatsapp: parseWhatsapp(client.whatsapp)
     });
   }
 
@@ -132,20 +154,27 @@ function Clients() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!form.fullName.trim()) {
+      alert("Nome é obrigatório.");
+      return;
+    }
+
     try {
       const payload = {
         type: "CLIENTE",
-        fullName: form.fullName,
-        cpf: form.cpf,
-        rg: form.rg,
-        phone: form.phone,
-        email: form.email,
-        company: form.company,
-        commercialPhone: form.commercialPhone,
-        residentialPhone: form.residentialPhone,
-        contactPhone: form.contactPhone,
-        whatsapp: form.whatsapp
+        fullName: form.fullName.trim(),
+        cpf: normalizeString(form.cpf),
+        rg: normalizeString(form.rg),
+        phone: normalizeString(form.phone),
+        email: normalizeString(form.email),
+        company: normalizeString(form.company),
+        commercialPhone: normalizeString(form.commercialPhone),
+        residentialPhone: normalizeString(form.residentialPhone),
+        contactPhone: normalizeString(form.contactPhone),
+        whatsapp: Boolean(form.whatsapp)
       };
+
+      console.log("Enviando payload:", payload);
 
       if (editingId) {
         const response = await api.put(`/persons/${editingId}`, payload);
@@ -157,8 +186,19 @@ function Clients() {
         await loadClients(response.data.person?.id || null);
       }
     } catch (error) {
-      console.error("Erro ao salvar cliente:", error.response?.data || error.message);
-      alert("Erro ao salvar cliente.");
+      console.error(
+        "Erro ao salvar cliente:",
+        error.response?.data || error.message
+      );
+
+      const apiMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.response?.data?.details ||
+        JSON.stringify(error.response?.data) ||
+        error.message;
+
+      alert(`Erro ao salvar cliente:\n${apiMessage}`);
     }
   }
 
@@ -177,7 +217,10 @@ function Clients() {
       handleNewClient();
       await loadClients();
     } catch (error) {
-      console.error("Erro ao excluir cliente:", error.response?.data || error.message);
+      console.error(
+        "Erro ao excluir cliente:",
+        error.response?.data || error.message
+      );
       alert("Erro ao excluir cliente.");
     }
   }
@@ -224,7 +267,7 @@ function Clients() {
           <p><strong>Telefone comercial:</strong> ${selectedClient.commercialPhone || "-"}</p>
           <p><strong>Telefone residencial:</strong> ${selectedClient.residentialPhone || "-"}</p>
           <p><strong>Telefone contato:</strong> ${selectedClient.contactPhone || "-"}</p>
-          <p><strong>WhatsApp:</strong> ${selectedClient.whatsapp ? "Sim" : "Não"}</p>
+          <p><strong>WhatsApp:</strong> ${parseWhatsapp(selectedClient.whatsapp) ? "Sim" : "Não"}</p>
         </body>
       </html>
     `);
@@ -330,25 +373,53 @@ E-mail: ${selectedClient.email || "-"}
 
           {showMenu && (
             <div style={styles.dropdownMenu}>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenHistory}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenHistory}
+              >
                 Histórico de atendimentos
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenProfiles}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenProfiles}
+              >
                 Perfis de imóveis
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenVisits}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenVisits}
+              >
                 Visitas/Negociações
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenFollowUp}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenFollowUp}
+              >
                 Avisos/Retornos/Follow up
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenMessages}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenMessages}
+              >
                 E-mails/WhatsApp enviados
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenDocuments}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenDocuments}
+              >
                 Documentos do cliente
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenClientProperties}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenClientProperties}
+              >
                 Imóveis do cliente
               </button>
             </div>
@@ -362,8 +433,12 @@ E-mail: ${selectedClient.email || "-"}
             <h3 style={styles.leftPanelTitle}>Anotações e atividades</h3>
             <div style={styles.leftIcons}>
               <span>⏷</span>
-              <span onClick={handleRefresh} style={styles.iconClickable}>↻</span>
-              <span onClick={handleNewClient} style={styles.iconClickable}>⊕</span>
+              <span onClick={handleRefresh} style={styles.iconClickable}>
+                ↻
+              </span>
+              <span onClick={handleNewClient} style={styles.iconClickable}>
+                ⊕
+              </span>
             </div>
           </div>
 
@@ -602,7 +677,7 @@ const styles = {
   },
   backButton: {
     border: "none",
-    background: "transparent",
+    backgroundColor: "transparent",
     color: "#fff",
     fontSize: "26px",
     cursor: "pointer"
@@ -619,7 +694,7 @@ const styles = {
   },
   topIcon: {
     border: "none",
-    background: "transparent",
+    backgroundColor: "transparent",
     color: "#fff",
     fontSize: "22px",
     cursor: "pointer"
@@ -638,7 +713,7 @@ const styles = {
     width: "100%",
     textAlign: "left",
     border: "none",
-    background: "#fffdf8",
+    backgroundColor: "#fffdf8",
     padding: "14px 16px",
     fontSize: "15px",
     cursor: "pointer",

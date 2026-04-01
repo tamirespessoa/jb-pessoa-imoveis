@@ -1,5 +1,23 @@
 const prisma = require("../config/prisma");
 
+function normalizeString(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text === "" ? null : text;
+}
+
+function normalizeWhatsapp(value) {
+  if (value === true || value === "true" || value === "Sim" || value === "sim" || value === 1 || value === "1") {
+    return true;
+  }
+
+  if (value === false || value === "false" || value === "Não" || value === "não" || value === "nao" || value === 0 || value === "0" || value === null || value === undefined || value === "") {
+    return false;
+  }
+
+  return Boolean(value);
+}
+
 async function createPerson(req, res) {
   try {
     const {
@@ -16,25 +34,27 @@ async function createPerson(req, res) {
       whatsapp
     } = req.body;
 
-    if (!type || !fullName) {
-      return res.status(400).json({
-        error: "Tipo e nome completo são obrigatórios."
-      });
+    if (!type || !String(type).trim()) {
+      return res.status(400).json({ error: "Tipo é obrigatório." });
+    }
+
+    if (!fullName || !String(fullName).trim()) {
+      return res.status(400).json({ error: "Nome completo é obrigatório." });
     }
 
     const person = await prisma.person.create({
       data: {
-        type,
-        fullName,
-        cpf,
-        rg,
-        email,
-        phone,
-        company,
-        commercialPhone,
-        residentialPhone,
-        contactPhone,
-        whatsapp: whatsapp === undefined ? null : Boolean(whatsapp)
+        type: String(type).trim(),
+        fullName: String(fullName).trim(),
+        cpf: normalizeString(cpf),
+        rg: normalizeString(rg),
+        email: normalizeString(email),
+        phone: normalizeString(phone),
+        company: normalizeString(company),
+        commercialPhone: normalizeString(commercialPhone),
+        residentialPhone: normalizeString(residentialPhone),
+        contactPhone: normalizeString(contactPhone),
+        whatsapp: normalizeWhatsapp(whatsapp)
       }
     });
 
@@ -43,7 +63,15 @@ async function createPerson(req, res) {
       person
     });
   } catch (error) {
-    console.error("Erro em createPerson:", error);
+    console.error("Erro ao cadastrar pessoa:", error);
+
+    if (error.code === "P2002") {
+      return res.status(400).json({
+        error: "Já existe um registro com CPF ou e-mail informado.",
+        details: error.meta
+      });
+    }
+
     return res.status(500).json({
       error: "Erro ao cadastrar pessoa.",
       details: error.message
@@ -54,19 +82,12 @@ async function createPerson(req, res) {
 async function listPersons(req, res) {
   try {
     const persons = await prisma.person.findMany({
-      orderBy: {
-        createdAt: "desc"
-      },
-      include: {
-        documents: true,
-        properties: true,
-        clientAppointments: true
-      }
+      orderBy: { createdAt: "desc" }
     });
 
     return res.json(persons);
   } catch (error) {
-    console.error("Erro em listPersons:", error);
+    console.error("Erro ao listar pessoas:", error);
     return res.status(500).json({
       error: "Erro ao listar pessoas.",
       details: error.message
@@ -79,25 +100,16 @@ async function getPersonById(req, res) {
     const { id } = req.params;
 
     const person = await prisma.person.findUnique({
-      where: {
-        id: id
-      },
-      include: {
-        documents: true,
-        properties: true,
-        clientAppointments: true
-      }
+      where: { id }
     });
 
     if (!person) {
-      return res.status(404).json({
-        error: "Pessoa não encontrada."
-      });
+      return res.status(404).json({ error: "Pessoa não encontrada." });
     }
 
     return res.json(person);
   } catch (error) {
-    console.error("Erro em getPersonById:", error);
+    console.error("Erro ao buscar pessoa:", error);
     return res.status(500).json({
       error: "Erro ao buscar pessoa.",
       details: error.message
@@ -108,7 +120,6 @@ async function getPersonById(req, res) {
 async function updatePerson(req, res) {
   try {
     const { id } = req.params;
-
     const {
       type,
       fullName,
@@ -123,32 +134,28 @@ async function updatePerson(req, res) {
       whatsapp
     } = req.body;
 
-    const personExists = await prisma.person.findUnique({
-      where: { id: id }
+    const existing = await prisma.person.findUnique({
+      where: { id }
     });
 
-    if (!personExists) {
-      return res.status(404).json({
-        error: "Pessoa não encontrada."
-      });
+    if (!existing) {
+      return res.status(404).json({ error: "Pessoa não encontrada." });
     }
 
     const person = await prisma.person.update({
-      where: {
-        id: id
-      },
+      where: { id },
       data: {
-        type,
-        fullName,
-        cpf,
-        rg,
-        email,
-        phone,
-        company,
-        commercialPhone,
-        residentialPhone,
-        contactPhone,
-        whatsapp: whatsapp === undefined ? null : Boolean(whatsapp)
+        type: type !== undefined ? String(type).trim() : existing.type,
+        fullName: fullName !== undefined ? String(fullName).trim() : existing.fullName,
+        cpf: cpf !== undefined ? normalizeString(cpf) : existing.cpf,
+        rg: rg !== undefined ? normalizeString(rg) : existing.rg,
+        email: email !== undefined ? normalizeString(email) : existing.email,
+        phone: phone !== undefined ? normalizeString(phone) : existing.phone,
+        company: company !== undefined ? normalizeString(company) : existing.company,
+        commercialPhone: commercialPhone !== undefined ? normalizeString(commercialPhone) : existing.commercialPhone,
+        residentialPhone: residentialPhone !== undefined ? normalizeString(residentialPhone) : existing.residentialPhone,
+        contactPhone: contactPhone !== undefined ? normalizeString(contactPhone) : existing.contactPhone,
+        whatsapp: whatsapp !== undefined ? normalizeWhatsapp(whatsapp) : existing.whatsapp
       }
     });
 
@@ -157,7 +164,15 @@ async function updatePerson(req, res) {
       person
     });
   } catch (error) {
-    console.error("Erro em updatePerson:", error);
+    console.error("Erro ao atualizar pessoa:", error);
+
+    if (error.code === "P2002") {
+      return res.status(400).json({
+        error: "Já existe um registro com CPF ou e-mail informado.",
+        details: error.meta
+      });
+    }
+
     return res.status(500).json({
       error: "Erro ao atualizar pessoa.",
       details: error.message
@@ -169,27 +184,21 @@ async function deletePerson(req, res) {
   try {
     const { id } = req.params;
 
-    const personExists = await prisma.person.findUnique({
-      where: { id: id }
+    const existing = await prisma.person.findUnique({
+      where: { id }
     });
 
-    if (!personExists) {
-      return res.status(404).json({
-        error: "Pessoa não encontrada."
-      });
+    if (!existing) {
+      return res.status(404).json({ error: "Pessoa não encontrada." });
     }
 
     await prisma.person.delete({
-      where: {
-        id: id
-      }
+      where: { id }
     });
 
-    return res.json({
-      message: "Pessoa excluída com sucesso."
-    });
+    return res.json({ message: "Pessoa excluída com sucesso." });
   } catch (error) {
-    console.error("Erro em deletePerson:", error);
+    console.error("Erro ao excluir pessoa:", error);
     return res.status(500).json({
       error: "Erro ao excluir pessoa.",
       details: error.message
