@@ -1,90 +1,42 @@
 const prisma = require("../config/prisma");
 
-function normalizeString(value) {
-  if (value === undefined || value === null) return null;
-  const text = String(value).trim();
-  return text === "" ? null : text;
-}
-
 async function createProposal(req, res) {
   try {
-    const {
-      propertyId,
-      clientId,
-      value,
-      status,
-      notes
-    } = req.body;
+    const { propertyId, clientId, value, status, notes } = req.body;
 
-    if (!propertyId || !String(propertyId).trim()) {
+    if (!propertyId || !clientId || value === undefined || value === null) {
       return res.status(400).json({
-        error: "Imóvel é obrigatório."
-      });
-    }
-
-    if (!clientId || !String(clientId).trim()) {
-      return res.status(400).json({
-        error: "Cliente é obrigatório."
-      });
-    }
-
-    if (value === undefined || value === null || value === "") {
-      return res.status(400).json({
-        error: "Valor da proposta é obrigatório."
+        error: "propertyId, clientId e value são obrigatórios."
       });
     }
 
     const propertyExists = await prisma.property.findUnique({
-      where: { id: String(propertyId).trim() }
+      where: { id: propertyId }
     });
 
     if (!propertyExists) {
-      return res.status(400).json({
+      return res.status(404).json({
         error: "Imóvel não encontrado."
       });
     }
 
     const clientExists = await prisma.person.findUnique({
-      where: { id: String(clientId).trim() }
+      where: { id: clientId }
     });
 
     if (!clientExists) {
-      return res.status(400).json({
+      return res.status(404).json({
         error: "Cliente não encontrado."
-      });
-    }
-
-    const parsedValue = Number(value);
-
-    if (Number.isNaN(parsedValue)) {
-      return res.status(400).json({
-        error: "Valor da proposta inválido."
-      });
-    }
-
-    const validStatuses = [
-      "PENDENTE",
-      "ACEITA",
-      "RECUSADA",
-      "EM_ANALISE",
-      "CONTRAPROPOSTA"
-    ];
-
-    const finalStatus = normalizeString(status) || "PENDENTE";
-
-    if (!validStatuses.includes(finalStatus)) {
-      return res.status(400).json({
-        error: "Status inválido."
       });
     }
 
     const proposal = await prisma.proposal.create({
       data: {
-        propertyId: String(propertyId).trim(),
-        clientId: String(clientId).trim(),
-        value: parsedValue,
-        status: finalStatus,
-        notes: normalizeString(notes)
+        propertyId,
+        clientId,
+        value: Number(value),
+        status: status || "PENDENTE",
+        notes: notes || null
       },
       include: {
         property: true,
@@ -92,16 +44,11 @@ async function createProposal(req, res) {
       }
     });
 
-    return res.status(201).json({
-      message: "Proposta cadastrada com sucesso.",
-      proposal
-    });
+    return res.status(201).json(proposal);
   } catch (error) {
-    console.error("Erro ao cadastrar proposta:", error);
-
+    console.error("Erro ao criar proposta:", error);
     return res.status(500).json({
-      error: "Erro ao cadastrar proposta.",
-      details: error.message
+      error: "Erro ao criar proposta."
     });
   }
 }
@@ -121,10 +68,8 @@ async function listProposals(req, res) {
     return res.json(proposals);
   } catch (error) {
     console.error("Erro ao listar propostas:", error);
-
     return res.status(500).json({
-      error: "Erro ao listar propostas.",
-      details: error.message
+      error: "Erro ao listar propostas."
     });
   }
 }
@@ -134,7 +79,7 @@ async function getProposalById(req, res) {
     const { id } = req.params;
 
     const proposal = await prisma.proposal.findUnique({
-      where: { id: String(id) },
+      where: { id },
       include: {
         property: true,
         client: true
@@ -150,10 +95,8 @@ async function getProposalById(req, res) {
     return res.json(proposal);
   } catch (error) {
     console.error("Erro ao buscar proposta:", error);
-
     return res.status(500).json({
-      error: "Erro ao buscar proposta.",
-      details: error.message
+      error: "Erro ao buscar proposta."
     });
   }
 }
@@ -161,99 +104,53 @@ async function getProposalById(req, res) {
 async function updateProposal(req, res) {
   try {
     const { id } = req.params;
-    const {
-      propertyId,
-      clientId,
-      value,
-      status,
-      notes
-    } = req.body;
+    const { propertyId, clientId, value, status, notes } = req.body;
 
-    const existing = await prisma.proposal.findUnique({
-      where: { id: String(id) }
+    const existingProposal = await prisma.proposal.findUnique({
+      where: { id }
     });
 
-    if (!existing) {
+    if (!existingProposal) {
       return res.status(404).json({
         error: "Proposta não encontrada."
       });
     }
 
-    let finalPropertyId = existing.propertyId;
-    let finalClientId = existing.clientId;
-
-    if (propertyId !== undefined) {
+    if (propertyId) {
       const propertyExists = await prisma.property.findUnique({
-        where: { id: String(propertyId).trim() }
+        where: { id: propertyId }
       });
 
       if (!propertyExists) {
-        return res.status(400).json({
+        return res.status(404).json({
           error: "Imóvel não encontrado."
         });
       }
-
-      finalPropertyId = String(propertyId).trim();
     }
 
-    if (clientId !== undefined) {
+    if (clientId) {
       const clientExists = await prisma.person.findUnique({
-        where: { id: String(clientId).trim() }
+        where: { id: clientId }
       });
 
       if (!clientExists) {
-        return res.status(400).json({
+        return res.status(404).json({
           error: "Cliente não encontrado."
         });
       }
-
-      finalClientId = String(clientId).trim();
     }
 
-    let finalValue = existing.value;
-
-    if (value !== undefined) {
-      const parsedValue = Number(value);
-
-      if (Number.isNaN(parsedValue)) {
-        return res.status(400).json({
-          error: "Valor da proposta inválido."
-        });
-      }
-
-      finalValue = parsedValue;
-    }
-
-    const validStatuses = [
-      "PENDENTE",
-      "ACEITA",
-      "RECUSADA",
-      "EM_ANALISE",
-      "CONTRAPROPOSTA"
-    ];
-
-    let finalStatus = existing.status;
-
-    if (status !== undefined) {
-      const normalizedStatus = normalizeString(status) || "PENDENTE";
-
-      if (!validStatuses.includes(normalizedStatus)) {
-        return res.status(400).json({
-          error: "Status inválido."
-        });
-      }
-
-      finalStatus = normalizedStatus;
-    }
-
-    const proposal = await prisma.proposal.update({
-      where: { id: String(id) },
+    const updatedProposal = await prisma.proposal.update({
+      where: { id },
       data: {
-        propertyId: finalPropertyId,
-        clientId: finalClientId,
-        value: finalValue,
-        status: finalStatus,
-        notes: notes !== undefined ? normalizeString(notes) : existing.notes
+        propertyId: propertyId !== undefined ? propertyId : existingProposal.propertyId,
+        clientId: clientId !== undefined ? clientId : existingProposal.clientId,
+        value:
+          value !== undefined && value !== null
+            ? Number(value)
+            : existingProposal.value,
+        status: status !== undefined ? status : existingProposal.status,
+        notes: notes !== undefined ? notes : existingProposal.notes
       },
       include: {
         property: true,
@@ -261,16 +158,11 @@ async function updateProposal(req, res) {
       }
     });
 
-    return res.json({
-      message: "Proposta atualizada com sucesso.",
-      proposal
-    });
+    return res.json(updatedProposal);
   } catch (error) {
     console.error("Erro ao atualizar proposta:", error);
-
     return res.status(500).json({
-      error: "Erro ao atualizar proposta.",
-      details: error.message
+      error: "Erro ao atualizar proposta."
     });
   }
 }
@@ -279,18 +171,18 @@ async function deleteProposal(req, res) {
   try {
     const { id } = req.params;
 
-    const existing = await prisma.proposal.findUnique({
-      where: { id: String(id) }
+    const existingProposal = await prisma.proposal.findUnique({
+      where: { id }
     });
 
-    if (!existing) {
+    if (!existingProposal) {
       return res.status(404).json({
         error: "Proposta não encontrada."
       });
     }
 
     await prisma.proposal.delete({
-      where: { id: String(id) }
+      where: { id }
     });
 
     return res.json({
@@ -298,10 +190,8 @@ async function deleteProposal(req, res) {
     });
   } catch (error) {
     console.error("Erro ao excluir proposta:", error);
-
     return res.status(500).json({
-      error: "Erro ao excluir proposta.",
-      details: error.message
+      error: "Erro ao excluir proposta."
     });
   }
 }

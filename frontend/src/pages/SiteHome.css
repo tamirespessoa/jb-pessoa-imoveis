@@ -1,0 +1,387 @@
+.site-home {
+  min-height: 100vh;
+  background: #f7f8fa;
+  color: #1f2937;
+}
+
+.site-container {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: rgba(10, 18, 32, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.header-content {
+  min-height: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.site-logo {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+.site-logo img {
+  height: 56px;
+  width: auto;
+  display: block;
+}
+
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.site-nav a {
+  color: #ffffff;
+  text-decoration: none;
+  font-size: 15px;
+  font-weight: 500;
+  transition: 0.2s ease;
+}
+
+.site-nav a:hover {
+  color: #d4af37;
+}
+
+.hero-section {
+  min-height: 88vh;
+  background-image: linear-gradient(
+      rgba(10, 18, 32, 0.55),
+      rgba(10, 18, 32, 0.55)
+    ),
+    url("https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1600&q=80");
+  background-size: cover;
+  background-position: center;
+  display: flex;
+  align-items: center;
+}
+
+.hero-overlay {
+  width: 100%;
+  padding: 80px 0;
+}
+
+.hero-content {
+  max-width: 720px;
+  color: #ffffff;
+}
+
+.hero-badge {
+  display: inline-block;
+  margin-bottom: 20px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(212, 175, 55, 0.18);
+  border: 1px solid rgba(212, 175, 55, 0.35);
+  color: #f4d77d;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.hero-content h1 {
+  margin: 0 0 18px;
+  font-size: 54px;
+  line-height: 1.08;
+  font-weight: 700;
+}
+
+.hero-content p {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.88);
+  max-width: 620px;
+}
+
+.hero-actions {
+  margin-top: 30px;
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.hero-primary-btn,
+.hero-secondary-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 22px;
+  border-radius: 12px;
+  text-decoration: none;
+  font-weight: 600;
+  transition: 0.2s ease;
+}
+
+.hero-primary-btn {
+  background: #d4af37;
+  color: #111827;
+}
+
+.hero-primary-btn:hover {
+  background: #c39f2d;
+}
+
+.hero-secondary-btn {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.hero-secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.hero-search {
+  margin-top: 28px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 760px;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.18);
+}
+
+.hero-search input {
+  flex: 1;
+  border: none;
+  outline: none;
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 15px;
+  color: #1f2937;
+  background: transparent;
+}
+
+.hero-search button {
+  border: none;
+  outline: none;
+  min-width: 130px;
+  min-height: 48px;
+  padding: 0 20px;
+  background: #111827;
+  color: #ffffff;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.hero-search button:hover {
+  background: #000000;
+}
+
+.site-register-highlight {
+  margin-top: -48px;
+  position: relative;
+  z-index: 2;
+}
+
+.register-highlight-content {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 34px;
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.register-text {
+  max-width: 760px;
+}
+
+.section-badge {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: #f4ead0;
+  color: #8a6a12;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.register-highlight-content h2,
+.about-content h2 {
+  margin: 0 0 12px;
+  font-size: 34px;
+  color: #111827;
+}
+
+.register-highlight-content p,
+.about-content p {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.7;
+  color: #4b5563;
+}
+
+.register-highlight-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 50px;
+  padding: 0 22px;
+  border-radius: 14px;
+  background: #111827;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: 0.2s ease;
+}
+
+.register-highlight-button:hover {
+  background: #000000;
+}
+
+.site-about {
+  padding: 80px 0;
+}
+
+.about-content {
+  background: #ffffff;
+  border-radius: 24px;
+  padding: 42px;
+  box-shadow: 0 12px 35px rgba(15, 23, 42, 0.08);
+}
+
+.site-footer {
+  background: #0f172a;
+  color: #ffffff;
+  padding: 44px 0;
+  margin-top: 40px;
+}
+
+.footer-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.site-footer-logo img {
+  height: 60px;
+  width: auto;
+  display: block;
+}
+
+.footer-info h3 {
+  margin: 0 0 10px;
+  font-size: 24px;
+}
+
+.footer-info p {
+  margin: 6px 0;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+@media (max-width: 992px) {
+  .header-content {
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px 0;
+  }
+
+  .site-nav {
+    justify-content: center;
+    gap: 16px;
+  }
+
+  .hero-content h1 {
+    font-size: 42px;
+  }
+
+  .register-highlight-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .footer-content {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  .site-container {
+    padding: 0 16px;
+  }
+
+  .hero-section {
+    min-height: auto;
+  }
+
+  .hero-overlay {
+    padding: 60px 0;
+  }
+
+  .hero-content h1 {
+    font-size: 34px;
+  }
+
+  .hero-content p {
+    font-size: 16px;
+  }
+
+  .hero-search {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .hero-search button {
+    width: 100%;
+  }
+
+  .register-highlight-content,
+  .about-content {
+    padding: 24px;
+  }
+
+  .register-highlight-content h2,
+  .about-content h2 {
+    font-size: 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .site-logo img {
+    height: 48px;
+  }
+
+  .site-nav {
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .hero-content h1 {
+    font-size: 28px;
+  }
+
+  .hero-badge {
+    font-size: 13px;
+  }
+}

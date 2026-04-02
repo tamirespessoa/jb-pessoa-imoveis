@@ -8,6 +8,7 @@ function Documents() {
   const [search, setSearch] = useState("");
   const [selectedDocument, setSelectedDocument] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -17,12 +18,15 @@ function Documents() {
     file: null
   });
 
+  const apiBaseUrl =
+    import.meta.env.VITE_API_URL || api.defaults.baseURL || "http://localhost:3001";
+
   async function loadDocuments() {
     try {
       const response = await api.get("/documents");
-      setDocuments(response.data);
+      setDocuments(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao carregar documentos:", error.response?.data || error);
       alert("Erro ao carregar documentos.");
     }
   }
@@ -30,18 +34,18 @@ function Documents() {
   async function loadPersons() {
     try {
       const response = await api.get("/persons");
-      setPersons(response.data);
+      setPersons(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao carregar pessoas:", error.response?.data || error);
     }
   }
 
   async function loadProperties() {
     try {
       const response = await api.get("/properties");
-      setProperties(response.data);
+      setProperties(Array.isArray(response.data) ? response.data : []);
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao carregar imóveis:", error.response?.data || error);
     }
   }
 
@@ -53,22 +57,30 @@ function Documents() {
 
   const filteredDocuments = useMemo(() => {
     return documents.filter((doc) =>
-      `${doc.title} ${doc.type} ${doc.person?.fullName || ""} ${doc.property?.title || ""}`
+      `${doc.title || ""} ${doc.type || ""} ${doc.person?.fullName || ""} ${doc.property?.title || ""}`
         .toLowerCase()
         .includes(search.toLowerCase())
     );
   }, [documents, search]);
 
   function handleChange(e) {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
   }
 
   function handleFileChange(e) {
-    setForm({ ...form, file: e.target.files[0] });
+    const selectedFile = e.target.files?.[0] || null;
+    setForm((prev) => ({ ...prev, file: selectedFile }));
+  }
+
+  function resetFileInput() {
+    const fileInput = document.getElementById("fileInput");
+    if (fileInput) fileInput.value = "";
   }
 
   function handleSelectDocument(doc) {
     setSelectedDocument(doc);
+    setShowMenu(false);
     setForm({
       title: doc.title || "",
       type: doc.type || "",
@@ -76,13 +88,12 @@ function Documents() {
       propertyId: doc.propertyId ? String(doc.propertyId) : "",
       file: null
     });
-
-    const fileInput = document.getElementById("fileInput");
-    if (fileInput) fileInput.value = "";
+    resetFileInput();
   }
 
   function handleNewDocument() {
     setSelectedDocument(null);
+    setShowMenu(false);
     setForm({
       title: "",
       type: "",
@@ -90,36 +101,91 @@ function Documents() {
       propertyId: "",
       file: null
     });
-
-    const fileInput = document.getElementById("fileInput");
-    if (fileInput) fileInput.value = "";
+    resetFileInput();
   }
 
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!form.title.trim()) {
+      alert("Preencha o título do documento.");
+      return;
+    }
+
+    if (!form.type) {
+      alert("Selecione o tipo do documento.");
+      return;
+    }
+
+    if (!form.file && !selectedDocument) {
+      alert("Selecione um arquivo.");
+      return;
+    }
+
     try {
+      setLoading(true);
+
       const formData = new FormData();
-      formData.append("title", form.title);
+      formData.append("title", form.title.trim());
       formData.append("type", form.type);
 
       if (form.personId) formData.append("personId", form.personId);
       if (form.propertyId) formData.append("propertyId", form.propertyId);
       if (form.file) formData.append("file", form.file);
 
-      await api.post("/documents", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data"
-        }
-      });
+      await api.post("/documents", formData);
 
       alert("Documento enviado com sucesso.");
       handleNewDocument();
-      loadDocuments();
+      await loadDocuments();
     } catch (error) {
-      console.error(error);
-      alert("Erro ao enviar documento.");
+      console.error("Erro ao enviar documento:", error.response?.data || error);
+
+      const message =
+        error.response?.data?.details ||
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Erro ao enviar documento.";
+
+      alert(message);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  async function handleDelete() {
+    if (!selectedDocument?.id) return;
+
+    const confirmDelete = window.confirm("Deseja excluir este documento?");
+    if (!confirmDelete) return;
+
+    try {
+      await api.delete(`/documents/${selectedDocument.id}`);
+
+      alert("Documento excluído com sucesso.");
+
+      setSelectedDocument(null);
+      handleNewDocument();
+      await loadDocuments();
+    } catch (error) {
+      console.error("Erro ao excluir documento:", error.response?.data || error);
+
+      const message =
+        error.response?.data?.details ||
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Erro ao excluir documento.";
+
+      alert(message);
+    }
+  }
+
+  function getFileUrl(filePath) {
+    if (!filePath) return "#";
+    if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+      return filePath;
+    }
+    return `${apiBaseUrl}${filePath}`;
   }
 
   return (
@@ -133,16 +199,32 @@ function Documents() {
         </div>
 
         <div style={styles.topActions}>
-          <button style={styles.iconButton} onClick={() => setShowMenu(!showMenu)}>
+          <button
+            style={styles.iconButton}
+            onClick={() => setShowMenu(!showMenu)}
+            type="button"
+          >
             ⋮
           </button>
 
           {showMenu && (
             <div style={styles.dropdownMenu}>
-              <button style={styles.dropdownItem} type="button" onClick={handleNewDocument}>
+              <button
+                style={styles.dropdownItem}
+                type="button"
+                onClick={handleNewDocument}
+              >
                 Novo documento
               </button>
-              <button style={styles.dropdownItem} type="button" onClick={() => loadDocuments()}>
+
+              <button
+                style={styles.dropdownItem}
+                type="button"
+                onClick={() => {
+                  setShowMenu(false);
+                  loadDocuments();
+                }}
+              >
                 Atualizar lista
               </button>
             </div>
@@ -178,9 +260,10 @@ function Documents() {
                   }}
                 >
                   <div style={styles.docIcon}>📄</div>
+
                   <div style={styles.docInfo}>
                     <strong>{doc.title}</strong>
-                    <div style={styles.docMeta}>Tipo: {doc.type}</div>
+                    <div style={styles.docMeta}>Tipo: {doc.type || "-"}</div>
                     <div style={styles.docMeta}>
                       Pessoa: {doc.person?.fullName || "-"}
                     </div>
@@ -197,7 +280,9 @@ function Documents() {
         <section style={styles.mainPanel}>
           <div style={styles.sectionHeader}>
             <div style={styles.greenDot}></div>
-            <h2 style={styles.sectionTitle}>Cadastro</h2>
+            <h2 style={styles.sectionTitle}>
+              {selectedDocument ? "Visualização / Cadastro" : "Cadastro"}
+            </h2>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -286,24 +371,52 @@ function Documents() {
             {selectedDocument && (
               <div style={styles.previewBox}>
                 <h3 style={styles.previewTitle}>Documento selecionado</h3>
-                <p><strong>Título:</strong> {selectedDocument.title}</p>
-                <p><strong>Tipo:</strong> {selectedDocument.type}</p>
-                <p><strong>Pessoa:</strong> {selectedDocument.person?.fullName || "-"}</p>
-                <p><strong>Imóvel:</strong> {selectedDocument.property?.title || "-"}</p>
+                <p>
+                  <strong>Título:</strong> {selectedDocument.title || "-"}
+                </p>
+                <p>
+                  <strong>Tipo:</strong> {selectedDocument.type || "-"}
+                </p>
+                <p>
+                  <strong>Pessoa:</strong> {selectedDocument.person?.fullName || "-"}
+                </p>
+                <p>
+                  <strong>Imóvel:</strong> {selectedDocument.property?.title || "-"}
+                </p>
 
-                <a
-                  href={`http://localhost:3001${selectedDocument.filePath}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={styles.openLink}
+                {selectedDocument.filePath ? (
+                  <a
+                    href={getFileUrl(selectedDocument.filePath)}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={styles.openLink}
+                  >
+                    Abrir arquivo atual
+                  </a>
+                ) : (
+                  <p style={styles.noFileText}>Este documento não possui arquivo vinculado.</p>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  style={styles.deleteButton}
                 >
-                  Abrir arquivo atual
-                </a>
+                  Excluir documento
+                </button>
               </div>
             )}
 
-            <button type="submit" style={styles.floatingSaveButton}>
-              💾
+            <button
+              type="submit"
+              style={{
+                ...styles.floatingSaveButton,
+                ...(loading ? styles.floatingSaveButtonDisabled : {})
+              }}
+              disabled={loading}
+              title="Salvar documento"
+            >
+              {loading ? "..." : "💾"}
             </button>
           </form>
         </section>
@@ -337,7 +450,7 @@ const styles = {
   },
   iconButton: {
     border: "none",
-    backgroundColor: "#2f86d6",
+    background: "#2f86d6",
     color: "#fff",
     width: "44px",
     height: "44px",
@@ -350,7 +463,7 @@ const styles = {
     top: "50px",
     right: 0,
     width: "200px",
-    backgroundColor: "#fff",
+    background: "#fff",
     borderRadius: "12px",
     boxShadow: "0 8px 20px rgba(0,0,0,0.15)",
     overflow: "hidden",
@@ -360,7 +473,7 @@ const styles = {
     width: "100%",
     textAlign: "left",
     border: "none",
-    backgroundColor: "#fff",
+    background: "#fff",
     padding: "14px 16px",
     cursor: "pointer",
     borderBottom: "1px solid #eee"
@@ -371,7 +484,7 @@ const styles = {
     gap: "20px"
   },
   leftPanel: {
-    backgroundColor: "#f8f8f8",
+    background: "#f8f8f8",
     borderRadius: "18px",
     padding: "18px",
     minHeight: "700px",
@@ -413,11 +526,11 @@ const styles = {
     borderRadius: "14px",
     padding: "14px",
     cursor: "pointer",
-    backgroundColor: "#fff"
+    background: "#fff"
   },
   docCardActive: {
     border: "2px solid #2f86d6",
-    backgroundColor: "#eef6ff"
+    background: "#eef6ff"
   },
   docIcon: {
     fontSize: "28px"
@@ -431,7 +544,7 @@ const styles = {
     marginTop: "4px"
   },
   mainPanel: {
-    backgroundColor: "#fff",
+    background: "#fff",
     borderRadius: "18px",
     padding: "26px",
     minHeight: "700px",
@@ -448,7 +561,7 @@ const styles = {
     width: "22px",
     height: "22px",
     borderRadius: "50%",
-    backgroundColor: "#9dd39e"
+    background: "#9dd39e"
   },
   sectionTitle: {
     margin: 0,
@@ -480,17 +593,18 @@ const styles = {
     borderBottom: "1px solid #ccc",
     outline: "none",
     fontSize: "18px",
-    backgroundColor: "transparent"
+    background: "transparent"
   },
   previewBox: {
     marginTop: "28px",
     padding: "18px",
     borderRadius: "16px",
-    backgroundColor: "#fafafa",
+    background: "#fafafa",
     border: "1px solid #e3e3e3"
   },
   previewTitle: {
-    marginTop: 0
+    marginTop: 0,
+    marginBottom: "12px"
   },
   openLink: {
     display: "inline-block",
@@ -498,6 +612,21 @@ const styles = {
     color: "#2f86d6",
     textDecoration: "none",
     fontWeight: "bold"
+  },
+  noFileText: {
+    marginTop: "10px",
+    color: "#777"
+  },
+  deleteButton: {
+    display: "block",
+    marginTop: "16px",
+    background: "#e74c3c",
+    color: "#fff",
+    border: "none",
+    padding: "12px 16px",
+    borderRadius: "10px",
+    cursor: "pointer",
+    fontSize: "15px"
   },
   floatingSaveButton: {
     position: "fixed",
@@ -507,11 +636,15 @@ const styles = {
     height: "68px",
     borderRadius: "50%",
     border: "none",
-    backgroundColor: "#ff4b3e",
+    background: "#ff4b3e",
     color: "#fff",
     fontSize: "28px",
     cursor: "pointer",
     boxShadow: "0 8px 20px rgba(0,0,0,0.2)"
+  },
+  floatingSaveButtonDisabled: {
+    opacity: 0.7,
+    cursor: "not-allowed"
   }
 };
 

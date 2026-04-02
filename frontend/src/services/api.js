@@ -1,11 +1,11 @@
-// src/services/api.js
 import axios from "axios";
 
+console.log("API URL:", import.meta.env.VITE_API_URL);
+
 const api = axios.create({
-  baseURL: "https://jb-pessoa-imoveis.onrender.com",
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3001",
 });
 
-// Interceptor: adiciona o token em TODAS as requisições automaticamente
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -14,7 +14,6 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Interceptor: se receber 401, redireciona para login
 api.interceptors.response.use(
   (response) => response,
   (error) => {

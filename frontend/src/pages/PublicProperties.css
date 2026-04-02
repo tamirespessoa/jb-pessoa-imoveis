@@ -1,0 +1,183 @@
+.public-properties-page {
+  min-height: 100vh;
+  background: #f5f7fb;
+}
+
+.public-header {
+  background: #0f172a;
+  color: white;
+  padding: 40px 24px;
+}
+
+.public-header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.public-header h1 {
+  margin: 0 0 8px;
+  font-size: 36px;
+}
+
+.public-header p {
+  margin: 0;
+  color: #cbd5e1;
+}
+
+.public-header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.outline-btn {
+  text-decoration: none;
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  padding: 12px 16px;
+  border-radius: 10px;
+}
+
+.public-main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 24px 60px;
+}
+
+.feedback {
+  background: white;
+  padding: 18px;
+  border-radius: 14px;
+  box-shadow: 0 8px 25px rgba(15, 23, 42, 0.06);
+}
+
+.feedback.error {
+  color: #b91c1c;
+}
+
+.property-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+
+.property-card {
+  background: white;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  display: flex;
+  flex-direction: column;
+}
+
+.property-image {
+  width: 100%;
+  height: 230px;
+  object-fit: cover;
+  display: block;
+  background: #e5e7eb;
+}
+
+.property-card-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.property-type {
+  display: inline-block;
+  align-self: flex-start;
+  background: #eff6ff;
+  color: #1d4ed8;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.property-card h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #111827;
+}
+
+.property-location {
+  margin: 0;
+  color: #6b7280;
+}
+
+.property-price {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.property-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #374151;
+  font-size: 14px;
+}
+
+.property-info span {
+  background: #f3f4f6;
+  padding: 8px 10px;
+  border-radius: 10px;
+}
+
+.property-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.primary-btn,
+.secondary-btn {
+  text-decoration: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.primary-btn {
+  background: #2563eb;
+  color: white;
+}
+
+.secondary-btn {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+@media (max-width: 1000px) {
+  .property-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .property-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .public-main {
+    padding: 24px 16px 50px;
+  }
+
+  .public-header {
+    padding: 28px 16px;
+  }
+
+  .public-header h1 {
+    font-size: 28px;
+  }
+}

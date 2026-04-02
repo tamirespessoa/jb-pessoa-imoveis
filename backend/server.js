@@ -9,7 +9,8 @@ const personRoutes = require("./src/routes/person.routes");
 const propertyRoutes = require("./src/routes/property.routes");
 const documentRoutes = require("./src/routes/document.routes");
 const appointmentRoutes = require("./src/routes/appointment.routes");
-const proposalRoutes = require("./src/routes/proposal.routes"); // 👈 ADICIONE
+const proposalRoutes = require("./src/routes/proposal.routes");
+const propertyRequestRoutes = require("./src/routes/propertyRequest.routes");
 
 const app = express();
 
@@ -25,10 +26,10 @@ app.use(
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
-      } else {
-        console.log("CORS bloqueou a origem:", origin);
-        return callback(new Error("Origem não permitida pelo CORS."));
       }
+
+      console.log("CORS bloqueou a origem:", origin);
+      return callback(new Error("Origem não permitida pelo CORS."));
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
@@ -37,6 +38,7 @@ app.use(
 );
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.get("/", (req, res) => {
@@ -49,9 +51,18 @@ app.use("/persons", personRoutes);
 app.use("/properties", propertyRoutes);
 app.use("/documents", documentRoutes);
 app.use("/appointments", appointmentRoutes);
-app.use("/proposals", proposalRoutes); // 👈 ADICIONE ESTA LINHA
+app.use("/proposals", proposalRoutes);
+app.use("/property-requests", propertyRequestRoutes);
 
-const PORT = process.env.PORT || 10000;
+app.use((err, req, res, next) => {
+  console.error("Erro global:", err);
+  res.status(500).json({
+    error: "Erro interno do servidor.",
+    details: err.message
+  });
+});
+
+const PORT = process.env.PORT || 3001;
 
 app.listen(PORT, () => {
   console.log(`Servidor rodando na porta ${PORT}`);

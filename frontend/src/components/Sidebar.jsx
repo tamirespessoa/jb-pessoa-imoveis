@@ -1,14 +1,15 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 function Sidebar({ open = true }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [openGroups, setOpenGroups] = useState({
     clientes: true,
     imoveis: true,
-    atendimento: false,
+    atendimento: true,
     negocios: false,
     relatorios: false,
     configuracoes: false
@@ -25,11 +26,18 @@ function Sidebar({ open = true }) {
     return location.pathname === path;
   }
 
+  function handleLogout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.dispatchEvent(new Event("storage"));
+    navigate("/login");
+  }
+
   return (
     <aside
       style={{
         ...styles.sidebar,
-        width: open ? "380px" : "0",
+        width: open ? "300px" : "0",
         overflow: "hidden"
       }}
     >
@@ -50,23 +58,32 @@ function Sidebar({ open = true }) {
               <div style={styles.userEmail}>
                 {user.email || "email@empresa.com"}
               </div>
-              <div style={styles.userNameSmall}>
-                {user.name || "Administrador"}
-              </div>
+              <div style={styles.userNameSmall}>Perfil do sistema</div>
             </div>
 
-            <div style={styles.logoutText}>SAIR</div>
+            <button
+              type="button"
+              style={styles.logoutButton}
+              onClick={handleLogout}
+            >
+              SAIR
+            </button>
           </div>
 
           <div style={styles.menuBody}>
             <MenuItem icon="🎓" label="Vídeos e treinamentos" />
+
             <MenuGroup
               icon="👤"
               label="Clientes"
               open={openGroups.clientes}
               onToggle={() => toggleGroup("clientes")}
             >
-              <MenuLink to="/clientes" label="Clientes" active={isActive("/clientes")} />
+              <MenuLink
+                to="/clientes"
+                label="Clientes"
+                active={isActive("/clientes")}
+              />
             </MenuGroup>
 
             <MenuGroup
@@ -75,14 +92,24 @@ function Sidebar({ open = true }) {
               open={openGroups.imoveis}
               onToggle={() => toggleGroup("imoveis")}
             >
-              <MenuLink to="/imoveis" label="Imóveis" active={isActive("/imoveis")} />
+              <MenuLink
+                to="/imoveis"
+                label="Imóveis"
+                active={isActive("/imoveis")}
+              />
             </MenuGroup>
 
             <MenuItem icon="🏢" label="Condomínios/Empreendimentos" />
 
             <Divider />
 
-            <MenuItem icon="📅" label="Minha agenda" />
+            <MenuLink
+              to="/agendamentos"
+              label="Minha agenda"
+              active={isActive("/agendamentos")}
+              icon="📅"
+            />
+
             <MenuItem icon="✉️" label="Gestão de leads" />
 
             <MenuGroup
@@ -91,7 +118,17 @@ function Sidebar({ open = true }) {
               open={openGroups.atendimento}
               onToggle={() => toggleGroup("atendimento")}
             >
-              <MenuLink to="/clientes" label="Atendimento clientes" active={false} />
+              <MenuLink
+                to="/clientes"
+                label="Atendimento clientes"
+                active={false}
+              />
+              <MenuLink
+                to="/solicitacoes"
+                label="Solicitações"
+                active={isActive("/solicitacoes")}
+                icon="📨"
+              />
             </MenuGroup>
 
             <MenuGroup
@@ -100,7 +137,17 @@ function Sidebar({ open = true }) {
               open={openGroups.negocios}
               onToggle={() => toggleGroup("negocios")}
             >
-              <MenuLink to="/proprietarios" label="Proprietários" active={isActive("/proprietarios")} />
+              <MenuLink
+                to="/proprietarios"
+                label="Proprietários"
+                active={isActive("/proprietarios")}
+              />
+              <MenuLink
+                to="/propostas"
+                label="Propostas"
+                active={isActive("/propostas")}
+                icon="💰"
+              />
             </MenuGroup>
 
             <MenuItem icon="🪙" label="Financiamentos" />
@@ -111,7 +158,14 @@ function Sidebar({ open = true }) {
             <MenuItem icon="👥" label="Cadastro de usuários" />
             <MenuItem icon="🏢" label="Dados da empresa" />
             <MenuItem icon="☁️" label="JB Docs" />
-            <MenuLink to="/documentos" label="Documentos e contratos" active={isActive("/documentos")} icon="📄" />
+
+            <MenuLink
+              to="/documentos"
+              label="Documentos e contratos"
+              active={isActive("/documentos")}
+              icon="📄"
+            />
+
             <MenuItem icon="🌍" label="Portais" />
             <MenuItem icon="💬" label="JB Chat" />
             <MenuItem icon="📝" label="Anotações pessoais" />
@@ -157,7 +211,16 @@ function Sidebar({ open = true }) {
 
 function MenuItem({ icon, label }) {
   return (
-    <button type="button" style={styles.menuItem}>
+    <button
+      type="button"
+      style={styles.menuItem}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = "#f3f7fc";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = "transparent";
+      }}
+    >
       <span style={styles.icon}>{icon}</span>
       <span style={styles.menuLabel}>{label}</span>
     </button>
@@ -181,8 +244,18 @@ function MenuLink({ to, label, active, icon = "•" }) {
 
 function MenuGroup({ icon, label, open, onToggle, children }) {
   return (
-    <div>
-      <button type="button" style={styles.menuItem} onClick={onToggle}>
+    <div style={styles.groupWrapper}>
+      <button
+        type="button"
+        style={styles.menuItem}
+        onClick={onToggle}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = "#f3f7fc";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = "transparent";
+        }}
+      >
         <span style={styles.icon}>{icon}</span>
         <span style={styles.menuLabel}>{label}</span>
         <span style={styles.arrow}>{open ? "▾" : "▸"}</span>
@@ -200,43 +273,46 @@ function Divider() {
 const styles = {
   sidebar: {
     minHeight: "100vh",
-    backgroundColor: "#f6f6f6",
-    borderRight: "1px solid #d9d9d9",
+    backgroundColor: "#ffffff",
+    borderRight: "1px solid #e5e7eb",
     flexShrink: 0,
-    transition: "0.25s ease"
+    transition: "0.25s ease",
+    boxShadow: "2px 0 12px rgba(0, 0, 0, 0.04)"
   },
   userHeader: {
-    backgroundColor: "#2d8be0",
+    background: "linear-gradient(180deg, #2d8be0 0%, #1d6fbd 100%)",
     color: "#fff",
     display: "grid",
-    gridTemplateColumns: "90px 1fr auto",
-    gap: "14px",
-    alignItems: "start",
-    padding: "16px 12px"
+    gridTemplateColumns: "78px 1fr auto",
+    gap: "12px",
+    alignItems: "center",
+    padding: "16px 14px"
   },
   avatarArea: {
     textAlign: "center"
   },
   avatarCircle: {
-    width: "74px",
-    height: "74px",
+    width: "64px",
+    height: "64px",
     borderRadius: "50%",
-    backgroundColor: "#ffffff55",
+    backgroundColor: "rgba(255,255,255,0.22)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "38px",
-    margin: "0 auto 6px auto"
+    fontSize: "32px",
+    margin: "0 auto 6px auto",
+    border: "2px solid rgba(255,255,255,0.3)"
   },
   changePhotoButton: {
     border: "none",
     background: "transparent",
     color: "#fff",
     cursor: "pointer",
-    fontSize: "14px"
+    fontSize: "12px",
+    fontWeight: "600"
   },
   userInfo: {
-    paddingTop: "8px"
+    minWidth: 0
   },
   userName: {
     fontWeight: "700",
@@ -244,62 +320,77 @@ const styles = {
     marginBottom: "4px"
   },
   userEmail: {
-    fontSize: "14px",
-    marginBottom: "4px"
+    fontSize: "13px",
+    marginBottom: "4px",
+    opacity: 0.95,
+    wordBreak: "break-word"
   },
   userNameSmall: {
-    fontSize: "14px"
+    fontSize: "12px",
+    opacity: 0.9
   },
-  logoutText: {
+  logoutButton: {
+    border: "1px solid rgba(255,255,255,0.35)",
+    background: "rgba(255,255,255,0.14)",
+    color: "#fff",
     fontWeight: "700",
-    fontSize: "14px",
-    paddingTop: "6px"
+    fontSize: "12px",
+    padding: "8px 10px",
+    borderRadius: "10px",
+    cursor: "pointer"
   },
   menuBody: {
-    padding: "6px 0"
+    padding: "10px 8px 16px"
+  },
+  groupWrapper: {
+    marginBottom: "2px"
   },
   menuItem: {
     width: "100%",
-    minHeight: "58px",
-    padding: "0 18px",
+    minHeight: "48px",
+    padding: "0 14px",
     border: "none",
     background: "transparent",
     display: "flex",
     alignItems: "center",
-    gap: "14px",
+    gap: "12px",
     textDecoration: "none",
-    color: "#222",
-    fontSize: "16px",
+    color: "#1f2937",
+    fontSize: "15px",
     cursor: "pointer",
-    borderBottom: "1px solid #ececec",
-    textAlign: "left"
+    textAlign: "left",
+    borderRadius: "12px",
+    transition: "all 0.2s ease"
   },
   menuItemActive: {
-    backgroundColor: "#ececec",
-    fontWeight: "700"
+    backgroundColor: "#e8f1fd",
+    color: "#1565c0",
+    fontWeight: "700",
+    boxShadow: "inset 4px 0 0 #1565c0"
   },
   icon: {
-    width: "24px",
+    width: "22px",
     textAlign: "center",
-    fontSize: "22px",
-    opacity: 0.7
+    fontSize: "18px",
+    flexShrink: 0
   },
   menuLabel: {
     flex: 1,
     fontWeight: "600"
   },
   arrow: {
-    color: "#888",
+    color: "#6b7280",
     fontSize: "14px"
   },
   submenu: {
-    backgroundColor: "#fafafa"
+    marginLeft: "18px",
+    paddingLeft: "10px",
+    borderLeft: "2px solid #e5e7eb"
   },
   divider: {
-    height: "10px",
-    backgroundColor: "#f0f0f0",
-    borderTop: "1px solid #e4e4e4",
-    borderBottom: "1px solid #e4e4e4"
+    height: "1px",
+    backgroundColor: "#e5e7eb",
+    margin: "10px 8px"
   }
 };
 
