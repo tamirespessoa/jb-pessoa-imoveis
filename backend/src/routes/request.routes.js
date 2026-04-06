@@ -8,7 +8,7 @@ const {
   deleteRequest
 } = require("../controllers/request.controller");
 
-const authMiddleware = require("../middleware/authMiddleware");
+const authMiddleware = require("../middlewares/auth.middleware");
 
 router.get("/", authMiddleware, listRequests);
 router.post("/", authMiddleware, createRequest);
