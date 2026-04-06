@@ -12,11 +12,11 @@ const {
   getPublicPropertyById
 } = require("../controllers/property.controller");
 
-// ROTAS PÚBLICAS DO SITE
+// ROTAS PÚBLICAS
 router.get("/public", listPublicProperties);
 router.get("/public/:id", getPublicPropertyById);
 
-// ROTAS PRIVADAS DO SISTEMA
+// ROTAS PRIVADAS
 router.post("/", authMiddleware, createProperty);
 router.get("/", authMiddleware, listProperties);
 router.get("/:id", authMiddleware, getPropertyById);

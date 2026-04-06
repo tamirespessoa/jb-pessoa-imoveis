@@ -1,185 +1,359 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import axios from "axios";
-import "./PublicPropertyDetails.css";
+import publicApi from "../services/publicApi";
+import SiteLayout from "../components/SiteLayout";
+import "./SitePropertyDetails.css";
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "https://jb-pessoa-imoveis.onrender.com";
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "http://localhost:3001";
 
-function formatCurrency(value) {
-  if (value === null || value === undefined || value === "") {
-    return "Valor sob consulta";
+function getImageUrl(path) {
+  if (!path) return "/sem-imagem.png";
+
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
   }
 
-  const numberValue = Number(value);
-
-  if (Number.isNaN(numberValue)) {
-    return value;
-  }
-
-  return numberValue.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL"
-  });
+  return `${API_BASE_URL}${path}`;
 }
 
-function getImages(property) {
-  if (property?.images && property.images.length > 0) {
-    return property.images.map((img) => img.url || img);
-  }
-
-  if (property?.imageUrl) {
-    return [property.imageUrl];
-  }
-
-  return ["https://via.placeholder.com/900x600?text=Sem+Imagem"];
+function formatBusinessType(value) {
+  if (!value) return "Imóvel";
+  if (value === "SALE") return "Venda";
+  if (value === "RENT") return "Aluguel";
+  return value;
 }
 
-export default function PublicPropertyDetails() {
+export default function SitePropertyDetails() {
   const { id } = useParams();
   const [property, setProperty] = useState(null);
+  const [selectedImage, setSelectedImage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [selectedImage, setSelectedImage] = useState("");
 
   useEffect(() => {
-    async function loadProperty() {
+    async function fetchProperty() {
       try {
         setLoading(true);
         setError("");
 
-        const response = await axios.get(`${API_URL}/properties/${id}`);
-        const propertyData = response.data;
+        const response = await publicApi.get(`/properties/public/${id}`);
+        const data = response.data;
 
-        setProperty(propertyData);
+        setProperty(data);
 
-        const images = getImages(propertyData);
-        setSelectedImage(images[0]);
+        const firstImage = data?.coverImage
+          ? getImageUrl(data.coverImage)
+          : data?.images?.length > 0
+          ? getImageUrl(data.images[0])
+          : "/sem-imagem.png";
+
+        setSelectedImage(firstImage);
       } catch (err) {
-        console.error("Erro ao carregar detalhes do imóvel:", err);
-        setError("Não foi possível carregar os detalhes do imóvel.");
+        console.error("Erro ao carregar imóvel:", err);
+        setError("Não foi possível carregar este imóvel.");
       } finally {
         setLoading(false);
       }
     }
 
-    loadProperty();
+    fetchProperty();
   }, [id]);
+
+  const galleryImages = useMemo(() => {
+    if (!property) return [];
+
+    const images = [];
+
+    if (property.coverImage) {
+      images.push(getImageUrl(property.coverImage));
+    }
+
+    if (property.images?.length > 0) {
+      property.images.forEach((img) => {
+        const fullImage = getImageUrl(img);
+        if (!images.includes(fullImage)) {
+          images.push(fullImage);
+        }
+      });
+    }
+
+    if (images.length === 0) {
+      images.push("/sem-imagem.png");
+    }
+
+    return images;
+  }, [property]);
 
   if (loading) {
     return (
-      <div className="details-page">
-        <div className="details-container">
-          <p>Carregando imóvel...</p>
+      <SiteLayout>
+        <div className="site-property-details-page">
+          <div className="site-property-details-container">
+            <div className="site-property-details-message">
+              Carregando imóvel...
+            </div>
+          </div>
         </div>
-      </div>
+      </SiteLayout>
     );
   }
 
   if (error || !property) {
     return (
-      <div className="details-page">
-        <div className="details-container">
-          <p>{error || "Imóvel não encontrado."}</p>
-          <Link to="/imoveis" className="back-link">
-            Voltar para imóveis
-          </Link>
+      <SiteLayout>
+        <div className="site-property-details-page">
+          <div className="site-property-details-container">
+            <div className="site-property-details-message site-property-details-message-error">
+              <h2>Imóvel não encontrado</h2>
+              <p>{error || "Este imóvel não está disponível."}</p>
+
+              <Link
+                to="/site/imoveis"
+                className="site-property-details-back-button"
+              >
+                Voltar para imóveis
+              </Link>
+            </div>
+          </div>
         </div>
-      </div>
+      </SiteLayout>
     );
   }
 
-  const images = getImages(property);
+  const formattedPrice = property.price
+    ? Number(property.price).toLocaleString("pt-BR", {
+        style: "currency",
+        currency: "BRL"
+      })
+    : "Valor a consultar";
+
+  const businessType = formatBusinessType(property.type);
+
+  const locationText = [
+    property.street || property.address,
+    property.number,
+    property.complement,
+    property.district || property.neighborhood,
+    property.city,
+    property.state
+  ]
+    .filter(Boolean)
+    .join(", ");
+
+  const whatsappMessage = encodeURIComponent(
+    `Olá! Tenho interesse no imóvel "${property.title}" no valor de ${formattedPrice}. Pode me dar mais informações?`
+  );
+
+  const whatsappLink = `https://wa.me/5511983185430?text=${whatsappMessage}`;
 
   return (
-    <div className="details-page">
-      <div className="details-container">
-        <div className="details-top">
-          <Link to="/imoveis" className="back-link">
-            ← Voltar para imóveis
-          </Link>
-        </div>
-
-        <div className="details-grid">
-          <section className="details-gallery">
-            <img
-              src={selectedImage}
-              alt={property.title || "Imóvel"}
-              className="details-main-image"
-            />
-
-            <div className="details-thumbs">
-              {images.map((image, index) => (
-                <button
-                  type="button"
-                  key={index}
-                  className={`details-thumb ${
-                    selectedImage === image ? "active" : ""
-                  }`}
-                  onClick={() => setSelectedImage(image)}
-                >
-                  <img src={image} alt={`Imagem ${index + 1}`} />
-                </button>
-              ))}
-            </div>
-          </section>
-
-          <aside className="details-info-card">
-            <span className="details-badge">
-              {property.category || property.type || "Imóvel"}
-            </span>
-
-            <h1>{property.title || "Imóvel sem título"}</h1>
-
-            <p className="details-location">
-              {property.address ||
-                property.neighborhood ||
-                property.city ||
-                "Localização não informada"}
-            </p>
-
-            <p className="details-price">{formatCurrency(property.price)}</p>
-
-            <div className="details-highlights">
-              <div>
-                <strong>Quartos</strong>
-                <span>{property.bedrooms ?? 0}</span>
-              </div>
-              <div>
-                <strong>Banheiros</strong>
-                <span>{property.bathrooms ?? 0}</span>
-              </div>
-              <div>
-                <strong>Área</strong>
-                <span>{property.area ?? 0} m²</span>
-              </div>
-              <div>
-                <strong>Vagas</strong>
-                <span>{property.garageSpots ?? 0}</span>
-              </div>
+    <SiteLayout>
+      <div className="site-property-details-page">
+        <section className="site-property-details-hero">
+          <div className="site-property-details-container">
+            <div className="site-property-details-breadcrumb">
+              <Link to="/site">Início</Link>
+              <span>/</span>
+              <Link to="/site/imoveis">Imóveis</Link>
+              <span>/</span>
+              <strong>{property.title}</strong>
             </div>
 
-            <a
-              href={`https://wa.me/5511983185430?text=${encodeURIComponent(
-                `Olá, tenho interesse no imóvel ${property.title || property.id}`
-              )}`}
-              target="_blank"
-              rel="noreferrer"
-              className="details-whatsapp"
-            >
-              Falar no WhatsApp
-            </a>
-          </aside>
-        </div>
+            <div className="site-property-details-hero-top">
+              <div>
+                <div className="site-property-details-tags-row">
+                  <span className="site-property-details-tag site-property-details-tag-gold">
+                    {businessType}
+                  </span>
 
-        <section className="details-description-card">
-          <h2>Descrição</h2>
-          <p>
-            {property.description ||
-              "Este imóvel ainda não possui descrição cadastrada."}
-          </p>
+                  <span className="site-property-details-tag site-property-details-tag-green">
+                    Disponível
+                  </span>
+                </div>
+
+                <h1>{property.title}</h1>
+
+                <p className="site-property-details-code">
+                  Código: {property.id}
+                </p>
+
+                <p className="site-property-details-location">
+                  {locationText || "Localização não informada"}
+                </p>
+              </div>
+
+              <div className="site-property-details-price-box">
+                <span className="site-property-details-price-label">Valor</span>
+                <strong>{formattedPrice}</strong>
+                <small className="site-property-details-price-note">
+                  Entre em contato para mais detalhes e condições.
+                </small>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="site-property-details-content-section">
+          <div className="site-property-details-container">
+            <div className="site-property-details-grid">
+              <div className="site-property-details-main">
+                <div className="site-property-details-gallery">
+                  <div className="site-property-details-main-image-wrap">
+                    <img
+                      src={selectedImage}
+                      alt={property.title}
+                      className="site-property-details-main-image"
+                    />
+                  </div>
+
+                  <div className="site-property-details-thumbs">
+                    {galleryImages.map((img, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className={`site-property-details-thumb ${
+                          selectedImage === img ? "active" : ""
+                        }`}
+                        onClick={() => setSelectedImage(img)}
+                        aria-label={`Ver imagem ${index + 1} do imóvel`}
+                      >
+                        <img src={img} alt="" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="site-property-details-section-card">
+                  <h2>Resumo do imóvel</h2>
+
+                  <div className="site-property-details-highlight-grid">
+                    <div className="site-property-details-highlight-item">
+                      <span className="label">Tipo de negócio</span>
+                      <strong>{businessType}</strong>
+                    </div>
+
+                    <div className="site-property-details-highlight-item">
+                      <span className="label">Cidade</span>
+                      <strong>{property.city || "Não informado"}</strong>
+                    </div>
+
+                    <div className="site-property-details-highlight-item">
+                      <span className="label">Bairro</span>
+                      <strong>
+                        {property.district ||
+                          property.neighborhood ||
+                          "Não informado"}
+                      </strong>
+                    </div>
+
+                    <div className="site-property-details-highlight-item">
+                      <span className="label">Código</span>
+                      <strong>{property.id}</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="site-property-details-section-card">
+                  <h2>Características</h2>
+
+                  <div className="site-property-details-features">
+                    <div className="site-property-details-feature">
+                      <span className="label">Quartos</span>
+                      <strong>{property.rooms || 0}</strong>
+                    </div>
+
+                    <div className="site-property-details-feature">
+                      <span className="label">Banheiros</span>
+                      <strong>{property.bathrooms || 0}</strong>
+                    </div>
+
+                    <div className="site-property-details-feature">
+                      <span className="label">Vagas</span>
+                      <strong>{property.garage || 0}</strong>
+                    </div>
+
+                    <div className="site-property-details-feature">
+                      <span className="label">Área</span>
+                      <strong>{property.area || 0} m²</strong>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="site-property-details-section-card">
+                  <h2>Descrição</h2>
+
+                  <p className="site-property-details-description">
+                    {property.description ||
+                      "Este imóvel está disponível para atendimento. Entre em contato para receber mais informações e agendar uma visita."}
+                  </p>
+                </div>
+
+                <div className="site-property-details-section-card">
+                  <h2>Localização</h2>
+
+                  <p className="site-property-details-description">
+                    {locationText || "Localização não informada."}
+                  </p>
+                </div>
+              </div>
+
+              <aside className="site-property-details-sidebar">
+                <div className="site-property-details-contact-card">
+                  <span className="site-property-details-contact-label">
+                    Atendimento
+                  </span>
+
+                  <h3>JB Pessoa Imóveis</h3>
+
+                  <p>
+                    Entre em contato agora para tirar dúvidas, receber mais
+                    informações e agendar sua visita.
+                  </p>
+
+                  <div className="site-property-details-contact-info">
+                    <span>Telefone / WhatsApp</span>
+                    <strong>(11) 98318-5430</strong>
+                  </div>
+
+                  <div className="site-property-details-sidebar-summary">
+                    <div className="site-property-details-sidebar-line">
+                      <span>Imóvel</span>
+                      <strong>{property.title}</strong>
+                    </div>
+
+                    <div className="site-property-details-sidebar-line">
+                      <span>Tipo</span>
+                      <strong>{businessType}</strong>
+                    </div>
+
+                    <div className="site-property-details-sidebar-line">
+                      <span>Valor</span>
+                      <strong>{formattedPrice}</strong>
+                    </div>
+                  </div>
+
+                  <a
+                    href={whatsappLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="site-property-details-whatsapp-button"
+                  >
+                    Falar no WhatsApp
+                  </a>
+
+                  <Link
+                    to="/site/imoveis"
+                    className="site-property-details-outline-button"
+                  >
+                    Ver outros imóveis
+                  </Link>
+                </div>
+              </aside>
+            </div>
+          </div>
         </section>
       </div>
-    </div>
+    </SiteLayout>
   );
 }

@@ -1,78 +1,144 @@
 const prisma = require("../config/prisma");
 
-// CRIAR IMÓVEL
+function parseImages(images) {
+  if (!images) return [];
+
+  if (Array.isArray(images)) return images;
+
+  if (typeof images === "string") {
+    try {
+      const parsed = JSON.parse(images);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
+function normalizeType(type) {
+  if (!type) return undefined;
+
+  const value = String(type).trim().toUpperCase();
+
+  if (value === "VENDA" || value === "SALE") return "SALE";
+  if (value === "ALUGUEL" || value === "RENT") return "RENT";
+
+  return value;
+}
+
+function getPriceRangeFilter(priceRange) {
+  if (!priceRange) return undefined;
+
+  if (priceRange === "ate-200") {
+    return { gte: 1, lte: 200000 };
+  }
+
+  if (priceRange === "200-500") {
+    return { gt: 200000, lte: 500000 };
+  }
+
+  if (priceRange === "500-1000") {
+    return { gt: 500000, lte: 1000000 };
+  }
+
+  if (priceRange === "acima-1000") {
+    return { gt: 1000000 };
+  }
+
+  return undefined;
+}
+
+function getOrderBy(sort) {
+  if (sort === "menor-preco") return { price: "asc" };
+  if (sort === "maior-preco") return { price: "desc" };
+  if (sort === "maior-area") return { area: "desc" };
+  if (sort === "a-z") return { title: "asc" };
+  if (sort === "z-a") return { title: "desc" };
+
+  return { createdAt: "desc" };
+}
+
+function mapProperty(property) {
+  return {
+    ...property,
+    images: parseImages(property.images)
+  };
+}
+
 async function createProperty(req, res) {
   try {
     const {
       title,
       description,
-      type,
-      purpose,
       price,
-      bedrooms,
-      bathrooms,
-      garages,
-      area,
+      type,
+      address,
+      street,
+      number,
+      complement,
+      district,
       neighborhood,
       city,
       state,
-      address,
-      number,
       zipCode,
+      rooms,
+      bathrooms,
+      garage,
+      area,
       coverImage,
-      images,
-      ownerId,
-      isPublished
+      images
     } = req.body;
+
+    if (!title) {
+      return res.status(400).json({ error: "Título é obrigatório." });
+    }
 
     const property = await prisma.property.create({
       data: {
         title,
         description,
-        type,
-        purpose,
         price: price ? Number(price) : null,
-        bedrooms: bedrooms ? Number(bedrooms) : null,
-        bathrooms: bathrooms ? Number(bathrooms) : null,
-        garages: garages ? Number(garages) : null,
-        area: area ? Number(area) : null,
+        type: normalizeType(type),
+        address,
+        street,
+        number,
+        complement,
+        district,
         neighborhood,
         city,
         state,
-        address,
-        number,
         zipCode,
+        rooms: rooms ? Number(rooms) : 0,
+        bathrooms: bathrooms ? Number(bathrooms) : 0,
+        garage: garage ? Number(garage) : 0,
+        area: area ? Number(area) : 0,
         coverImage,
-        images: images || [],
-        ownerId: ownerId || null,
-        isPublished: isPublished ?? true
+        images: JSON.stringify(Array.isArray(images) ? images : [])
       }
     });
 
-    return res.status(201).json(property);
+    return res.status(201).json(mapProperty(property));
   } catch (error) {
     console.error("Erro ao criar imóvel:", error);
     return res.status(500).json({ error: "Erro ao criar imóvel." });
   }
 }
 
-// LISTAR IMÓVEIS DO SISTEMA
 async function listProperties(req, res) {
   try {
     const properties = await prisma.property.findMany({
-      orderBy: {
-        createdAt: "desc"
-      }
+      orderBy: { createdAt: "desc" }
     });
 
-    return res.json(properties);
+    return res.json(properties.map(mapProperty));
   } catch (error) {
     console.error("Erro ao listar imóveis:", error);
     return res.status(500).json({ error: "Erro ao listar imóveis." });
   }
 }
 
-// BUSCAR IMÓVEL DO SISTEMA POR ID
 async function getPropertyById(req, res) {
   try {
     const { id } = req.params;
@@ -85,85 +151,92 @@ async function getPropertyById(req, res) {
       return res.status(404).json({ error: "Imóvel não encontrado." });
     }
 
-    return res.json(property);
+    return res.json(mapProperty(property));
   } catch (error) {
     console.error("Erro ao buscar imóvel:", error);
     return res.status(500).json({ error: "Erro ao buscar imóvel." });
   }
 }
 
-// ATUALIZAR IMÓVEL
 async function updateProperty(req, res) {
   try {
     const { id } = req.params;
     const {
       title,
       description,
-      type,
-      purpose,
       price,
-      bedrooms,
-      bathrooms,
-      garages,
-      area,
+      type,
+      address,
+      street,
+      number,
+      complement,
+      district,
       neighborhood,
       city,
       state,
-      address,
-      number,
       zipCode,
+      rooms,
+      bathrooms,
+      garage,
+      area,
       coverImage,
-      images,
-      ownerId,
-      isPublished
+      images
     } = req.body;
+
+    const existingProperty = await prisma.property.findUnique({
+      where: { id }
+    });
+
+    if (!existingProperty) {
+      return res.status(404).json({ error: "Imóvel não encontrado." });
+    }
 
     const property = await prisma.property.update({
       where: { id },
       data: {
         title,
         description,
-        type,
-        purpose,
-        price: price !== undefined && price !== null && price !== ""
-          ? Number(price)
-          : null,
-        bedrooms: bedrooms !== undefined && bedrooms !== null && bedrooms !== ""
-          ? Number(bedrooms)
-          : null,
-        bathrooms: bathrooms !== undefined && bathrooms !== null && bathrooms !== ""
-          ? Number(bathrooms)
-          : null,
-        garages: garages !== undefined && garages !== null && garages !== ""
-          ? Number(garages)
-          : null,
-        area: area !== undefined && area !== null && area !== ""
-          ? Number(area)
-          : null,
+        price: price !== undefined ? Number(price || 0) : undefined,
+        type: type !== undefined ? normalizeType(type) : undefined,
+        address,
+        street,
+        number,
+        complement,
+        district,
         neighborhood,
         city,
         state,
-        address,
-        number,
         zipCode,
+        rooms: rooms !== undefined ? Number(rooms || 0) : undefined,
+        bathrooms: bathrooms !== undefined ? Number(bathrooms || 0) : undefined,
+        garage: garage !== undefined ? Number(garage || 0) : undefined,
+        area: area !== undefined ? Number(area || 0) : undefined,
         coverImage,
-        images: images || [],
-        ownerId: ownerId || null,
-        isPublished: isPublished ?? true
+        images:
+          images !== undefined
+            ? JSON.stringify(Array.isArray(images) ? images : [])
+            : undefined
       }
     });
 
-    return res.json(property);
+    return res.json(mapProperty(property));
   } catch (error) {
     console.error("Erro ao atualizar imóvel:", error);
     return res.status(500).json({ error: "Erro ao atualizar imóvel." });
   }
 }
 
-// EXCLUIR IMÓVEL
 async function deleteProperty(req, res) {
   try {
     const { id } = req.params;
+
+    const existingProperty = await prisma.property.findUnique({
+      where: { id }
+    });
+
+    if (!existingProperty) {
+      return res.status(404).json({ error: "Imóvel não encontrado." });
+    }
 
     await prisma.property.delete({
       where: { id }
@@ -176,23 +249,89 @@ async function deleteProperty(req, res) {
   }
 }
 
-// LISTAR IMÓVEIS PÚBLICOS
 async function listPublicProperties(req, res) {
   try {
-    const properties = await prisma.property.findMany({
-      orderBy: {
-        createdAt: "desc"
+    const {
+      search = "",
+      type = "",
+      city = "",
+      priceRange = "",
+      sort = "recentes",
+      page = "1",
+      limit = "9"
+    } = req.query;
+
+    const currentPage = Math.max(Number(page) || 1, 1);
+    const perPage = Math.min(Math.max(Number(limit) || 9, 1), 30);
+    const skip = (currentPage - 1) * perPage;
+
+    const normalizedType = normalizeType(type);
+    const priceFilter = getPriceRangeFilter(priceRange);
+
+    const where = {
+      AND: [
+        search
+          ? {
+              OR: [
+                { title: { contains: search, mode: "insensitive" } },
+                { city: { contains: search, mode: "insensitive" } },
+                { state: { contains: search, mode: "insensitive" } },
+                { district: { contains: search, mode: "insensitive" } },
+                { neighborhood: { contains: search, mode: "insensitive" } },
+                { address: { contains: search, mode: "insensitive" } },
+                { street: { contains: search, mode: "insensitive" } },
+                { id: { contains: search, mode: "insensitive" } }
+              ]
+            }
+          : {},
+        normalizedType ? { type: normalizedType } : {},
+        city ? { city: { equals: city, mode: "insensitive" } } : {},
+        priceFilter ? { price: priceFilter } : {}
+      ]
+    };
+
+    const [total, properties, cityList] = await Promise.all([
+      prisma.property.count({ where }),
+      prisma.property.findMany({
+        where,
+        orderBy: getOrderBy(sort),
+        skip,
+        take: perPage
+      }),
+      prisma.property.findMany({
+        select: { city: true },
+        distinct: ["city"],
+        where: {
+          city: {
+            not: null
+          }
+        },
+        orderBy: {
+          city: "asc"
+        }
+      })
+    ]);
+
+    return res.json({
+      data: properties.map(mapProperty),
+      pagination: {
+        page: currentPage,
+        limit: perPage,
+        total,
+        totalPages: Math.max(Math.ceil(total / perPage), 1)
+      },
+      filters: {
+        cities: cityList.map((item) => item.city).filter(Boolean)
       }
     });
-
-    return res.json(properties);
   } catch (error) {
     console.error("Erro ao listar imóveis públicos:", error);
-    return res.status(500).json({ error: "Erro ao listar imóveis públicos." });
+    return res
+      .status(500)
+      .json({ error: "Erro ao listar imóveis públicos." });
   }
 }
 
-// BUSCAR IMÓVEL PÚBLICO POR ID
 async function getPublicPropertyById(req, res) {
   try {
     const { id } = req.params;
@@ -205,10 +344,10 @@ async function getPublicPropertyById(req, res) {
       return res.status(404).json({ error: "Imóvel não encontrado." });
     }
 
-    return res.json(property);
+    return res.json(mapProperty(property));
   } catch (error) {
     console.error("Erro ao buscar imóvel público:", error);
-    return res.status(500).json({ error: "Erro ao buscar imóvel público." });
+    return res.status(500).json({ error: "Erro ao buscar imóvel." });
   }
 }
 
