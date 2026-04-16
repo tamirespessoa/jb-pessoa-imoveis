@@ -1,0 +1,190 @@
+.simulator-section {
+  width: 100%;
+  padding: 60px 20px;
+  background: linear-gradient(180deg, #f8f6f1 0%, #ffffff 100%);
+}
+
+.simulator-wrapper {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.simulator-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.simulator-badge {
+  display: inline-block;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 14px;
+}
+
+.simulator-header h2 {
+  margin: 0 0 10px;
+  font-size: 36px;
+  color: #111827;
+}
+
+.simulator-header p {
+  max-width: 760px;
+  margin: 0 auto;
+  color: #4b5563;
+  line-height: 1.6;
+}
+
+.simulator-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 0.9fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.simulator-form,
+.simulator-card {
+  background: #ffffff;
+  border-radius: 24px;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.06);
+}
+
+.simulator-form {
+  padding: 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.simulator-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.simulator-field-full {
+  grid-column: 1 / -1;
+}
+
+.simulator-field label {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.simulator-field input,
+.simulator-field select,
+.simulator-field textarea {
+  width: 100%;
+  min-height: 50px;
+  border-radius: 14px;
+  border: 1px solid #d1d5db;
+  padding: 12px 14px;
+  font-size: 15px;
+  outline: none;
+  transition: 0.2s ease;
+}
+
+.simulator-field textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.simulator-field input:focus,
+.simulator-field select:focus,
+.simulator-field textarea:focus {
+  border-color: #c8a96b;
+  box-shadow: 0 0 0 4px rgba(200, 169, 107, 0.12);
+}
+
+.simulator-button {
+  grid-column: 1 / -1;
+  min-height: 54px;
+  border: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #111827 0%, #1f2937 100%);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.simulator-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 30px rgba(17, 24, 39, 0.2);
+}
+
+.simulator-message {
+  grid-column: 1 / -1;
+  margin: 0;
+  font-size: 14px;
+  color: #065f46;
+  font-weight: 600;
+}
+
+.simulator-card {
+  padding: 28px;
+  position: sticky;
+  top: 20px;
+}
+
+.simulator-card h3 {
+  margin: 0 0 20px;
+  font-size: 24px;
+  color: #111827;
+}
+
+.simulator-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 0;
+  border-bottom: 1px solid #e5e7eb;
+  gap: 16px;
+}
+
+.simulator-result-row span {
+  color: #6b7280;
+}
+
+.simulator-result-row strong {
+  color: #111827;
+}
+
+.simulator-highlight strong {
+  font-size: 24px;
+  color: #b8860b;
+}
+
+.simulator-card small {
+  display: block;
+  margin-top: 18px;
+  line-height: 1.6;
+  color: #6b7280;
+}
+
+@media (max-width: 980px) {
+  .simulator-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .simulator-card {
+    position: static;
+  }
+}
+
+@media (max-width: 640px) {
+  .simulator-header h2 {
+    font-size: 28px;
+  }
+
+  .simulator-form {
+    grid-template-columns: 1fr;
+    padding: 20px;
+  }
+}

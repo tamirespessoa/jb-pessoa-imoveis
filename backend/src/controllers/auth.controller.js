@@ -12,8 +12,10 @@ async function register(req, res) {
       });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     const userExists = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     });
 
     if (userExists) {
@@ -26,8 +28,8 @@ async function register(req, res) {
 
     const user = await prisma.user.create({
       data: {
-        name,
-        email,
+        name: name.trim(),
+        email: normalizedEmail,
         password: hashedPassword,
         role
       }
@@ -43,9 +45,10 @@ async function register(req, res) {
       }
     });
   } catch (error) {
+    console.error("Erro ao cadastrar usuário:", error);
+
     return res.status(500).json({
-      error: "Erro ao cadastrar usuário.",
-      details: error.message
+      error: "Erro ao cadastrar usuário."
     });
   }
 }
@@ -60,8 +63,10 @@ async function login(req, res) {
       });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     const user = await prisma.user.findUnique({
-      where: { email }
+      where: { email: normalizedEmail }
     });
 
     if (!user) {
@@ -81,10 +86,11 @@ async function login(req, res) {
     const token = jwt.sign(
       {
         id: user.id,
+        name: user.name,
         email: user.email,
         role: user.role
       },
-      process.env.JWT_SECRET || "segredo_padrao",
+      process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
@@ -99,9 +105,10 @@ async function login(req, res) {
       }
     });
   } catch (error) {
+    console.error("Erro ao fazer login:", error);
+
     return res.status(500).json({
-      error: "Erro ao fazer login.",
-      details: error.message
+      error: "Erro ao fazer login."
     });
   }
 }

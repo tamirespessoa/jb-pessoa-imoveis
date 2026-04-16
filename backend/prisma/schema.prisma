@@ -7,48 +7,147 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      String   @default("USER")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+model Appointment {
+  id              String   @id @default(cuid())
+  propertyId      String
+  clientId        String
+  appointmentDate DateTime
+  duration        Int      @default(60)
+  status          String   @default("AGENDADO")
+  notes           String?
+  outcome         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  @@map("users")
+  client   Person   @relation("ClientAppointments", fields: [clientId], references: [id], onDelete: Cascade)
+  property Property @relation("PropertyAppointments", fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([propertyId])
+  @@map("appointments")
+}
+
+model Conversation {
+  id           String    @id @default(cuid())
+  visitorName  String
+  visitorPhone String?
+  visitorEmail String?
+  assignedToId String?
+  status       String    @default("ABERTA")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  assignedTo User?     @relation("UserConversations", fields: [assignedToId], references: [id])
+  messages   Message[]
+
+  @@index([assignedToId])
+  @@map("conversations")
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  fileName   String?
+  fileSize   Int?
+  personId   String?
+  propertyId String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  filePath   String?
+  title      String
+  type       String
+
+  person   Person?   @relation("PersonDocuments", fields: [personId], references: [id], onDelete: Cascade)
+  property Property? @relation("PropertyDocuments", fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([personId])
+  @@index([propertyId])
+  @@map("documents")
+}
+
+model LeadDistribution {
+  id                 String   @id @default(cuid())
+  lastAssignedUserId String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("lead_distribution")
+}
+
+model Lead {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String
+  email        String?
+  message      String?
+  status       String   @default("NOVO")
+  propertyId   String?
+  assignedToId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assignedTo User?     @relation("UserLeads", fields: [assignedToId], references: [id])
+  property   Property? @relation("PropertyLeads", fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([assignedToId])
+  @@index([propertyId])
+  @@map("leads")
+}
+
+model Message {
+  id             String   @id @default(cuid())
+  conversationId String
+  senderType     String
+  senderName     String?
+  text           String
+  createdAt      DateTime @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("messages")
 }
 
 model Person {
-  id                 String         @id @default(cuid())
-  type               String
-  fullName           String
-  cpf                String?        @unique
-  rg                 String?
-  email              String?        @unique
-  phone              String?
-  company            String?
-  commercialPhone    String?
-  residentialPhone   String?
-  contactPhone       String?
-  whatsapp           Boolean        @default(false)
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  id               String   @id @default(cuid())
+  type             String
+  fullName         String
+  cpf              String?  @unique
+  rg               String?
+  email            String?  @unique
+  phone            String?
+  company          String?
+  commercialPhone  String?
+  residentialPhone String?
+  contactPhone     String?
+  whatsapp         Boolean  @default(false)
 
-  properties         Property[]
-  clientAppointments Appointment[]  @relation("clientAppointments")
-  documents          Document[]
-  proposals          Proposal[]     @relation("ProposalClient")
+  category         String?
+  firstContact     String?
+  isActive         Boolean  @default(true)
+  notes            String?
+  createReminder   Boolean  @default(false)
 
+  assignedToId     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  assignedTo   User?         @relation("UserPersons", fields: [assignedToId], references: [id])
+  appointments Appointment[] @relation("ClientAppointments")
+  documents    Document[]    @relation("PersonDocuments")
+  properties   Property[]    @relation("OwnerProperties")
+  proposals    Proposal[]    @relation("ClientProposals")
+  financings   Financing[]   @relation("ClientFinancings")
+
+  @@index([assignedToId])
   @@map("persons")
 }
 
 model Property {
-  id           String         @id @default(cuid())
+  id           String   @id @default(cuid())
   title        String
-  code         String         @unique
+  code         String   @unique
   type         String
-  status       String         @default("DISPONIVEL")
+  status       String   @default("DISPONIVEL")
   price        Float
   rentPrice    Float?
   area         Float
@@ -65,56 +164,43 @@ model Property {
   description  String?
   ownerId      String
   images       String[]
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  featured     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  owner        Person         @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  documents    Document[]
-  appointments Appointment[]
-  proposals    Proposal[]     @relation("ProposalProperty")
+  owner        Person         @relation("OwnerProperties", fields: [ownerId], references: [id], onDelete: Cascade)
+  appointments Appointment[]  @relation("PropertyAppointments")
+  documents    Document[]     @relation("PropertyDocuments")
+  proposals    Proposal[]     @relation("PropertyProposals")
+  leads        Lead[]         @relation("PropertyLeads")
+  financings   Financing[]    @relation("PropertyFinancings")
 
   @@index([ownerId])
   @@map("properties")
 }
 
-model Document {
-  id         String    @id @default(cuid())
-  title      String
-  type       String
-  fileName   String?
-  filePath   String?
-  fileSize   Int?
-  personId   String?
-  propertyId String?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+model PropertyRequest {
+  id           String   @id @default(cuid())
+  ownerName    String
+  phone        String
+  whatsapp     String?
+  email        String
+  propertyType String
+  purpose      String
+  city         String
+  neighborhood String
+  address      String?
+  bedrooms     Int?
+  bathrooms    Int?
+  parkingSpots Int?
+  area         Float?
+  price        String?
+  description  String?
+  status       String   @default("PENDENTE")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
-  person     Person?   @relation(fields: [personId], references: [id], onDelete: Cascade)
-  property   Property? @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-
-  @@index([personId])
-  @@index([propertyId])
-  @@map("documents")
-}
-
-model Appointment {
-  id              String   @id @default(cuid())
-  propertyId      String
-  clientId        String
-  appointmentDate DateTime
-  duration        Int      @default(60)
-  status          String   @default("AGENDADO")
-  notes           String?
-  outcome         String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-
-  property        Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
-  client          Person   @relation("clientAppointments", fields: [clientId], references: [id], onDelete: Cascade)
-
-  @@index([propertyId])
-  @@index([clientId])
-  @@map("appointments")
+  @@map("property_requests")
 }
 
 model Proposal {
@@ -127,34 +213,85 @@ model Proposal {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  property   Property @relation("ProposalProperty", fields: [propertyId], references: [id], onDelete: Cascade)
-  client     Person   @relation("ProposalClient", fields: [clientId], references: [id], onDelete: Cascade)
+  client   Person   @relation("ClientProposals", fields: [clientId], references: [id], onDelete: Cascade)
+  property Property @relation("PropertyProposals", fields: [propertyId], references: [id], onDelete: Cascade)
 
-  @@index([propertyId])
   @@index([clientId])
+  @@index([propertyId])
   @@map("proposals")
 }
 
-model PropertyRequest {
+model User {
   id            String   @id @default(cuid())
-  ownerName     String
-  phone         String
-  whatsapp      String?
-  email         String
-  propertyType  String
-  purpose       String
-  city          String
-  neighborhood  String
-  address       String?
-  bedrooms      Int?
-  bathrooms     Int?
-  parkingSpots  Int?
-  area          Float?
-  price         String?
-  description   String?
-  status        String   @default("PENDENTE")
+  email         String   @unique
+  password      String
+  name          String
+  role          String   @default("ADMIN")
+  online        Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  @@map("property_requests")
+  conversations Conversation[] @relation("UserConversations")
+  leads         Lead[]         @relation("UserLeads")
+  persons       Person[]       @relation("UserPersons")
+  financings    Financing[]    @relation("UserFinancings")
+
+  @@map("users")
+}
+
+model Financing {
+  id             String   @id @default(cuid())
+  clientId       String
+  propertyId     String?
+  assignedToId   String?
+  stage          String   @default("LEAD_SIMULACAO")
+  status         String   @default("NAO_ATENDIDO")
+  propertyValue  Float
+  financedValue  Float?
+  entryValue     Float?
+  notes          String?
+  viewedBy       String?
+  attendedByName String?
+  viewedAt       DateTime?
+  startedAt      DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  client     Person   @relation("ClientFinancings", fields: [clientId], references: [id], onDelete: Cascade)
+  property   Property? @relation("PropertyFinancings", fields: [propertyId], references: [id], onDelete: SetNull)
+  assignedTo User?    @relation("UserFinancings", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([clientId])
+  @@index([propertyId])
+  @@index([assignedToId])
+  @@index([stage])
+  @@index([status])
+  @@map("financings")
+}
+
+model CompanyData {
+  id            String   @id @default(cuid())
+  companyName   String?
+  tradeName     String?
+  cnpj          String?  @unique
+  creci         String?
+  email         String?
+  phone         String?
+  whatsapp      String?
+  website       String?
+  instagram     String?
+  facebook      String?
+  street        String?
+  number        String?
+  complement    String?
+  district      String?
+  city          String?
+  state         String?
+  zipCode       String?
+  businessHours String?
+  description   String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("company_data")
 }

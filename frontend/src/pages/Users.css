@@ -1,0 +1,165 @@
+.users-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  padding: 24px;
+}
+
+.users-header h1 {
+  margin: 0;
+  font-size: 28px;
+  color: #1f2937;
+}
+
+.users-header p {
+  margin: 6px 0 0;
+  color: #6b7280;
+}
+
+.users-grid {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 24px;
+}
+
+.users-card {
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  border: 1px solid #e5e7eb;
+}
+
+.users-card h2 {
+  margin: 0 0 18px;
+  font-size: 20px;
+  color: #111827;
+}
+
+.users-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.users-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.users-form-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.users-form-group input,
+.users-form-group select {
+  width: 100%;
+  height: 44px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 0 12px;
+  font-size: 14px;
+  outline: none;
+  background: #fff;
+}
+
+.users-form-group input:focus,
+.users-form-group select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.users-submit {
+  height: 46px;
+  border: none;
+  border-radius: 10px;
+  background: #111827;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.users-submit:hover {
+  opacity: 0.92;
+}
+
+.users-submit:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.users-message {
+  border-radius: 10px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.users-message.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.users-message.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.users-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table th,
+.users-table td {
+  text-align: left;
+  padding: 14px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 14px;
+}
+
+.users-table th {
+  color: #374151;
+  font-weight: 700;
+  background: #f9fafb;
+}
+
+.role-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
+  height: 30px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 0 12px;
+}
+
+.role-badge.admin {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.role-badge.broker {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+@media (max-width: 980px) {
+  .users-grid {
+    grid-template-columns: 1fr;
+  }
+}

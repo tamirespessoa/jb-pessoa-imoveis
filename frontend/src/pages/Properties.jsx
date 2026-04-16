@@ -3,6 +3,7 @@ import api from "../services/api";
 
 function Properties() {
   const menuRef = useRef(null);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [properties, setProperties] = useState([]);
   const [owners, setOwners] = useState([]);
@@ -37,7 +38,9 @@ function Properties() {
   });
 
   const apiBaseUrl =
-    import.meta.env.VITE_API_URL || api.defaults.baseURL || "http://localhost:3001";
+    import.meta.env.VITE_API_URL ||
+    api.defaults.baseURL ||
+    "http://localhost:3001";
 
   function normalizeString(value) {
     if (value === undefined || value === null) return null;
@@ -102,7 +105,10 @@ function Properties() {
         }
       }
     } catch (error) {
-      console.error("Erro ao carregar imóveis:", error.response?.data || error.message);
+      console.error(
+        "Erro ao carregar imóveis:",
+        error.response?.data || error.message
+      );
       alert("Erro ao carregar imóveis.");
     }
   }
@@ -115,7 +121,10 @@ function Properties() {
       );
       setOwners(filtered);
     } catch (error) {
-      console.error("Erro ao carregar proprietários:", error.response?.data || error.message);
+      console.error(
+        "Erro ao carregar proprietários:",
+        error.response?.data || error.message
+      );
       alert("Erro ao carregar proprietários.");
     }
   }
@@ -188,15 +197,21 @@ function Properties() {
   }
 
   function handleOpenEdit(property) {
+    if (user.role !== "ADMIN") return;
     handleSelectProperty(property, true);
   }
 
   function handleOpenDetails(property) {
-    handleSelectProperty(property, false);
+    setSelectedProperty(property);
+    setEditingId(property.id);
+    setNewImages([]);
+    fillFormFromProperty(property);
     setViewMode("details");
   }
 
   function handleNewProperty() {
+    if (user.role !== "ADMIN") return;
+
     setSelectedProperty(null);
     setEditingId(null);
     setShowMenu(false);
@@ -259,13 +274,22 @@ function Properties() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (user.role !== "ADMIN") {
+      alert("Somente administradores podem salvar imóveis.");
+      return;
+    }
+
     if (!form.title.trim()) return alert("Título do imóvel é obrigatório.");
     if (!form.code.trim()) return alert("Código é obrigatório.");
     if (!form.type.trim()) return alert("Tipo é obrigatório.");
     if (!form.price.toString().trim()) return alert("Preço é obrigatório.");
     if (!form.area.toString().trim()) return alert("Área é obrigatória.");
-    if (!form.rooms.toString().trim()) return alert("Quantidade de quartos é obrigatória.");
-    if (!form.bathrooms.toString().trim()) return alert("Quantidade de banheiros é obrigatória.");
+    if (!form.rooms.toString().trim()) {
+      return alert("Quantidade de quartos é obrigatória.");
+    }
+    if (!form.bathrooms.toString().trim()) {
+      return alert("Quantidade de banheiros é obrigatória.");
+    }
     if (!form.street.trim()) return alert("Rua é obrigatória.");
     if (!form.number.trim()) return alert("Número é obrigatório.");
     if (!form.zipCode.trim()) return alert("CEP é obrigatório.");
@@ -324,6 +348,11 @@ function Properties() {
   }
 
   async function handleDelete() {
+    if (user.role !== "ADMIN") {
+      alert("Somente administradores podem excluir imóveis.");
+      return;
+    }
+
     if (!editingId) {
       alert("Selecione um imóvel para excluir.");
       return;
@@ -340,7 +369,10 @@ function Properties() {
       setViewMode("list");
       await loadProperties();
     } catch (error) {
-      console.error("Erro ao excluir imóvel:", error.response?.data || error.message);
+      console.error(
+        "Erro ao excluir imóvel:",
+        error.response?.data || error.message
+      );
       alert("Erro ao excluir imóvel.");
     }
   }
@@ -442,7 +474,9 @@ Preço: ${selectedProperty.price ?? "-"}
         <div style={styles.listHeader}>
           <div>
             <h1 style={styles.pageTitle}>Últimos imóveis cadastrados</h1>
-            <p style={styles.pageSubtitle}>Clique na linha para ver detalhes ou editar.</p>
+            <p style={styles.pageSubtitle}>
+              Clique na linha para ver detalhes ou editar.
+            </p>
           </div>
 
           <div style={styles.listHeaderActions}>
@@ -452,12 +486,23 @@ Preço: ${selectedProperty.price ?? "-"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <button type="button" style={styles.secondaryButton} onClick={handleRefresh}>
+            <button
+              type="button"
+              style={styles.secondaryButton}
+              onClick={handleRefresh}
+            >
               Atualizar
             </button>
-            <button type="button" style={styles.primaryButton} onClick={handleNewProperty}>
-              + Novo imóvel
-            </button>
+
+            {user.role === "ADMIN" && (
+              <button
+                type="button"
+                style={styles.primaryButton}
+                onClick={handleNewProperty}
+              >
+                + Novo imóvel
+              </button>
+            )}
           </div>
         </div>
 
@@ -509,7 +554,9 @@ Preço: ${selectedProperty.price ?? "-"}
 
                     <td style={styles.td}>
                       <div>{property.type || "-"}</div>
-                      <div style={styles.subText}>{property.status || "Normal"}</div>
+                      <div style={styles.subText}>
+                        {property.status || "Normal"}
+                      </div>
                     </td>
 
                     <td style={styles.td}>{formatCurrency(property.price)}</td>
@@ -535,13 +582,17 @@ Preço: ${selectedProperty.price ?? "-"}
                       style={styles.tdCenter}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <button
-                        type="button"
-                        style={styles.editButton}
-                        onClick={() => handleOpenEdit(property)}
-                      >
-                        Editar
-                      </button>
+                      {user.role === "ADMIN" ? (
+                        <button
+                          type="button"
+                          style={styles.editButton}
+                          onClick={() => handleOpenEdit(property)}
+                        >
+                          Editar
+                        </button>
+                      ) : (
+                        <span style={styles.viewOnlyBadge}>Visualização</span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -561,20 +612,41 @@ Preço: ${selectedProperty.price ?? "-"}
     return (
       <div style={styles.detailsPage}>
         <div style={styles.detailsTopBar}>
-          <button type="button" style={styles.backListButton} onClick={handleBackToList}>
+          <button
+            type="button"
+            style={styles.backListButton}
+            onClick={handleBackToList}
+          >
             ← Voltar para lista
           </button>
 
           <div style={styles.detailsTopActions} ref={menuRef}>
-            <button type="button" style={styles.secondaryButton} onClick={() => handleOpenEdit(selectedProperty)}>
-              Editar
-            </button>
-            <button type="button" style={styles.secondaryButton} onClick={handleShare}>
+            {user.role === "ADMIN" && (
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={() => handleOpenEdit(selectedProperty)}
+              >
+                Editar
+              </button>
+            )}
+
+            <button
+              type="button"
+              style={styles.secondaryButton}
+              onClick={handleShare}
+            >
               Compartilhar
             </button>
-            <button type="button" style={styles.secondaryButton} onClick={handlePrint}>
+
+            <button
+              type="button"
+              style={styles.secondaryButton}
+              onClick={handlePrint}
+            >
               Imprimir
             </button>
+
             <button
               type="button"
               style={styles.menuButton}
@@ -614,20 +686,27 @@ Preço: ${selectedProperty.price ?? "-"}
 
           <div style={styles.detailsContent}>
             <h2 style={styles.detailsTitle}>
-              {selectedProperty.title} - {selectedProperty.city}/{selectedProperty.state}
+              {selectedProperty.title} - {selectedProperty.city}/
+              {selectedProperty.state}
             </h2>
 
-            <div style={styles.detailsPrice}>{formatCurrency(selectedProperty.price)}</div>
+            <div style={styles.detailsPrice}>
+              {formatCurrency(selectedProperty.price)}
+            </div>
 
             <div style={styles.infoGrid}>
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Código</div>
-                <div style={styles.infoValue}>{selectedProperty.code || "-"}</div>
+                <div style={styles.infoValue}>
+                  {selectedProperty.code || "-"}
+                </div>
               </div>
 
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Tipo</div>
-                <div style={styles.infoValue}>{selectedProperty.type || "-"}</div>
+                <div style={styles.infoValue}>
+                  {selectedProperty.type || "-"}
+                </div>
               </div>
 
               <div style={styles.infoCard}>
@@ -639,17 +718,23 @@ Preço: ${selectedProperty.price ?? "-"}
 
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Quartos</div>
-                <div style={styles.infoValue}>{selectedProperty.rooms ?? "-"}</div>
+                <div style={styles.infoValue}>
+                  {selectedProperty.rooms ?? "-"}
+                </div>
               </div>
 
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Banheiros</div>
-                <div style={styles.infoValue}>{selectedProperty.bathrooms ?? "-"}</div>
+                <div style={styles.infoValue}>
+                  {selectedProperty.bathrooms ?? "-"}
+                </div>
               </div>
 
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Garagem</div>
-                <div style={styles.infoValue}>{selectedProperty.garage ?? "-"}</div>
+                <div style={styles.infoValue}>
+                  {selectedProperty.garage ?? "-"}
+                </div>
               </div>
             </div>
 
@@ -664,7 +749,9 @@ Preço: ${selectedProperty.price ?? "-"}
                 {getAddressLine(selectedProperty)}
               </p>
               <p style={styles.descriptionText}>
-                {selectedProperty.district || "-"} - {selectedProperty.city || "-"} / {selectedProperty.state || "-"}
+                {selectedProperty.district || "-"} -{" "}
+                {selectedProperty.city || "-"} /{" "}
+                {selectedProperty.state || "-"}
               </p>
 
               <h3 style={styles.sectionTitle}>Proprietário</h3>
@@ -679,10 +766,37 @@ Preço: ${selectedProperty.price ?? "-"}
   }
 
   function renderForm() {
+    if (user.role !== "ADMIN") {
+      return (
+        <div style={styles.formPage}>
+          <div style={styles.formTopBar}>
+            <button
+              type="button"
+              style={styles.backListButton}
+              onClick={handleBackToList}
+            >
+              ← Voltar para lista
+            </button>
+          </div>
+
+          <div style={styles.accessDeniedCard}>
+            <h2 style={styles.accessDeniedTitle}>Acesso restrito</h2>
+            <p style={styles.accessDeniedText}>
+              Somente administradores podem cadastrar ou editar imóveis.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={styles.formPage}>
         <div style={styles.formTopBar}>
-          <button type="button" style={styles.backListButton} onClick={handleBackToList}>
+          <button
+            type="button"
+            style={styles.backListButton}
+            onClick={handleBackToList}
+          >
             ← Voltar para lista
           </button>
 
@@ -703,7 +817,12 @@ Preço: ${selectedProperty.price ?? "-"}
                 <div style={styles.fieldIcon}>🏠</div>
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>*Título do imóvel</label>
-                  <input style={styles.lineInput} name="title" value={form.title} onChange={handleChange} />
+                  <input
+                    style={styles.lineInput}
+                    name="title"
+                    value={form.title}
+                    onChange={handleChange}
+                  />
                 </div>
               </div>
             </div>
@@ -711,93 +830,189 @@ Preço: ${selectedProperty.price ?? "-"}
             <div style={styles.rowTriple}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>*Código</label>
-                <input style={styles.lineInput} name="code" value={form.code} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="code"
+                  value={form.code}
+                  onChange={handleChange}
+                />
               </div>
+
               <div style={styles.fieldContent}>
                 <label style={styles.label}>*Tipo</label>
-                <input style={styles.lineInput} name="type" value={form.type} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="type"
+                  value={form.type}
+                  onChange={handleChange}
+                />
               </div>
+
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Status</label>
-                <input style={styles.lineInput} name="status" value={form.status} onChange={handleChange} />
+                <select
+                  style={styles.selectInput}
+                  name="status"
+                  value={form.status || "DISPONIVEL"}
+                  onChange={handleChange}
+                >
+                  <option value="DISPONIVEL">Disponível</option>
+                  <option value="RESERVADO">Reservado</option>
+                  <option value="EM_ANALISE">Em análise</option>
+                </select>
               </div>
             </div>
 
             <div style={styles.rowDouble}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>*Preço de venda</label>
-                <input style={styles.lineInput} name="price" value={form.price} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="price"
+                  value={form.price}
+                  onChange={handleChange}
+                />
               </div>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Preço de aluguel</label>
-                <input style={styles.lineInput} name="rentPrice" value={form.rentPrice} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="rentPrice"
+                  value={form.rentPrice}
+                  onChange={handleChange}
+                />
               </div>
             </div>
 
             <div style={styles.rowFour}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>*Área</label>
-                <input style={styles.lineInput} name="area" value={form.area} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="area"
+                  value={form.area}
+                  onChange={handleChange}
+                />
               </div>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>*Quartos</label>
-                <input style={styles.lineInput} name="rooms" value={form.rooms} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="rooms"
+                  value={form.rooms}
+                  onChange={handleChange}
+                />
               </div>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>*Banheiros</label>
-                <input style={styles.lineInput} name="bathrooms" value={form.bathrooms} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="bathrooms"
+                  value={form.bathrooms}
+                  onChange={handleChange}
+                />
               </div>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Garagem</label>
-                <input style={styles.lineInput} name="garage" value={form.garage} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="garage"
+                  value={form.garage}
+                  onChange={handleChange}
+                />
               </div>
             </div>
 
             <div style={styles.rowDouble}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>CEP</label>
-                <input style={styles.lineInput} name="zipCode" value={form.zipCode} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="zipCode"
+                  value={form.zipCode}
+                  onChange={handleChange}
+                />
               </div>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Número</label>
-                <input style={styles.lineInput} name="number" value={form.number} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="number"
+                  value={form.number}
+                  onChange={handleChange}
+                />
               </div>
             </div>
 
             <div style={styles.rowDouble}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Rua</label>
-                <input style={styles.lineInput} name="street" value={form.street} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="street"
+                  value={form.street}
+                  onChange={handleChange}
+                />
               </div>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Complemento</label>
-                <input style={styles.lineInput} name="complement" value={form.complement} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="complement"
+                  value={form.complement}
+                  onChange={handleChange}
+                />
               </div>
             </div>
 
             <div style={styles.rowTriple}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Bairro</label>
-                <input style={styles.lineInput} name="district" value={form.district} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="district"
+                  value={form.district}
+                  onChange={handleChange}
+                />
               </div>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Cidade</label>
-                <input style={styles.lineInput} name="city" value={form.city} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="city"
+                  value={form.city}
+                  onChange={handleChange}
+                />
               </div>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Estado</label>
-                <input style={styles.lineInput} name="state" value={form.state} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="state"
+                  value={form.state}
+                  onChange={handleChange}
+                />
               </div>
             </div>
 
             <div style={styles.rowDouble}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Descrição</label>
-                <input style={styles.lineInput} name="description" value={form.description} onChange={handleChange} />
+                <input
+                  style={styles.lineInput}
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                />
               </div>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>*Proprietário</label>
-                <select style={styles.selectInput} name="ownerId" value={form.ownerId} onChange={handleChange}>
+                <select
+                  style={styles.selectInput}
+                  name="ownerId"
+                  value={form.ownerId}
+                  onChange={handleChange}
+                >
                   <option value="">Selecione...</option>
                   {owners.map((owner) => (
                     <option key={owner.id} value={owner.id}>
@@ -827,7 +1042,11 @@ Preço: ${selectedProperty.price ?? "-"}
                 <div style={styles.imageGrid}>
                   {form.images.map((imagePath) => (
                     <div key={imagePath} style={styles.imageCard}>
-                      <img src={getImageUrl(imagePath)} alt="Imóvel" style={styles.previewImage} />
+                      <img
+                        src={getImageUrl(imagePath)}
+                        alt="Imóvel"
+                        style={styles.previewImage}
+                      />
                       <button
                         type="button"
                         style={styles.removeImageButton}
@@ -866,8 +1085,12 @@ Preço: ${selectedProperty.price ?? "-"}
             )}
 
             <div style={styles.actionRow}>
-              {editingId && (
-                <button type="button" style={styles.deleteButton} onClick={handleDelete}>
+              {user.role === "ADMIN" && editingId && (
+                <button
+                  type="button"
+                  style={styles.deleteButton}
+                  onClick={handleDelete}
+                >
                   Excluir
                 </button>
               )}
@@ -1049,6 +1272,15 @@ const styles = {
     fontWeight: "700",
     cursor: "pointer"
   },
+  viewOnlyBadge: {
+    display: "inline-block",
+    padding: "8px 12px",
+    borderRadius: "999px",
+    backgroundColor: "#eef2ff",
+    color: "#4338ca",
+    fontSize: "12px",
+    fontWeight: "700"
+  },
   emptyTableCell: {
     textAlign: "center",
     padding: "40px",
@@ -1209,6 +1441,24 @@ const styles = {
     boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
     border: "1px solid #e5e7eb",
     position: "relative"
+  },
+
+  accessDeniedCard: {
+    backgroundColor: "#fff",
+    borderRadius: "18px",
+    padding: "32px",
+    boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
+    border: "1px solid #e5e7eb"
+  },
+  accessDeniedTitle: {
+    margin: "0 0 12px 0",
+    fontSize: "24px",
+    color: "#111827"
+  },
+  accessDeniedText: {
+    margin: 0,
+    color: "#6b7280",
+    fontSize: "16px"
   },
 
   formHeader: {

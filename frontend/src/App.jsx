@@ -1,11 +1,9 @@
-import { useState, useEffect } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Navigate, Route, Routes } from "react-router-dom";
 
 import "./App.css";
 
-// ======================
-// 🔐 SISTEMA (INTERNO)
-// ======================
+// SISTEMA
 import Login from "./pages/Login";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
@@ -16,14 +14,26 @@ import Documents from "./pages/Documents";
 import Appointments from "./pages/Appointments";
 import Proposals from "./pages/Proposals";
 import Requests from "./pages/Requests";
+import Users from "./pages/Users";
+import Leads from "./pages/Leads";
+import Perfil from "./pages/Perfil";
+import Chat from "./pages/Chat";
+import DadosEmpresa from "./pages/DadosEmpresa";
+import Financiamentos from "./pages/Financiamentos";
 
-// ======================
-// 🌐 SITE PÚBLICO
-// ======================
+// SITE PÚBLICO
 import SiteHome from "./pages/SiteHome";
 import SiteProperties from "./pages/SiteProperties";
 import SitePropertyDetails from "./pages/SitePropertyDetails";
 import SiteRegisterProperty from "./pages/SiteRegisterProperty";
+
+function ProtectedRoute({ logged, children }) {
+  if (!logged) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return children;
+}
 
 function AppRoutes({ logged, setLogged }) {
   useEffect(() => {
@@ -32,14 +42,15 @@ function AppRoutes({ logged, setLogged }) {
     };
 
     window.addEventListener("storage", listener);
-    return () => window.removeEventListener("storage", listener);
+
+    return () => {
+      window.removeEventListener("storage", listener);
+    };
   }, [setLogged]);
 
   return (
     <Routes>
-      {/* ====================== */}
-      {/* 🌐 SITE PÚBLICO */}
-      {/* ====================== */}
+      {/* SITE PÚBLICO */}
       <Route path="/" element={<Navigate to="/site" replace />} />
       <Route path="/site" element={<SiteHome />} />
       <Route path="/site/imoveis" element={<SiteProperties />} />
@@ -49,9 +60,7 @@ function AppRoutes({ logged, setLogged }) {
         element={<SiteRegisterProperty />}
       />
 
-      {/* ====================== */}
-      {/* 🔐 LOGIN */}
-      {/* ====================== */}
+      {/* LOGIN */}
       <Route
         path="/login"
         element={
@@ -63,48 +72,31 @@ function AppRoutes({ logged, setLogged }) {
         }
       />
 
-      {/* ====================== */}
-      {/* 🏢 SISTEMA */}
-      {/* ====================== */}
-      {logged ? (
-        <Route element={<Layout />}>
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/clientes" element={<Clients />} />
-          <Route path="/proprietarios" element={<Owners />} />
-          <Route path="/imoveis" element={<Properties />} />
-          <Route path="/documentos" element={<Documents />} />
-          <Route path="/agendamentos" element={<Appointments />} />
-          <Route path="/propostas" element={<Proposals />} />
-          <Route path="/solicitacoes" element={<Requests />} />
-        </Route>
-      ) : (
-        <>
-          <Route path="/dashboard" element={<Navigate to="/login" replace />} />
-          <Route path="/clientes" element={<Navigate to="/login" replace />} />
-          <Route
-            path="/proprietarios"
-            element={<Navigate to="/login" replace />}
-          />
-          <Route path="/imoveis" element={<Navigate to="/login" replace />} />
-          <Route
-            path="/documentos"
-            element={<Navigate to="/login" replace />}
-          />
-          <Route
-            path="/agendamentos"
-            element={<Navigate to="/login" replace />}
-          />
-          <Route path="/propostas" element={<Navigate to="/login" replace />} />
-          <Route
-            path="/solicitacoes"
-            element={<Navigate to="/login" replace />}
-          />
-        </>
-      )}
+      {/* SISTEMA INTERNO */}
+      <Route
+        element={
+          <ProtectedRoute logged={logged}>
+            <Layout />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/clientes" element={<Clients />} />
+        <Route path="/proprietarios" element={<Owners />} />
+        <Route path="/imoveis" element={<Properties />} />
+        <Route path="/documentos" element={<Documents />} />
+        <Route path="/agendamentos" element={<Appointments />} />
+        <Route path="/propostas" element={<Proposals />} />
+        <Route path="/solicitacoes" element={<Requests />} />
+        <Route path="/usuarios" element={<Users />} />
+        <Route path="/leads" element={<Leads />} />
+        <Route path="/perfil" element={<Perfil />} />
+        <Route path="/chat" element={<Chat />} />
+        <Route path="/dados-empresa" element={<DadosEmpresa />} />
+        <Route path="/financiamentos" element={<Financiamentos />} />
+      </Route>
 
-      {/* ====================== */}
-      {/* 🔁 FALLBACK */}
-      {/* ====================== */}
+      {/* FALLBACK */}
       <Route path="*" element={<Navigate to="/site" replace />} />
     </Routes>
   );

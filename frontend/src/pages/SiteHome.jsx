@@ -1,6 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import FeaturedProperties from "../components/site/FeaturedProperties";
+import SiteChatWidget from "../components/SiteChatWidget";
+import SiteFinancingSimulator from "../components/SiteFinancingSimulator";
 import logo from "../assets/logo-jb.png";
 import "./SiteHome.css";
 
@@ -8,22 +10,31 @@ export default function SiteHome() {
   const [search, setSearch] = useState("");
   const navigate = useNavigate();
 
+  const whatsappLink =
+    "https://wa.me/5511983185430?text=Olá! Gostaria de atendimento sobre imóveis.";
+
   function handleSearch() {
-    if (!search.trim()) {
+    const value = search.trim();
+
+    if (!value) {
       navigate("/site/imoveis");
       return;
     }
 
-    navigate(`/site/imoveis?search=${encodeURIComponent(search)}`);
+    const params = new URLSearchParams();
+    params.set("search", value);
+
+    navigate(`/site/imoveis?${params.toString()}`);
   }
 
-  const whatsappLink =
-    "https://wa.me/5511983185430?text=Olá! Gostaria de atendimento sobre imóveis.";
+  function handleSearchKeyDown(event) {
+    if (event.key === "Enter") {
+      handleSearch();
+    }
+  }
 
   return (
     <div className="site-home">
-
-      {/* HEADER */}
       <header className="site-header">
         <div className="site-container header-content">
           <Link to="/site" className="site-logo">
@@ -35,17 +46,16 @@ export default function SiteHome() {
             <Link to="/site/imoveis">Imóveis</Link>
             <Link to="/site/cadastrar-imovel">Cadastre seu imóvel</Link>
             <a href="#sobre">Sobre</a>
+            <a href="#simulador">Simulador</a>
             <a href="#contato">Contato</a>
           </nav>
         </div>
       </header>
 
-      {/* HERO */}
       <section className="hero-section">
         <div className="hero-overlay">
           <div className="site-container">
             <div className="hero-content">
-
               <span className="hero-badge">
                 Imóveis com elegância e confiança
               </span>
@@ -72,26 +82,30 @@ export default function SiteHome() {
                 </a>
               </div>
 
-              {/* BUSCA */}
               <div className="hero-search">
                 <input
                   type="text"
-                  placeholder="Busque por cidade, bairro ou código"
+                  placeholder="Busque por cidade, bairro ou código do imóvel"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
                 />
 
-                <button onClick={handleSearch}>
+                <button type="button" onClick={handleSearch}>
                   Buscar
                 </button>
               </div>
 
+              <div className="hero-mini-info">
+                <span>Compra</span>
+                <span>Venda</span>
+                <span>Atendimento personalizado</span>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* DESTAQUE CADASTRO */}
       <section className="site-register-highlight">
         <div className="site-container register-highlight-content">
           <div className="register-text">
@@ -99,7 +113,7 @@ export default function SiteHome() {
             <h2>Quer anunciar seu imóvel conosco?</h2>
             <p>
               Cadastre seu imóvel pelo site e nossa equipe entrará em contato
-              para avaliar e ajudar na venda ou locação.
+              para avaliar, orientar e ajudar na venda ou locação com segurança.
             </p>
           </div>
 
@@ -112,57 +126,103 @@ export default function SiteHome() {
         </div>
       </section>
 
-      {/* IMÓVEIS EM DESTAQUE */}
       <FeaturedProperties />
 
-      {/* DIFERENCIAIS */}
       <section className="site-diferenciais">
         <div className="site-container">
-          <h2>Por que escolher a JB Pessoa Imóveis?</h2>
+          <div className="section-header-center">
+            <span className="section-badge">Diferenciais</span>
+            <h2>Por que escolher a JB Pessoa Imóveis?</h2>
+            <p>
+              Uma experiência mais próxima, segura e focada em resultado para
+              compradores, vendedores e proprietários.
+            </p>
+          </div>
 
           <div className="diferenciais-grid">
-
             <div className="diferencial-card">
+              <div className="diferencial-icon">01</div>
               <h3>Atendimento personalizado</h3>
-              <p>Você fala direto com quem resolve, sem enrolação.</p>
+              <p>
+                Você recebe suporte direto e humano em todas as etapas da
+                negociação.
+              </p>
             </div>
 
             <div className="diferencial-card">
+              <div className="diferencial-icon">02</div>
               <h3>Imóveis selecionados</h3>
-              <p>Trabalhamos apenas com boas oportunidades.</p>
+              <p>
+                Trabalhamos com oportunidades bem apresentadas e com informações
+                claras.
+              </p>
             </div>
 
             <div className="diferencial-card">
-              <h3>Agilidade na negociação</h3>
-              <p>Processo rápido e direto até o fechamento.</p>
+              <div className="diferencial-icon">03</div>
+              <h3>Agilidade no processo</h3>
+              <p>
+                Mais rapidez no atendimento, nas visitas e na condução da
+                negociação.
+              </p>
             </div>
-
           </div>
         </div>
       </section>
 
-      {/* SOBRE */}
       <section className="site-about" id="sobre">
-        <div className="site-container about-content">
-          <span className="section-badge">Sobre nós</span>
-
-          <h2>JB Pessoa Imóveis</h2>
-
-          <p>
-            Trabalhamos com seriedade, transparência e dedicação para conectar
-            pessoas aos melhores imóveis. Nosso objetivo é oferecer um
-            atendimento humanizado e uma experiência segura em cada etapa da
-            negociação.
-          </p>
+        <div className="site-container">
+          <div className="about-content">
+            <span className="section-badge">Sobre nós</span>
+            <h2>JB Pessoa Imóveis</h2>
+            <p>
+              Trabalhamos com seriedade, transparência e dedicação para conectar
+              pessoas aos melhores imóveis. Nosso objetivo é oferecer um
+              atendimento humanizado e uma experiência segura em cada etapa da
+              negociação.
+            </p>
+          </div>
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="site-footer" id="contato">
-        <div className="site-container footer-content">
+      <section id="simulador">
+        <SiteFinancingSimulator />
+      </section>
 
-          <div className="site-footer-logo">
-            <img src={logo} alt="JB Pessoa Imóveis" />
+      <section className="site-contact-cta" id="contato">
+        <div className="site-container">
+          <div className="site-contact-cta-card">
+            <div>
+              <span className="section-badge">Atendimento</span>
+              <h2>Pronto para encontrar ou anunciar seu imóvel?</h2>
+              <p>
+                Fale agora com a JB Pessoa Imóveis e receba atendimento rápido
+                pelo WhatsApp.
+              </p>
+            </div>
+
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noreferrer"
+              className="site-contact-cta-button"
+            >
+              Chamar no WhatsApp
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <footer className="site-footer">
+        <div className="site-container footer-content">
+          <div className="site-footer-brand">
+            <div className="site-footer-logo">
+              <img src={logo} alt="JB Pessoa Imóveis" />
+            </div>
+
+            <p>
+              Atendimento com seriedade, transparência e foco no melhor negócio.
+            </p>
           </div>
 
           <div className="footer-info">
@@ -179,10 +239,10 @@ export default function SiteHome() {
               Falar no WhatsApp
             </a>
           </div>
-
         </div>
       </footer>
 
+      <SiteChatWidget />
     </div>
   );
 }

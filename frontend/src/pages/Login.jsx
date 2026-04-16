@@ -29,9 +29,30 @@ function Login() {
         password: form.password
       });
 
-      localStorage.setItem("token", response.data.token);
-      localStorage.setItem("user", JSON.stringify(response.data.user));
+      const loggedUser = {
+        ...response.data.user,
+        code: response.data.user.code || response.data.user.id
+      };
 
+      localStorage.setItem("token", response.data.token);
+      localStorage.setItem("user", JSON.stringify(loggedUser));
+
+      try {
+        const statusResponse = await api.patch("/users/me/status", {
+          online: true
+        });
+
+        const updatedUser = {
+          ...loggedUser,
+          ...statusResponse.data
+        };
+
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      } catch (statusError) {
+        console.error("Erro ao ativar status online no login:", statusError);
+      }
+
+      window.dispatchEvent(new Event("storage"));
       navigate("/dashboard");
     } catch (error) {
       console.error(error);

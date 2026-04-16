@@ -6,7 +6,7 @@ function authMiddleware(req, res, next) {
 
     if (!authHeader) {
       return res.status(401).json({
-        error: "Token não informado."
+        error: "Token não enviado."
       });
     }
 
@@ -26,14 +26,16 @@ function authMiddleware(req, res, next) {
       });
     }
 
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "segredo_padrao"
-    );
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    req.user = decoded;
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      name: decoded.name,
+      role: decoded.role
+    };
 
-    return next();
+    next();
   } catch (error) {
     return res.status(401).json({
       error: "Token inválido ou expirado."

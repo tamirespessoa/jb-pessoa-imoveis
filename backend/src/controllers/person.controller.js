@@ -7,11 +7,29 @@ function normalizeString(value) {
 }
 
 function normalizeWhatsapp(value) {
-  if (value === true || value === "true" || value === "Sim" || value === "sim" || value === 1 || value === "1") {
+  if (
+    value === true ||
+    value === "true" ||
+    value === "Sim" ||
+    value === "sim" ||
+    value === 1 ||
+    value === "1"
+  ) {
     return true;
   }
 
-  if (value === false || value === "false" || value === "Não" || value === "não" || value === "nao" || value === 0 || value === "0" || value === null || value === undefined || value === "") {
+  if (
+    value === false ||
+    value === "false" ||
+    value === "Não" ||
+    value === "não" ||
+    value === "nao" ||
+    value === 0 ||
+    value === "0" ||
+    value === null ||
+    value === undefined ||
+    value === ""
+  ) {
     return false;
   }
 
@@ -31,7 +49,12 @@ async function createPerson(req, res) {
       commercialPhone,
       residentialPhone,
       contactPhone,
-      whatsapp
+      whatsapp,
+      category,
+      firstContact,
+      isActive,
+      notes,
+      createReminder
     } = req.body;
 
     if (!type || !String(type).trim()) {
@@ -54,7 +77,13 @@ async function createPerson(req, res) {
         commercialPhone: normalizeString(commercialPhone),
         residentialPhone: normalizeString(residentialPhone),
         contactPhone: normalizeString(contactPhone),
-        whatsapp: normalizeWhatsapp(whatsapp)
+        whatsapp: normalizeWhatsapp(whatsapp),
+        category: normalizeString(category),
+        firstContact: normalizeString(firstContact),
+        isActive: isActive !== undefined ? Boolean(isActive) : true,
+        notes: normalizeString(notes),
+        createReminder:
+          createReminder !== undefined ? Boolean(createReminder) : false
       }
     });
 
@@ -131,7 +160,12 @@ async function updatePerson(req, res) {
       commercialPhone,
       residentialPhone,
       contactPhone,
-      whatsapp
+      whatsapp,
+      category,
+      firstContact,
+      isActive,
+      notes,
+      createReminder
     } = req.body;
 
     const existing = await prisma.person.findUnique({
@@ -146,16 +180,43 @@ async function updatePerson(req, res) {
       where: { id },
       data: {
         type: type !== undefined ? String(type).trim() : existing.type,
-        fullName: fullName !== undefined ? String(fullName).trim() : existing.fullName,
+        fullName:
+          fullName !== undefined ? String(fullName).trim() : existing.fullName,
         cpf: cpf !== undefined ? normalizeString(cpf) : existing.cpf,
         rg: rg !== undefined ? normalizeString(rg) : existing.rg,
         email: email !== undefined ? normalizeString(email) : existing.email,
         phone: phone !== undefined ? normalizeString(phone) : existing.phone,
-        company: company !== undefined ? normalizeString(company) : existing.company,
-        commercialPhone: commercialPhone !== undefined ? normalizeString(commercialPhone) : existing.commercialPhone,
-        residentialPhone: residentialPhone !== undefined ? normalizeString(residentialPhone) : existing.residentialPhone,
-        contactPhone: contactPhone !== undefined ? normalizeString(contactPhone) : existing.contactPhone,
-        whatsapp: whatsapp !== undefined ? normalizeWhatsapp(whatsapp) : existing.whatsapp
+        company:
+          company !== undefined ? normalizeString(company) : existing.company,
+        commercialPhone:
+          commercialPhone !== undefined
+            ? normalizeString(commercialPhone)
+            : existing.commercialPhone,
+        residentialPhone:
+          residentialPhone !== undefined
+            ? normalizeString(residentialPhone)
+            : existing.residentialPhone,
+        contactPhone:
+          contactPhone !== undefined
+            ? normalizeString(contactPhone)
+            : existing.contactPhone,
+        whatsapp:
+          whatsapp !== undefined
+            ? normalizeWhatsapp(whatsapp)
+            : existing.whatsapp,
+        category:
+          category !== undefined ? normalizeString(category) : existing.category,
+        firstContact:
+          firstContact !== undefined
+            ? normalizeString(firstContact)
+            : existing.firstContact,
+        isActive:
+          isActive !== undefined ? Boolean(isActive) : existing.isActive,
+        notes: notes !== undefined ? normalizeString(notes) : existing.notes,
+        createReminder:
+          createReminder !== undefined
+            ? Boolean(createReminder)
+            : existing.createReminder
       }
     });
 

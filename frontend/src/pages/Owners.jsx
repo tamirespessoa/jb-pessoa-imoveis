@@ -5,6 +5,7 @@ import api from "../services/api";
 function Owners() {
   const navigate = useNavigate();
   const menuRef = useRef(null);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [owners, setOwners] = useState([]);
   const [search, setSearch] = useState("");
@@ -26,10 +27,31 @@ function Owners() {
     whatsapp: false
   });
 
+  function parseWhatsapp(value) {
+    if (
+      value === true ||
+      value === "true" ||
+      value === "Sim" ||
+      value === "sim" ||
+      value === 1 ||
+      value === "1"
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function normalizeString(value) {
+    if (value === undefined || value === null) return null;
+    const text = String(value).trim();
+    return text === "" ? null : text;
+  }
+
   async function loadOwners(selectId = null) {
     try {
       const response = await api.get("/persons");
-      const filtered = response.data.filter(
+      const filtered = (response.data || []).filter(
         (item) => item.type === "PROPRIETARIO"
       );
 
@@ -47,7 +69,10 @@ function Owners() {
         handleSelectOwner(filtered[0]);
       }
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Erro ao carregar proprietários:",
+        error.response?.data || error.message
+      );
       alert("Erro ao carregar proprietários.");
     }
   }
@@ -74,7 +99,9 @@ function Owners() {
 
   const filteredOwners = useMemo(() => {
     return owners.filter((owner) =>
-      `${owner.fullName} ${owner.cpf || ""} ${owner.email || ""} ${owner.phone || ""}`
+      `${owner.fullName || ""} ${owner.cpf || ""} ${owner.email || ""} ${
+        owner.phone || ""
+      } ${owner.assignedTo?.name || ""}`
         .toLowerCase()
         .includes(search.toLowerCase())
     );
@@ -95,7 +122,7 @@ function Owners() {
       commercialPhone: owner.commercialPhone || "",
       residentialPhone: owner.residentialPhone || "",
       contactPhone: owner.contactPhone || "",
-      whatsapp: owner.whatsapp || false
+      whatsapp: parseWhatsapp(owner.whatsapp)
     });
   }
 
@@ -131,33 +158,49 @@ function Owners() {
   async function handleSubmit(e) {
     e.preventDefault();
 
+    if (!form.fullName.trim()) {
+      alert("Nome é obrigatório.");
+      return;
+    }
+
     try {
       const payload = {
         type: "PROPRIETARIO",
-        fullName: form.fullName,
-        cpf: form.cpf,
-        rg: form.rg,
-        phone: form.phone,
-        email: form.email,
-        company: form.company,
-        commercialPhone: form.commercialPhone,
-        residentialPhone: form.residentialPhone,
-        contactPhone: form.contactPhone,
-        whatsapp: form.whatsapp
+        fullName: form.fullName.trim(),
+        cpf: normalizeString(form.cpf),
+        rg: normalizeString(form.rg),
+        phone: normalizeString(form.phone),
+        email: normalizeString(form.email),
+        company: normalizeString(form.company),
+        commercialPhone: normalizeString(form.commercialPhone),
+        residentialPhone: normalizeString(form.residentialPhone),
+        contactPhone: normalizeString(form.contactPhone),
+        whatsapp: Boolean(form.whatsapp)
       };
 
       if (editingId) {
         const response = await api.put(`/persons/${editingId}`, payload);
         alert("Proprietário atualizado com sucesso.");
-        await loadOwners(response.data.person.id);
+        await loadOwners(response.data?.id || editingId);
       } else {
         const response = await api.post("/persons", payload);
         alert("Proprietário cadastrado com sucesso.");
-        await loadOwners(response.data.person.id);
+        await loadOwners(response.data?.id || null);
       }
     } catch (error) {
-      console.error(error);
-      alert("Erro ao salvar proprietário.");
+      console.error(
+        "Erro ao salvar proprietário:",
+        error.response?.data || error.message
+      );
+
+      const apiMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.response?.data?.details ||
+        JSON.stringify(error.response?.data) ||
+        error.message;
+
+      alert(`Erro ao salvar proprietário:\n${apiMessage}`);
     }
   }
 
@@ -176,8 +219,15 @@ function Owners() {
       handleNewOwner();
       await loadOwners();
     } catch (error) {
-      console.error(error);
-      alert("Erro ao excluir proprietário.");
+      console.error(
+        "Erro ao excluir proprietário:",
+        error.response?.data || error.message
+      );
+      const apiMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Erro ao excluir proprietário.";
+      alert(apiMessage);
     }
   }
 
@@ -223,7 +273,12 @@ function Owners() {
           <p><strong>Telefone comercial:</strong> ${selectedOwner.commercialPhone || "-"}</p>
           <p><strong>Telefone residencial:</strong> ${selectedOwner.residentialPhone || "-"}</p>
           <p><strong>Telefone contato:</strong> ${selectedOwner.contactPhone || "-"}</p>
-          <p><strong>WhatsApp:</strong> ${selectedOwner.whatsapp ? "Sim" : "Não"}</p>
+          <p><strong>WhatsApp:</strong> ${
+            parseWhatsapp(selectedOwner.whatsapp) ? "Sim" : "Não"
+          }</p>
+          <p><strong>Responsável:</strong> ${
+            selectedOwner.assignedTo?.name || "-"
+          }</p>
         </body>
       </html>
     `);
@@ -245,6 +300,7 @@ Código: ${selectedOwner.id}
 CPF: ${selectedOwner.cpf || "-"}
 Telefone: ${selectedOwner.phone || "-"}
 E-mail: ${selectedOwner.email || "-"}
+Responsável: ${selectedOwner.assignedTo?.name || "-"}
     `.trim();
 
     try {
@@ -314,16 +370,32 @@ E-mail: ${selectedOwner.email || "-"}
 
           {showMenu && (
             <div style={styles.dropdownMenu}>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenHistory}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenHistory}
+              >
                 Histórico do proprietário
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenLinkedProperties}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenLinkedProperties}
+              >
                 Imóveis vinculados
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenDocuments}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenDocuments}
+              >
                 Documentos do proprietário
               </button>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenService}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenService}
+              >
                 Atendimentos
               </button>
             </div>
@@ -334,17 +406,25 @@ E-mail: ${selectedOwner.email || "-"}
       <div style={styles.layout}>
         <aside style={styles.leftPanel}>
           <div style={styles.leftPanelHeader}>
-            <h3 style={styles.leftPanelTitle}>Lista de proprietários</h3>
+            <h3 style={styles.leftPanelTitle}>
+              {user.role === "ADMIN"
+                ? "Lista de proprietários"
+                : "Meus proprietários"}
+            </h3>
             <div style={styles.leftIcons}>
               <span>⏷</span>
-              <span onClick={handleRefresh} style={styles.iconClickable}>↻</span>
-              <span onClick={handleNewOwner} style={styles.iconClickable}>⊕</span>
+              <span onClick={handleRefresh} style={styles.iconClickable}>
+                ↻
+              </span>
+              <span onClick={handleNewOwner} style={styles.iconClickable}>
+                ⊕
+              </span>
             </div>
           </div>
 
           <input
             style={styles.searchInput}
-            placeholder="Buscar proprietário por nome, CPF ou e-mail"
+            placeholder="Buscar proprietário por nome, CPF, e-mail ou responsável"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -376,6 +456,11 @@ E-mail: ${selectedOwner.email || "-"}
                   <strong>{owner.fullName}</strong>
                   <div style={styles.listMeta}>CPF: {owner.cpf || "-"}</div>
                   <div style={styles.listMeta}>{owner.phone || "-"}</div>
+                  {owner.assignedTo?.name && (
+                    <div style={styles.responsibleText}>
+                      Responsável: {owner.assignedTo.name}
+                    </div>
+                  )}
                 </button>
               ))
             )}
@@ -516,10 +601,13 @@ E-mail: ${selectedOwner.email || "-"}
               </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Observação rápida</label>
+                <label style={styles.label}>Responsável</label>
                 <input
                   style={styles.lineInput}
-                  placeholder="Campo visual"
+                  value={
+                    selectedOwner?.assignedTo?.name ||
+                    (user.role === "CORRETOR" ? user.name || "" : "")
+                  }
                   disabled
                 />
               </div>
@@ -692,6 +780,12 @@ const styles = {
     color: "#7a6a47",
     fontSize: "14px",
     marginTop: "4px"
+  },
+  responsibleText: {
+    color: "#a16207",
+    fontSize: "13px",
+    marginTop: "6px",
+    fontWeight: "600"
   },
   mainPanel: {
     backgroundColor: "#fffdf8",

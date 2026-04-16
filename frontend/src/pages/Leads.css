@@ -1,0 +1,78 @@
+.leads-page {
+  padding: 24px;
+}
+
+.leads-header {
+  margin-bottom: 24px;
+}
+
+.leads-header h1 {
+  margin: 0 0 8px;
+  font-size: 28px;
+  color: #111827;
+}
+
+.leads-header p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.leads-empty {
+  background: #fff;
+  border-radius: 18px;
+  padding: 30px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.leads-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: 18px;
+}
+
+.lead-card {
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
+  border: 1px solid #eef2f7;
+}
+
+.lead-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.lead-card-top h3 {
+  margin: 0;
+  font-size: 20px;
+  color: #111827;
+}
+
+.lead-card-top span {
+  font-size: 13px;
+  color: #b8860b;
+  font-weight: 700;
+}
+
+.lead-card-top select {
+  min-width: 150px;
+  height: 42px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  padding: 0 10px;
+}
+
+.lead-info {
+  display: grid;
+  gap: 8px;
+}
+
+.lead-info p {
+  margin: 0;
+  color: #374151;
+  line-height: 1.5;
+}

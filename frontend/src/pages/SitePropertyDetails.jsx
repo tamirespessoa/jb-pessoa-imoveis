@@ -9,15 +9,27 @@ const API_BASE_URL =
 
 function getImageUrl(path) {
   if (!path) return "/sem-imagem.png";
+  if (path.startsWith("http://") || path.startsWith("https://")) return path;
   return `${API_BASE_URL}${path}`;
 }
 
 export default function SitePropertyDetails() {
   const { id } = useParams();
+
   const [property, setProperty] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+
+  const [leadForm, setLeadForm] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    message: ""
+  });
+  const [sendingLead, setSendingLead] = useState(false);
+  const [leadSuccess, setLeadSuccess] = useState("");
+  const [leadError, setLeadError] = useState("");
 
   useEffect(() => {
     async function fetchProperty() {
@@ -27,10 +39,9 @@ export default function SitePropertyDetails() {
 
         setProperty(data);
 
-        const firstImage =
-          data?.coverImage
-            ? getImageUrl(data.coverImage)
-            : data?.images?.length > 0
+        const firstImage = data?.coverImage
+          ? getImageUrl(data.coverImage)
+          : data?.images?.length > 0
             ? getImageUrl(data.images[0])
             : "/sem-imagem.png";
 
@@ -68,6 +79,53 @@ export default function SitePropertyDetails() {
 
     return images;
   }, [property]);
+
+  async function handleLeadSubmit(e) {
+    e.preventDefault();
+
+    setLeadSuccess("");
+    setLeadError("");
+
+    if (!leadForm.name.trim()) {
+      setLeadError("Informe seu nome.");
+      return;
+    }
+
+    if (!leadForm.phone.trim()) {
+      setLeadError("Informe seu telefone.");
+      return;
+    }
+
+    try {
+      setSendingLead(true);
+
+      await publicApi.post("/leads", {
+        name: leadForm.name.trim(),
+        phone: leadForm.phone.trim(),
+        email: leadForm.email.trim() || null,
+        message: leadForm.message.trim() || null,
+        propertyId: property?.id || null
+      });
+
+      setLeadSuccess(
+        "Contato enviado com sucesso. Um corretor falará com você em breve."
+      );
+
+      setLeadForm({
+        name: "",
+        phone: "",
+        email: "",
+        message: ""
+      });
+    } catch (err) {
+      console.error("Erro ao enviar lead:", err);
+      setLeadError(
+        err.response?.data?.error || "Não foi possível enviar seu contato."
+      );
+    } finally {
+      setSendingLead(false);
+    }
+  }
 
   if (loading) {
     return (
@@ -124,7 +182,7 @@ export default function SitePropertyDetails() {
     .join(", ");
 
   const whatsappMessage = encodeURIComponent(
-    `Olá! Tenho interesse no imóvel "${property.title}".`
+    `Olá! Tenho interesse no imóvel "${property.title}". Link: ${window.location.href}`
   );
 
   const whatsappLink = `https://wa.me/5511983185430?text=${whatsappMessage}`;
@@ -132,11 +190,8 @@ export default function SitePropertyDetails() {
   return (
     <SiteLayout>
       <div className="site-property-details-page">
-
-        {/* HERO */}
         <section className="site-property-details-hero">
           <div className="site-property-details-container">
-
             <div className="site-property-details-breadcrumb">
               <Link to="/site">Início</Link>
               <span>/</span>
@@ -146,7 +201,7 @@ export default function SitePropertyDetails() {
             </div>
 
             <div className="site-property-details-hero-top">
-              <div>
+              <div className="site-property-details-hero-info">
                 <span className="site-property-details-tag">
                   {property.type || "Imóvel"}
                 </span>
@@ -160,7 +215,7 @@ export default function SitePropertyDetails() {
 
               <div className="site-property-details-price-box">
                 <span className="site-property-details-price-label">
-                  Valor
+                  Valor do imóvel
                 </span>
                 <strong>{formattedPrice}</strong>
               </div>
@@ -168,15 +223,10 @@ export default function SitePropertyDetails() {
           </div>
         </section>
 
-        {/* CONTENT */}
         <section className="site-property-details-content-section">
           <div className="site-property-details-container">
             <div className="site-property-details-grid">
-
-              {/* LEFT */}
               <div className="site-property-details-main">
-
-                {/* GALERIA */}
                 <div className="site-property-details-gallery">
                   <div className="site-property-details-main-image-wrap">
                     <img
@@ -190,18 +240,18 @@ export default function SitePropertyDetails() {
                     {galleryImages.map((img, i) => (
                       <button
                         key={i}
+                        type="button"
                         className={`site-property-details-thumb ${
                           selectedImage === img ? "active" : ""
                         }`}
                         onClick={() => setSelectedImage(img)}
                       >
-                        <img src={img} alt="" />
+                        <img src={img} alt={`Imagem ${i + 1} do imóvel`} />
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* CARACTERÍSTICAS */}
                 <div className="site-property-details-section-card">
                   <h2>Características</h2>
 
@@ -228,29 +278,23 @@ export default function SitePropertyDetails() {
                   </div>
                 </div>
 
-                {/* DESCRIÇÃO */}
                 <div className="site-property-details-section-card">
                   <h2>Descrição</h2>
                   <p className="site-property-details-description">
                     {property.description || "Sem descrição."}
                   </p>
                 </div>
-
               </div>
 
-              {/* SIDEBAR */}
               <aside className="site-property-details-sidebar">
                 <div className="site-property-details-contact-card">
-
                   <span className="site-property-details-contact-label">
                     Atendimento
                   </span>
 
                   <h3>JB Pessoa Imóveis</h3>
 
-                  <p>
-                    Entre em contato agora e agende uma visita.
-                  </p>
+                  <p>Entre em contato agora e agende uma visita.</p>
 
                   <div className="site-property-details-contact-info">
                     <span>Telefone / WhatsApp</span>
@@ -272,14 +316,99 @@ export default function SitePropertyDetails() {
                   >
                     Ver outros imóveis
                   </Link>
+                </div>
 
+                <div className="site-property-details-contact-card">
+                  <span className="site-property-details-contact-label">
+                    Receber contato
+                  </span>
+
+                  <h3>Fale com um corretor</h3>
+
+                  <p>
+                    Preencha seus dados e o sistema enviará seu contato para o
+                    próximo corretor disponível.
+                  </p>
+
+                  <form
+                    onSubmit={handleLeadSubmit}
+                    className="site-property-details-lead-form"
+                  >
+                    <input
+                      type="text"
+                      placeholder="Seu nome"
+                      value={leadForm.name}
+                      onChange={(e) =>
+                        setLeadForm((prev) => ({
+                          ...prev,
+                          name: e.target.value
+                        }))
+                      }
+                    />
+
+                    <input
+                      type="text"
+                      placeholder="Seu telefone"
+                      value={leadForm.phone}
+                      onChange={(e) =>
+                        setLeadForm((prev) => ({
+                          ...prev,
+                          phone: e.target.value
+                        }))
+                      }
+                    />
+
+                    <input
+                      type="email"
+                      placeholder="Seu e-mail"
+                      value={leadForm.email}
+                      onChange={(e) =>
+                        setLeadForm((prev) => ({
+                          ...prev,
+                          email: e.target.value
+                        }))
+                      }
+                    />
+
+                    <textarea
+                      placeholder="Mensagem"
+                      rows="4"
+                      value={leadForm.message}
+                      onChange={(e) =>
+                        setLeadForm((prev) => ({
+                          ...prev,
+                          message: e.target.value
+                        }))
+                      }
+                    />
+
+                    {leadSuccess && (
+                      <div className="site-property-details-success-message">
+                        {leadSuccess}
+                      </div>
+                    )}
+
+                    {leadError && (
+                      <div className="site-property-details-error-message">
+                        {leadError}
+                      </div>
+                    )}
+
+                    <button
+                      type="submit"
+                      className="site-property-details-send-button"
+                      disabled={sendingLead}
+                    >
+                      {sendingLead
+                        ? "Enviando..."
+                        : "Quero falar com um corretor"}
+                    </button>
+                  </form>
                 </div>
               </aside>
-
             </div>
           </div>
         </section>
-
       </div>
     </SiteLayout>
   );

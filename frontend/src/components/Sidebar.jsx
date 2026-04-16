@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 
 function Sidebar({ open = true }) {
@@ -7,11 +7,11 @@ function Sidebar({ open = true }) {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [openGroups, setOpenGroups] = useState({
-    clientes: true,
+    dashboard: true,
+    crm: true,
     imoveis: true,
-    atendimento: true,
-    negocios: false,
-    relatorios: false,
+    operacao: true,
+    administracao: true,
     configuracoes: false
   });
 
@@ -33,32 +33,39 @@ function Sidebar({ open = true }) {
     navigate("/login");
   }
 
+  const profileLabel = useMemo(() => {
+    if (user.role === "ADMIN") return "Administrador";
+    if (user.role === "CORRETOR") return "Corretor";
+    return "Usuário do sistema";
+  }, [user.role]);
+
   return (
     <aside
       style={{
         ...styles.sidebar,
-        width: open ? "300px" : "0",
+        width: open ? "310px" : "0",
         overflow: "hidden"
       }}
     >
       {open && (
         <>
-          <div style={styles.userHeader}>
-            <div style={styles.avatarArea}>
-              <div style={styles.avatarCircle}>👤</div>
-              <button style={styles.changePhotoButton} type="button">
-                Alterar
-              </button>
+          <div style={styles.topBrand}>
+            <div style={styles.brandLogo}>JB</div>
+            <div>
+              <div style={styles.brandTitle}>JB Pessoa Imóveis</div>
+              <div style={styles.brandSubtitle}>Painel de gestão</div>
             </div>
+          </div>
 
-            <div style={styles.userInfo}>
-              <div style={styles.userName}>
-                {user.name || "Administrador"}
-              </div>
+          <div style={styles.userCard}>
+            <div style={styles.avatar}>👤</div>
+
+            <div style={styles.userTextArea}>
+              <div style={styles.userName}>{user.name || "Usuário"}</div>
               <div style={styles.userEmail}>
                 {user.email || "email@empresa.com"}
               </div>
-              <div style={styles.userNameSmall}>Perfil do sistema</div>
+              <div style={styles.userRole}>{profileLabel}</div>
             </div>
 
             <button
@@ -66,81 +73,44 @@ function Sidebar({ open = true }) {
               style={styles.logoutButton}
               onClick={handleLogout}
             >
-              SAIR
+              Sair
             </button>
           </div>
 
           <div style={styles.menuBody}>
-            <MenuItem icon="🎓" label="Vídeos e treinamentos" />
+            <MenuGroup
+              icon="📊"
+              label="Visão geral"
+              open={openGroups.dashboard}
+              onToggle={() => toggleGroup("dashboard")}
+            >
+              <MenuLink
+                to="/dashboard"
+                label="Dashboard"
+                active={isActive("/dashboard")}
+                icon="🏠"
+              />
+            </MenuGroup>
+
+            <SectionTitle title="CRM" />
 
             <MenuGroup
-              icon="👤"
-              label="Clientes"
-              open={openGroups.clientes}
-              onToggle={() => toggleGroup("clientes")}
+              icon="👥"
+              label="Clientes e negócios"
+              open={openGroups.crm}
+              onToggle={() => toggleGroup("crm")}
             >
               <MenuLink
                 to="/clientes"
                 label="Clientes"
                 active={isActive("/clientes")}
+                icon="👤"
               />
-            </MenuGroup>
-
-            <MenuGroup
-              icon="🏠"
-              label="Imóveis"
-              open={openGroups.imoveis}
-              onToggle={() => toggleGroup("imoveis")}
-            >
-              <MenuLink
-                to="/imoveis"
-                label="Imóveis"
-                active={isActive("/imoveis")}
-              />
-            </MenuGroup>
-
-            <MenuItem icon="🏢" label="Condomínios/Empreendimentos" />
-
-            <Divider />
-
-            <MenuLink
-              to="/agendamentos"
-              label="Minha agenda"
-              active={isActive("/agendamentos")}
-              icon="📅"
-            />
-
-            <MenuItem icon="✉️" label="Gestão de leads" />
-
-            <MenuGroup
-              icon="🎧"
-              label="Atendimentos"
-              open={openGroups.atendimento}
-              onToggle={() => toggleGroup("atendimento")}
-            >
-              <MenuLink
-                to="/clientes"
-                label="Atendimento clientes"
-                active={false}
-              />
-              <MenuLink
-                to="/solicitacoes"
-                label="Solicitações"
-                active={isActive("/solicitacoes")}
-                icon="📨"
-              />
-            </MenuGroup>
-
-            <MenuGroup
-              icon="💲"
-              label="Central de negócios"
-              open={openGroups.negocios}
-              onToggle={() => toggleGroup("negocios")}
-            >
               <MenuLink
                 to="/proprietarios"
                 label="Proprietários"
                 active={isActive("/proprietarios")}
+                icon="🏢"
               />
               <MenuLink
                 to="/propostas"
@@ -148,60 +118,126 @@ function Sidebar({ open = true }) {
                 active={isActive("/propostas")}
                 icon="💰"
               />
+              <MenuLink
+                to="/solicitacoes"
+                label="Solicitações"
+                active={isActive("/solicitacoes")}
+                icon="📨"
+              />
+              <MenuLink
+                to="/financiamentos"
+                label="Financiamentos"
+                active={isActive("/financiamentos")}
+                icon="🏦"
+              />
             </MenuGroup>
 
-            <MenuItem icon="🪙" label="Financiamentos" />
-            <MenuItem icon="☑️" label="Sistema Vistoria" />
-
-            <Divider />
-
-            <MenuItem icon="👥" label="Cadastro de usuários" />
-            <MenuItem icon="🏢" label="Dados da empresa" />
-            <MenuItem icon="☁️" label="JB Docs" />
-
-            <MenuLink
-              to="/documentos"
-              label="Documentos e contratos"
-              active={isActive("/documentos")}
-              icon="📄"
-            />
-
-            <MenuItem icon="🌍" label="Portais" />
-            <MenuItem icon="💬" label="JB Chat" />
-            <MenuItem icon="📝" label="Anotações pessoais" />
+            <SectionTitle title="Imóveis" />
 
             <MenuGroup
-              icon="😊"
-              label="JB social life"
-              open={false}
-              onToggle={() => {}}
-            />
+              icon="🏘️"
+              label="Gestão de imóveis"
+              open={openGroups.imoveis}
+              onToggle={() => toggleGroup("imoveis")}
+            >
+              <MenuLink
+                to="/imoveis"
+                label="Imóveis"
+                active={isActive("/imoveis")}
+                icon="🏠"
+              />
+              <MenuButton
+                icon="🌐"
+                label="Portal imobiliário"
+                onClick={() => navigate("/site")}
+              />
+              <MenuButton
+                icon="📌"
+                label="Condomínios"
+                onClick={() => alert("Esta área será ligada depois.")}
+              />
+            </MenuGroup>
+
+            <SectionTitle title="Operação" />
 
             <MenuGroup
-              icon="🖨️"
-              label="Relatórios"
-              open={openGroups.relatorios}
-              onToggle={() => toggleGroup("relatorios")}
-            />
+              icon="🧩"
+              label="Rotina e documentos"
+              open={openGroups.operacao}
+              onToggle={() => toggleGroup("operacao")}
+            >
+              <MenuLink
+                to="/agendamentos"
+                label="Agenda"
+                active={isActive("/agendamentos")}
+                icon="📅"
+              />
+              <MenuLink
+                to="/documentos"
+                label="Documentos"
+                active={isActive("/documentos")}
+                icon="📄"
+              />
+              <MenuLink
+                to="/leads"
+                label="Leads e WhatsApp"
+                active={isActive("/leads")}
+                icon="💬"
+              />
+            </MenuGroup>
+
+            {user.role === "ADMIN" && (
+              <>
+                <SectionTitle title="Administração" />
+
+                <MenuGroup
+                  icon="⚙️"
+                  label="Administração do sistema"
+                  open={openGroups.administracao}
+                  onToggle={() => toggleGroup("administracao")}
+                >
+                  <MenuLink
+                    to="/usuarios"
+                    label="Usuários"
+                    active={isActive("/usuarios")}
+                    icon="👥"
+                  />
+
+                  <MenuLink
+                    to="/dados-empresa"
+                    label="Dados da empresa"
+                    active={isActive("/dados-empresa")}
+                    icon="🏢"
+                  />
+
+                  <MenuButton
+                    icon="📈"
+                    label="Relatórios"
+                    onClick={() => alert("Esta área será ligada depois.")}
+                  />
+                </MenuGroup>
+              </>
+            )}
+
+            <SectionTitle title="Configurações" />
 
             <MenuGroup
-              icon="📑"
-              label="Cadastros auxiliares"
-              open={false}
-              onToggle={() => {}}
-            />
-
-            <Divider />
-
-            <MenuGroup
-              icon="⚙️"
-              label="Configurações"
+              icon="🔧"
+              label="Preferências"
               open={openGroups.configuracoes}
               onToggle={() => toggleGroup("configuracoes")}
-            />
-
-            <MenuItem icon="🪟" label="Configurações do site" />
-            <MenuItem icon="❓" label="Ajuda, solicitações e boletos" />
+            >
+              <MenuButton
+                icon="🪟"
+                label="Configurações do site"
+                onClick={() => alert("Esta área será ligada depois.")}
+              />
+              <MenuButton
+                icon="❓"
+                label="Ajuda e suporte"
+                onClick={() => alert("Esta área será ligada depois.")}
+              />
+            </MenuGroup>
           </div>
         </>
       )}
@@ -209,13 +245,18 @@ function Sidebar({ open = true }) {
   );
 }
 
-function MenuItem({ icon, label }) {
+function SectionTitle({ title }) {
+  return <div style={styles.sectionTitle}>{title}</div>;
+}
+
+function MenuButton({ icon, label, onClick }) {
   return (
     <button
       type="button"
       style={styles.menuItem}
+      onClick={onClick}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "#f3f7fc";
+        e.currentTarget.style.backgroundColor = "#f8fafc";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.backgroundColor = "transparent";
@@ -247,14 +288,11 @@ function MenuGroup({ icon, label, open, onToggle, children }) {
     <div style={styles.groupWrapper}>
       <button
         type="button"
-        style={styles.menuItem}
+        style={{
+          ...styles.groupButton,
+          ...(open ? styles.groupButtonOpen : {})
+        }}
         onClick={onToggle}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.backgroundColor = "#f3f7fc";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.backgroundColor = "transparent";
-        }}
       >
         <span style={styles.icon}>{icon}</span>
         <span style={styles.menuLabel}>{label}</span>
@@ -266,97 +304,152 @@ function MenuGroup({ icon, label, open, onToggle, children }) {
   );
 }
 
-function Divider() {
-  return <div style={styles.divider} />;
-}
-
 const styles = {
   sidebar: {
     minHeight: "100vh",
-    backgroundColor: "#ffffff",
+    background: "#ffffff",
     borderRight: "1px solid #e5e7eb",
     flexShrink: 0,
     transition: "0.25s ease",
-    boxShadow: "2px 0 12px rgba(0, 0, 0, 0.04)"
+    boxShadow: "2px 0 18px rgba(15, 23, 42, 0.06)"
   },
-  userHeader: {
-    background: "linear-gradient(180deg, #2d8be0 0%, #1d6fbd 100%)",
-    color: "#fff",
-    display: "grid",
-    gridTemplateColumns: "78px 1fr auto",
-    gap: "12px",
+
+  topBrand: {
+    display: "flex",
     alignItems: "center",
-    padding: "16px 14px"
+    gap: "12px",
+    padding: "18px 18px 14px",
+    borderBottom: "1px solid #eef2f7"
   },
-  avatarArea: {
-    textAlign: "center"
-  },
-  avatarCircle: {
-    width: "64px",
-    height: "64px",
-    borderRadius: "50%",
-    backgroundColor: "rgba(255,255,255,0.22)",
+  brandLogo: {
+    width: "44px",
+    height: "44px",
+    borderRadius: "14px",
+    background: "linear-gradient(135deg, #0f172a 0%, #2563eb 100%)",
+    color: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "32px",
-    margin: "0 auto 6px auto",
-    border: "2px solid rgba(255,255,255,0.3)"
+    fontWeight: "800",
+    fontSize: "16px",
+    boxShadow: "0 10px 24px rgba(37, 99, 235, 0.18)"
   },
-  changePhotoButton: {
-    border: "none",
-    background: "transparent",
-    color: "#fff",
-    cursor: "pointer",
+  brandTitle: {
+    fontSize: "16px",
+    fontWeight: "800",
+    color: "#0f172a"
+  },
+  brandSubtitle: {
     fontSize: "12px",
-    fontWeight: "600"
+    color: "#64748b",
+    marginTop: "2px"
   },
-  userInfo: {
+
+  userCard: {
+    margin: "14px 14px 8px",
+    borderRadius: "18px",
+    background: "linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)",
+    border: "1px solid #dbeafe",
+    padding: "14px",
+    display: "grid",
+    gridTemplateColumns: "52px 1fr",
+    gap: "12px",
+    alignItems: "center"
+  },
+  avatar: {
+    width: "52px",
+    height: "52px",
+    borderRadius: "16px",
+    background: "#dbeafe",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px"
+  },
+  userTextArea: {
     minWidth: 0
   },
   userName: {
-    fontWeight: "700",
-    fontSize: "16px",
-    marginBottom: "4px"
+    fontSize: "15px",
+    fontWeight: "800",
+    color: "#0f172a"
   },
   userEmail: {
-    fontSize: "13px",
-    marginBottom: "4px",
-    opacity: 0.95,
+    fontSize: "12px",
+    color: "#64748b",
+    marginTop: "3px",
     wordBreak: "break-word"
   },
-  userNameSmall: {
-    fontSize: "12px",
-    opacity: 0.9
+  userRole: {
+    marginTop: "8px",
+    display: "inline-flex",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    background: "#e0e7ff",
+    color: "#3730a3",
+    fontSize: "11px",
+    fontWeight: "700"
   },
   logoutButton: {
-    border: "1px solid rgba(255,255,255,0.35)",
-    background: "rgba(255,255,255,0.14)",
+    gridColumn: "1 / -1",
+    marginTop: "6px",
+    border: "none",
+    background: "#0f172a",
     color: "#fff",
+    borderRadius: "12px",
+    minHeight: "40px",
     fontWeight: "700",
-    fontSize: "12px",
-    padding: "8px 10px",
-    borderRadius: "10px",
     cursor: "pointer"
   },
+
   menuBody: {
-    padding: "10px 8px 16px"
+    padding: "8px 10px 18px"
   },
+  sectionTitle: {
+    fontSize: "11px",
+    fontWeight: "800",
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#94a3b8",
+    padding: "14px 10px 8px"
+  },
+
   groupWrapper: {
-    marginBottom: "2px"
+    marginBottom: "6px"
   },
-  menuItem: {
+  groupButton: {
     width: "100%",
     minHeight: "48px",
     padding: "0 14px",
     border: "none",
-    background: "transparent",
+    backgroundColor: "transparent",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    color: "#0f172a",
+    fontSize: "15px",
+    cursor: "pointer",
+    textAlign: "left",
+    borderRadius: "14px",
+    transition: "0.2s ease",
+    fontWeight: "700"
+  },
+  groupButtonOpen: {
+    backgroundColor: "#f8fafc"
+  },
+
+  menuItem: {
+    width: "100%",
+    minHeight: "46px",
+    padding: "0 14px",
+    border: "none",
+    backgroundColor: "transparent",
     display: "flex",
     alignItems: "center",
     gap: "12px",
     textDecoration: "none",
     color: "#1f2937",
-    fontSize: "15px",
+    fontSize: "14px",
     cursor: "pointer",
     textAlign: "left",
     borderRadius: "12px",
@@ -365,32 +458,31 @@ const styles = {
   menuItemActive: {
     backgroundColor: "#e8f1fd",
     color: "#1565c0",
-    fontWeight: "700",
+    fontWeight: "800",
     boxShadow: "inset 4px 0 0 #1565c0"
   },
+
   icon: {
     width: "22px",
     textAlign: "center",
-    fontSize: "18px",
+    fontSize: "17px",
     flexShrink: 0
   },
   menuLabel: {
-    flex: 1,
-    fontWeight: "600"
+    flex: 1
   },
   arrow: {
     color: "#6b7280",
     fontSize: "14px"
   },
   submenu: {
-    marginLeft: "18px",
+    marginLeft: "14px",
     paddingLeft: "10px",
-    borderLeft: "2px solid #e5e7eb"
-  },
-  divider: {
-    height: "1px",
-    backgroundColor: "#e5e7eb",
-    margin: "10px 8px"
+    borderLeft: "2px solid #e5e7eb",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    marginTop: "6px"
   }
 };
 

@@ -5,6 +5,7 @@ import api from "../services/api";
 function Clients() {
   const navigate = useNavigate();
   const menuRef = useRef(null);
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
@@ -23,7 +24,12 @@ function Clients() {
     commercialPhone: "",
     residentialPhone: "",
     contactPhone: "",
-    whatsapp: false
+    whatsapp: false,
+    category: "",
+    firstContact: "",
+    isActive: true,
+    notes: "",
+    createReminder: false
   });
 
   function parseWhatsapp(value) {
@@ -50,8 +56,9 @@ function Clients() {
   async function loadClients(selectId = null) {
     try {
       const response = await api.get("/persons");
-
-      const filtered = response.data.filter((item) => item.type === "CLIENTE");
+      const filtered = (response.data || []).filter(
+        (item) => item.type === "CLIENTE"
+      );
 
       setClients(filtered);
 
@@ -97,7 +104,11 @@ function Clients() {
 
   const filteredClients = useMemo(() => {
     return clients.filter((client) =>
-      `${client.fullName} ${client.cpf || ""} ${client.email || ""} ${client.phone || ""}`
+      `${client.fullName || ""} ${client.cpf || ""} ${client.email || ""} ${
+        client.phone || ""
+      } ${client.assignedTo?.name || ""} ${client.category || ""} ${
+        client.firstContact || ""
+      }`
         .toLowerCase()
         .includes(search.toLowerCase())
     );
@@ -118,7 +129,18 @@ function Clients() {
       commercialPhone: client.commercialPhone || "",
       residentialPhone: client.residentialPhone || "",
       contactPhone: client.contactPhone || "",
-      whatsapp: parseWhatsapp(client.whatsapp)
+      whatsapp: parseWhatsapp(client.whatsapp),
+      category: client.category || "",
+      firstContact: client.firstContact || "",
+      isActive:
+        client.isActive !== undefined && client.isActive !== null
+          ? Boolean(client.isActive)
+          : true,
+      notes: client.notes || "",
+      createReminder:
+        client.createReminder !== undefined && client.createReminder !== null
+          ? Boolean(client.createReminder)
+          : false
     });
   }
 
@@ -138,7 +160,12 @@ function Clients() {
       commercialPhone: "",
       residentialPhone: "",
       contactPhone: "",
-      whatsapp: false
+      whatsapp: false,
+      category: "",
+      firstContact: "",
+      isActive: true,
+      notes: "",
+      createReminder: false
     });
   }
 
@@ -171,19 +198,23 @@ function Clients() {
         commercialPhone: normalizeString(form.commercialPhone),
         residentialPhone: normalizeString(form.residentialPhone),
         contactPhone: normalizeString(form.contactPhone),
-        whatsapp: Boolean(form.whatsapp)
+        whatsapp: Boolean(form.whatsapp),
+        category: normalizeString(form.category),
+        firstContact: normalizeString(form.firstContact),
+        isActive: Boolean(form.isActive),
+        notes: normalizeString(form.notes),
+        createReminder: Boolean(form.createReminder)
       };
 
-      console.log("Enviando payload:", payload);
-
       if (editingId) {
-        const response = await api.put(`/persons/${editingId}`, payload);
+        await api.put(`/persons/${editingId}`, payload);
         alert("Cliente atualizado com sucesso.");
-        await loadClients(response.data.person?.id || editingId);
+        await loadClients(editingId);
       } else {
         const response = await api.post("/persons", payload);
+        const createdId = response.data?.person?.id || response.data?.id || null;
         alert("Cliente cadastrado com sucesso.");
-        await loadClients(response.data.person?.id || null);
+        await loadClients(createdId);
       }
     } catch (error) {
       console.error(
@@ -221,8 +252,35 @@ function Clients() {
         "Erro ao excluir cliente:",
         error.response?.data || error.message
       );
-      alert("Erro ao excluir cliente.");
+      const apiMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        "Erro ao excluir cliente.";
+      alert(apiMessage);
     }
+  }
+
+  function handleCreateFinancing() {
+    setShowMenu(false);
+
+    if (!selectedClient) {
+      alert("Selecione um cliente primeiro.");
+      return;
+    }
+
+    navigate("/financiamentos", {
+      state: {
+        preselectedClient: {
+          id: selectedClient.id,
+          fullName: selectedClient.fullName,
+          cpf: selectedClient.cpf || "",
+          phone: selectedClient.phone || "",
+          email: selectedClient.email || "",
+          assignedToName: selectedClient.assignedTo?.name || "",
+          assignedToId: selectedClient.assignedTo?.id || null
+        }
+      }
+    });
   }
 
   function handleBack() {
@@ -267,7 +325,21 @@ function Clients() {
           <p><strong>Telefone comercial:</strong> ${selectedClient.commercialPhone || "-"}</p>
           <p><strong>Telefone residencial:</strong> ${selectedClient.residentialPhone || "-"}</p>
           <p><strong>Telefone contato:</strong> ${selectedClient.contactPhone || "-"}</p>
-          <p><strong>WhatsApp:</strong> ${parseWhatsapp(selectedClient.whatsapp) ? "Sim" : "Não"}</p>
+          <p><strong>WhatsApp:</strong> ${
+            parseWhatsapp(selectedClient.whatsapp) ? "Sim" : "Não"
+          }</p>
+          <p><strong>Categoria:</strong> ${selectedClient.category || "-"}</p>
+          <p><strong>Primeiro contato:</strong> ${selectedClient.firstContact || "-"}</p>
+          <p><strong>Situação:</strong> ${
+            selectedClient.isActive ? "Ativo" : "Inativo"
+          }</p>
+          <p><strong>Notas:</strong> ${selectedClient.notes || "-"}</p>
+          <p><strong>Criar aviso:</strong> ${
+            selectedClient.createReminder ? "Sim" : "Não"
+          }</p>
+          <p><strong>Responsável:</strong> ${
+            selectedClient.assignedTo?.name || "-"
+          }</p>
         </body>
       </html>
     `);
@@ -289,6 +361,10 @@ Código: ${selectedClient.id}
 CPF: ${selectedClient.cpf || "-"}
 Telefone: ${selectedClient.phone || "-"}
 E-mail: ${selectedClient.email || "-"}
+Categoria: ${selectedClient.category || "-"}
+Primeiro contato: ${selectedClient.firstContact || "-"}
+Situação: ${selectedClient.isActive ? "Ativo" : "Inativo"}
+Responsável: ${selectedClient.assignedTo?.name || "-"}
     `.trim();
 
     try {
@@ -376,6 +452,13 @@ E-mail: ${selectedClient.email || "-"}
               <button
                 type="button"
                 style={styles.dropdownItem}
+                onClick={handleCreateFinancing}
+              >
+                Criar financiamento
+              </button>
+              <button
+                type="button"
+                style={styles.dropdownItem}
                 onClick={handleOpenHistory}
               >
                 Histórico de atendimentos
@@ -430,7 +513,11 @@ E-mail: ${selectedClient.email || "-"}
       <div style={styles.layout}>
         <aside style={styles.leftPanel}>
           <div style={styles.leftPanelHeader}>
-            <h3 style={styles.leftPanelTitle}>Anotações e atividades</h3>
+            <h3 style={styles.leftPanelTitle}>
+              {user.role === "ADMIN"
+                ? "Clientes cadastrados"
+                : "Meus clientes"}
+            </h3>
             <div style={styles.leftIcons}>
               <span>⏷</span>
               <span onClick={handleRefresh} style={styles.iconClickable}>
@@ -444,7 +531,7 @@ E-mail: ${selectedClient.email || "-"}
 
           <input
             style={styles.searchInput}
-            placeholder="Buscar cliente por nome, CPF ou e-mail"
+            placeholder="Buscar cliente por nome, CPF, e-mail ou responsável"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -459,9 +546,7 @@ E-mail: ${selectedClient.email || "-"}
 
           <div style={styles.clientList}>
             {filteredClients.length === 0 ? (
-              <div style={styles.emptyNotes}>
-                Cliente sem anotações ou atividades
-              </div>
+              <div style={styles.emptyNotes}>Nenhum cliente encontrado</div>
             ) : (
               filteredClients.map((client) => (
                 <button
@@ -482,6 +567,16 @@ E-mail: ${selectedClient.email || "-"}
                   <div style={styles.clientItemMeta}>
                     {client.phone || "-"}
                   </div>
+                  {client.category && (
+                    <div style={styles.clientResponsible}>
+                      Categoria: {client.category}
+                    </div>
+                  )}
+                  {client.assignedTo?.name && (
+                    <div style={styles.clientResponsible}>
+                      Responsável: {client.assignedTo.name}
+                    </div>
+                  )}
                 </button>
               ))
             )}
@@ -622,24 +717,147 @@ E-mail: ${selectedClient.email || "-"}
               </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Observação rápida</label>
+                <label style={styles.label}>Responsável</label>
                 <input
                   style={styles.lineInput}
-                  placeholder="Campo visual"
+                  value={
+                    selectedClient?.assignedTo?.name ||
+                    (user.role === "CORRETOR" ? user.name || "" : "")
+                  }
                   disabled
+                />
+              </div>
+            </div>
+
+            <div style={styles.rowDouble}>
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>*Categoria</label>
+                <select
+                  name="category"
+                  value={form.category}
+                  onChange={handleChange}
+                  style={styles.lineSelect}
+                >
+                  <option value="">Selecione...</option>
+                  <option value="INTERESSADO">INTERESSADO(A)</option>
+                  <option value="PROPRIETARIO">PROPRIETÁRIO(A)</option>
+                  <option value="PROSPECCAO">PROSPECÇÃO</option>
+                </select>
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>*Primeiro Contato (Mídia)</label>
+                <select
+                  name="firstContact"
+                  value={form.firstContact}
+                  onChange={handleChange}
+                  style={styles.lineSelect}
+                >
+                  <option value="">Selecione...</option>
+                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="LIGACAO">Ligação</option>
+                  <option value="SITE">Site</option>
+                  <option value="INSTAGRAM">Instagram</option>
+                  <option value="FACEBOOK">Facebook</option>
+                  <option value="INDICACAO">Indicação</option>
+                  <option value="PORTAL">Portal</option>
+                  <option value="OUTRO">Outro</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={styles.rowDouble}>
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Situação</label>
+                <div style={styles.statusRow}>
+                  <span style={styles.statusTextLeft}>Inativo</span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        isActive: !prev.isActive
+                      }))
+                    }
+                    style={{
+                      width: "54px",
+                      height: "30px",
+                      borderRadius: "30px",
+                      border: "none",
+                      backgroundColor: form.isActive ? "#b9dcbc" : "#d9d9d9",
+                      position: "relative",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "4px",
+                        left: form.isActive ? "28px" : "4px",
+                        width: "22px",
+                        height: "22px",
+                        borderRadius: "50%",
+                        backgroundColor: form.isActive ? "#8cc98f" : "#ffffff",
+                        transition: "0.2s"
+                      }}
+                    />
+                  </button>
+
+                  <span style={styles.statusTextRight}>Ativo</span>
+                </div>
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>
+                  Criar aviso na agenda para retorno
+                </label>
+                <div style={styles.checkboxWrap}>
+                  <input
+                    type="checkbox"
+                    name="createReminder"
+                    checked={form.createReminder}
+                    onChange={handleChange}
+                  />
+                  <span style={styles.checkboxLabel}>
+                    Criar retorno automático
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.rowSingle}>
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Notas sobre o cliente</label>
+                <textarea
+                  name="notes"
+                  value={form.notes}
+                  onChange={handleChange}
+                  style={styles.textarea}
+                  placeholder="Digite observações sobre o cliente..."
                 />
               </div>
             </div>
 
             <div style={styles.actionRow}>
               {editingId && (
-                <button
-                  type="button"
-                  style={styles.deleteButton}
-                  onClick={handleDelete}
-                >
-                  Excluir
-                </button>
+                <>
+                  <button
+                    type="button"
+                    style={styles.createFinancingButton}
+                    onClick={handleCreateFinancing}
+                  >
+                    Criar financiamento
+                  </button>
+
+                  <button
+                    type="button"
+                    style={styles.deleteButton}
+                    onClick={handleDelete}
+                  >
+                    Excluir
+                  </button>
+                </>
               )}
             </div>
 
@@ -799,6 +1017,12 @@ const styles = {
     fontSize: "14px",
     marginTop: "4px"
   },
+  clientResponsible: {
+    color: "#a16207",
+    fontSize: "13px",
+    marginTop: "6px",
+    fontWeight: "600"
+  },
   mainPanel: {
     backgroundColor: "#fffdf8",
     padding: "26px 34px",
@@ -866,6 +1090,26 @@ const styles = {
     outline: "none",
     backgroundColor: "transparent"
   },
+  lineSelect: {
+    border: "none",
+    borderBottom: "1px solid #d8c8a2",
+    padding: "8px 0 10px 0",
+    fontSize: "18px",
+    outline: "none",
+    backgroundColor: "transparent"
+  },
+  textarea: {
+    width: "100%",
+    minHeight: "90px",
+    border: "1px solid #d8c8a2",
+    borderRadius: "8px",
+    padding: "12px",
+    fontSize: "16px",
+    outline: "none",
+    backgroundColor: "#fffdf8",
+    resize: "vertical",
+    boxSizing: "border-box"
+  },
   checkboxWrap: {
     display: "flex",
     alignItems: "center",
@@ -876,10 +1120,34 @@ const styles = {
     color: "#7a6a47",
     fontSize: "16px"
   },
+  statusRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    paddingTop: "10px"
+  },
+  statusTextLeft: {
+    fontSize: "16px",
+    color: "#000"
+  },
+  statusTextRight: {
+    fontSize: "16px",
+    color: "#000"
+  },
   actionRow: {
     display: "flex",
     justifyContent: "flex-start",
+    gap: "12px",
     marginTop: "10px"
+  },
+  createFinancingButton: {
+    backgroundColor: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "10px 16px",
+    cursor: "pointer",
+    fontWeight: "700"
   },
   deleteButton: {
     backgroundColor: "#d6453d",

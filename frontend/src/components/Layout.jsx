@@ -1,30 +1,39 @@
-import { useState } from "react";
-import { Outlet, useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import Sidebar from "./Sidebar";
+import ProfileMenu from "./ProfileMenu";
 
 function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [user, setUser] = useState(
+    JSON.parse(localStorage.getItem("user") || "{}")
+  );
 
-  function handleLogout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate("/");
-    window.location.reload();
-  }
+  useEffect(() => {
+    function syncUser() {
+      setUser(JSON.parse(localStorage.getItem("user") || "{}"));
+    }
 
-  const topTabs = [
-    { label: "DASHBOARD", path: "/dashboard" },
-    { label: "GESTÃO DE LEADS", path: "/clientes" },
-    { label: "ATENDIMENTOS", path: "/clientes" },
-    { label: "CENTRAL DE NEGÓCIOS", path: "/imoveis" },
-    { label: "PROPRIETÁRIOS", path: "/proprietarios" },
-    { label: "AGENDAMENTOS", path: "/agendamentos" },
-    { label: "PORTAIS", path: "/documentos" },
-    { label: "MEU SITE", path: "/dashboard" }
-  ];
+    window.addEventListener("storage", syncUser);
+    return () => window.removeEventListener("storage", syncUser);
+  }, []);
+
+  const topTabs = useMemo(
+    () => [
+      { label: "DASHBOARD", path: "/dashboard" },
+      { label: "GESTÃO DE LEADS", path: "/clientes" },
+      { label: "ATENDIMENTOS", path: "/clientes" },
+      { label: "CENTRAL DE NEGÓCIOS", path: "/imoveis" },
+      { label: "PROPRIETÁRIOS", path: "/proprietarios" },
+      { label: "AGENDAMENTOS", path: "/agendamentos" },
+      { label: "PORTAIS", path: "/documentos" },
+      { label: "MEU SITE", path: "/site" }
+    ],
+    []
+  );
 
   return (
     <div style={styles.container}>
@@ -45,7 +54,7 @@ function Layout() {
               <div style={styles.searchWrapper}>
                 <input
                   style={styles.searchInput}
-                  placeholder="Pesquisar imóveis ou clientes..."
+                  placeholder="Pesquisar imóveis, leads ou clientes..."
                 />
               </div>
 
@@ -61,6 +70,7 @@ function Layout() {
             <div style={styles.topTabs}>
               {topTabs.map((tab) => {
                 const active = location.pathname === tab.path;
+
                 return (
                   <button
                     key={`${tab.label}-${tab.path}`}
@@ -81,17 +91,13 @@ function Layout() {
           <div style={styles.headerInfo}>
             <div style={styles.titleBlock}>
               <h1 style={styles.pageTitle}>JB Pessoa Imóveis</h1>
+              <p style={styles.subtitle}>
+                Sistema online para gestão de corretores, leads e imóveis
+              </p>
             </div>
 
             <div style={styles.userBox}>
-              <div style={styles.userInfo}>
-                <strong>{user.name || "Administrador"}</strong>
-                <div style={styles.userRole}>{user.role || "GERENTE"}</div>
-              </div>
-
-              <button style={styles.logoutButton} onClick={handleLogout}>
-                Sair
-              </button>
+              <ProfileMenu user={user} />
             </div>
           </div>
 
@@ -225,7 +231,7 @@ const styles = {
     justifyContent: "space-between",
     alignItems: "center",
     gap: "16px",
-    padding: "10px 16px 0 16px",
+    padding: "12px 16px 0 16px",
     boxSizing: "border-box",
     flexWrap: "wrap"
   },
@@ -236,8 +242,14 @@ const styles = {
 
   pageTitle: {
     margin: 0,
-    fontSize: "22px",
+    fontSize: "24px",
     color: "#404040"
+  },
+
+  subtitle: {
+    margin: "4px 0 0",
+    color: "#667085",
+    fontSize: "14px"
   },
 
   userBox: {
@@ -245,27 +257,6 @@ const styles = {
     alignItems: "center",
     gap: "14px",
     flexWrap: "wrap"
-  },
-
-  userInfo: {
-    textAlign: "right",
-    color: "#54607a"
-  },
-
-  userRole: {
-    marginTop: "4px",
-    color: "#777"
-  },
-
-  logoutButton: {
-    backgroundColor: "#cfa52b",
-    color: "#fff",
-    border: "none",
-    borderRadius: "12px",
-    padding: "10px 18px",
-    fontWeight: "700",
-    cursor: "pointer",
-    flexShrink: 0
   },
 
   content: {
