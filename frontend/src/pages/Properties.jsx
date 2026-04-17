@@ -280,7 +280,6 @@ function Properties() {
     }
 
     if (!form.title.trim()) return alert("Título do imóvel é obrigatório.");
-    if (!form.code.trim()) return alert("Código é obrigatório.");
     if (!form.type.trim()) return alert("Tipo é obrigatório.");
     if (!form.price.toString().trim()) return alert("Preço é obrigatório.");
     if (!form.area.toString().trim()) return alert("Área é obrigatória.");
@@ -299,25 +298,52 @@ function Properties() {
     if (!form.ownerId) return alert("Selecione o proprietário.");
 
     const payload = new FormData();
+
+    const price = numberOrNull(form.price);
+    const rentPrice = numberOrNull(form.rentPrice);
+    const area = numberOrNull(form.area);
+    const rooms = intOrNull(form.rooms);
+    const bathrooms = intOrNull(form.bathrooms);
+    const garage = intOrNull(form.garage);
+
     payload.append("title", form.title.trim());
-    payload.append("code", form.code.trim());
+
+    if (form.code.trim()) {
+      payload.append("code", form.code.trim());
+    }
+
     payload.append("type", form.type.trim());
     payload.append("status", normalizeString(form.status) || "DISPONIVEL");
-    payload.append("price", numberOrNull(form.price));
-    payload.append("rentPrice", numberOrNull(form.rentPrice) ?? "");
-    payload.append("area", numberOrNull(form.area));
-    payload.append("rooms", intOrNull(form.rooms));
-    payload.append("bathrooms", intOrNull(form.bathrooms));
-    payload.append("garage", intOrNull(form.garage) ?? "");
+    payload.append("price", String(price ?? 0));
+    payload.append("area", String(area ?? 0));
+    payload.append("rooms", String(rooms ?? 0));
+    payload.append("bathrooms", String(bathrooms ?? 0));
     payload.append("street", form.street.trim());
     payload.append("number", form.number.trim());
-    payload.append("complement", normalizeString(form.complement) || "");
     payload.append("zipCode", form.zipCode.trim());
     payload.append("district", form.district.trim());
     payload.append("city", form.city.trim());
     payload.append("state", form.state.trim());
-    payload.append("description", normalizeString(form.description) || "");
-    payload.append("ownerId", form.ownerId);
+    payload.append("ownerId", String(form.ownerId));
+
+    if (rentPrice !== null) {
+      payload.append("rentPrice", String(rentPrice));
+    }
+
+    if (garage !== null) {
+      payload.append("garage", String(garage));
+    }
+
+    const complement = normalizeString(form.complement);
+    if (complement !== null) {
+      payload.append("complement", complement);
+    }
+
+    const description = normalizeString(form.description);
+    if (description !== null) {
+      payload.append("description", description);
+    }
+
     payload.append("existingImages", JSON.stringify(form.images || []));
 
     newImages.forEach((file) => {
@@ -325,25 +351,34 @@ function Properties() {
     });
 
     try {
+      let response;
+
       if (editingId) {
-        const response = await api.put(`/properties/${editingId}`, payload);
+        response = await api.put(`/properties/${editingId}`, payload);
         alert("Imóvel atualizado com sucesso.");
-        await loadProperties(response.data.property?.id || editingId);
+        await loadProperties(response.data?.property?.id || editingId);
       } else {
-        const response = await api.post("/properties", payload);
+        response = await api.post("/properties", payload);
         alert("Imóvel cadastrado com sucesso.");
-        await loadProperties(response.data.property?.id || null);
+        await loadProperties(response.data?.property?.id || null);
       }
 
+      setSelectedProperty(response.data?.property || null);
+      setNewImages([]);
       setViewMode("list");
     } catch (error) {
-      console.error("Erro ao salvar imóvel:", error.response?.data || error);
+      console.error("Erro ao salvar imóvel:", error);
+      console.error("error.response?.data:", error.response?.data);
+      console.error("error.message:", error.message);
+
       const apiMessage =
         error.response?.data?.error ||
-        error.response?.data?.message ||
         error.response?.data?.details ||
+        error.response?.data?.message ||
+        error.message ||
         "Erro ao salvar imóvel.";
-      alert(apiMessage);
+
+      alert(`Erro ao salvar imóvel:\n${apiMessage}`);
     }
   }
 
@@ -540,11 +575,21 @@ Preço: ${selectedProperty.price ?? "-"}
                   >
                     <td style={styles.tdImage}>
                       {getMainImage(property) ? (
-                        <img
-                          src={getMainImage(property)}
-                          alt={property.title}
-                          style={styles.tableImage}
-                        />
+                        <div style={styles.imageWrapper}>
+                          <img
+                            src={getMainImage(property)}
+                            alt={property.title}
+                            style={styles.tableImage}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                              const fallback = e.currentTarget.nextSibling;
+                              if (fallback) fallback.style.display = "flex";
+                            }}
+                          />
+                          <div style={{ ...styles.noImage, display: "none" }}>
+                            Sem foto
+                          </div>
+                        </div>
                       ) : (
                         <div style={styles.noImage}>Sem foto</div>
                       )}
@@ -829,23 +874,31 @@ Preço: ${selectedProperty.price ?? "-"}
 
             <div style={styles.rowTriple}>
               <div style={styles.fieldContent}>
-                <label style={styles.label}>*Código</label>
+                <label style={styles.label}>Código</label>
                 <input
                   style={styles.lineInput}
                   name="code"
                   value={form.code}
                   onChange={handleChange}
+                  placeholder="Deixe em branco para gerar automático"
                 />
               </div>
 
               <div style={styles.fieldContent}>
                 <label style={styles.label}>*Tipo</label>
-                <input
-                  style={styles.lineInput}
+                <select
+                  style={styles.selectInput}
                   name="type"
                   value={form.type}
                   onChange={handleChange}
-                />
+                >
+                  <option value="">Selecione...</option>
+                  <option value="Apartamento">Apartamento</option>
+                  <option value="Casa">Casa</option>
+                  <option value="Sobrado">Sobrado</option>
+                  <option value="Terreno">Terreno</option>
+                  <option value="Comércio">Comércio</option>
+                </select>
               </div>
 
               <div style={styles.fieldContent}>
@@ -1046,6 +1099,9 @@ Preço: ${selectedProperty.price ?? "-"}
                         src={getImageUrl(imagePath)}
                         alt="Imóvel"
                         style={styles.previewImage}
+                        onError={(e) => {
+                          e.currentTarget.src = "";
+                        }}
                       />
                       <button
                         type="button"
@@ -1189,7 +1245,7 @@ const styles = {
     borderCollapse: "collapse"
   },
   thImage: {
-    width: "88px",
+    width: "96px",
     backgroundColor: "#fff",
     padding: "18px 12px",
     textAlign: "left",
@@ -1219,6 +1275,11 @@ const styles = {
     padding: "16px 12px",
     verticalAlign: "middle"
   },
+  imageWrapper: {
+    width: "64px",
+    height: "64px",
+    position: "relative"
+  },
   td: {
     padding: "16px 12px",
     color: "#111827",
@@ -1245,23 +1306,29 @@ const styles = {
     marginTop: "4px"
   },
   tableImage: {
-    width: "56px",
-    height: "56px",
-    borderRadius: "50%",
+    width: "64px",
+    height: "64px",
+    minWidth: "64px",
+    borderRadius: "12px",
     objectFit: "cover",
-    display: "block"
+    objectPosition: "center",
+    display: "block",
+    backgroundColor: "#f3f4f6",
+    border: "1px solid #e5e7eb"
   },
   noImage: {
-    width: "56px",
-    height: "56px",
-    borderRadius: "50%",
+    width: "64px",
+    height: "64px",
+    minWidth: "64px",
+    borderRadius: "12px",
     backgroundColor: "#e5e7eb",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     fontSize: "11px",
     color: "#6b7280",
-    textAlign: "center"
+    textAlign: "center",
+    border: "1px solid #d1d5db"
   },
   editButton: {
     border: "none",

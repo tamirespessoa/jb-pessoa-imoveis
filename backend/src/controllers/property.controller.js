@@ -19,7 +19,6 @@ function parseImages(images) {
 
 function normalizeType(type) {
   if (!type) return "";
-
   return String(type).trim();
 }
 
@@ -31,6 +30,7 @@ function normalizeStatus(status) {
   if (value === "DISPONIVEL") return "DISPONIVEL";
   if (value === "RESERVADO") return "RESERVADO";
   if (value === "EM_ANALISE") return "EM_ANALISE";
+  if (value === "ARQUIVADO") return "ARQUIVADO";
 
   return "DISPONIVEL";
 }
@@ -40,7 +40,18 @@ function toNullableNumber(value) {
     return null;
   }
 
-  const number = Number(value);
+  const normalized = String(value).replace(/\./g, "").replace(",", ".");
+  const number = Number(normalized);
+
+  return Number.isNaN(number) ? null : number;
+}
+
+function toNullableInt(value) {
+  if (value === undefined || value === null || value === "") {
+    return null;
+  }
+
+  const number = parseInt(String(value), 10);
   return Number.isNaN(number) ? null : number;
 }
 
@@ -76,6 +87,66 @@ function getOrderBy(sort) {
   return { createdAt: "desc" };
 }
 
+function buildUploadedImagePaths(files) {
+  if (!Array.isArray(files) || files.length === 0) return [];
+  return files.map((file) => `/uploads/${file.filename}`);
+}
+
+function buildFinalImages(req, fallbackImages = []) {
+  const existingImages = parseImages(req.body?.existingImages);
+  const uploadedImages = buildUploadedImagePaths(req.files);
+
+  if (existingImages.length === 0 && uploadedImages.length === 0) {
+    return fallbackImages;
+  }
+
+  return [...existingImages, ...uploadedImages];
+}
+
+function getReferencePrefix(type) {
+  const value = String(type || "")
+    .trim()
+    .toLowerCase();
+
+  if (value.includes("apart")) return "AP";
+  if (value.includes("casa")) return "CA";
+  if (value.includes("sobrado")) return "SO";
+  if (value.includes("terreno")) return "TE";
+  if (value.includes("com")) return "CO";
+
+  return "IM";
+}
+
+async function generatePropertyCode(type) {
+  const prefix = getReferencePrefix(type);
+
+  const properties = await prisma.property.findMany({
+    where: {
+      code: {
+        startsWith: prefix
+      }
+    },
+    select: {
+      code: true
+    }
+  });
+
+  let maxNumber = 0;
+
+  for (const property of properties) {
+    const match = String(property.code || "").match(/^([A-Z]{2})(\d{4})$/);
+    if (match && match[1] === prefix) {
+      const number = Number(match[2]);
+      if (number > maxNumber) {
+        maxNumber = number;
+      }
+    }
+  }
+
+  const nextNumber = String(maxNumber + 1).padStart(4, "0");
+  return `${prefix}${nextNumber}`;
+}
+
 function mapProperty(property) {
   const images = parseImages(property.images);
 
@@ -92,6 +163,24 @@ function mapProperty(property) {
       .replace(/^,\s*/, ""),
     coverImage: images.length ? images[0] : null
   };
+}
+
+async function ensureUniqueCode(code, currentId = null) {
+  if (!code) return;
+
+  const existing = await prisma.property.findFirst({
+    where: {
+      code,
+      ...(currentId ? { id: { not: currentId } } : {})
+    },
+    select: { id: true, code: true }
+  });
+
+  if (existing) {
+    const error = new Error("Já existe um imóvel com este código.");
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 async function createProperty(req, res) {
@@ -119,16 +208,11 @@ async function createProperty(req, res) {
       garage,
       garageSpots,
       area,
-      images,
       ownerId
     } = req.body;
 
     if (!title || !String(title).trim()) {
       return res.status(400).json({ error: "Título é obrigatório." });
-    }
-
-    if (!code || !String(code).trim()) {
-      return res.status(400).json({ error: "Código é obrigatório." });
     }
 
     if (!type || !String(type).trim()) {
@@ -194,10 +278,20 @@ async function createProperty(req, res) {
       return res.status(400).json({ error: "Proprietário não encontrado." });
     }
 
+    let finalCode = code ? String(code).trim() : "";
+
+    if (!finalCode) {
+      finalCode = await generatePropertyCode(type);
+    }
+
+    await ensureUniqueCode(finalCode);
+
+    const finalImages = buildFinalImages(req, []);
+
     const property = await prisma.property.create({
       data: {
         title: String(title).trim(),
-        code: String(code).trim(),
+        code: finalCode,
         description: description ? String(description).trim() : null,
         price: Number(price),
         rentPrice: toNullableNumber(rentPrice),
@@ -212,10 +306,10 @@ async function createProperty(req, res) {
         zipCode: String(zipCode || cep).trim(),
         rooms: Number(rooms ?? bedrooms),
         bathrooms: Number(bathrooms),
-        garage: toNullableNumber(garage ?? garageSpots),
+        garage: toNullableInt(garage ?? garageSpots),
         area: Number(area),
         ownerId: String(ownerId).trim(),
-        images: Array.isArray(images) ? images : []
+        images: finalImages
       },
       include: {
         owner: {
@@ -229,12 +323,30 @@ async function createProperty(req, res) {
       }
     });
 
-    return res.status(201).json(mapProperty(property));
+    return res.status(201).json({
+      message: "Imóvel cadastrado com sucesso.",
+      property: mapProperty(property)
+    });
   } catch (error) {
     console.error("Erro ao criar imóvel:", error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        error: error.message
+      });
+    }
+
+    if (error.code === "P2002") {
+      return res.status(400).json({
+        error: "Já existe um imóvel com este código."
+      });
+    }
+
     return res.status(500).json({
       error: "Erro ao criar imóvel.",
-      details: error.message
+      details: error.message,
+      code: error.code || null,
+      meta: error.meta || null
     });
   }
 }
@@ -319,7 +431,6 @@ async function updateProperty(req, res) {
       garage,
       garageSpots,
       area,
-      images,
       ownerId
     } = req.body;
 
@@ -341,11 +452,24 @@ async function updateProperty(req, res) {
       }
     }
 
+    let finalCode = existingProperty.code;
+
+    if (code !== undefined) {
+      const trimmedCode = String(code || "").trim();
+      if (trimmedCode) {
+        finalCode = trimmedCode;
+      }
+    }
+
+    await ensureUniqueCode(finalCode, id);
+
+    const finalImages = buildFinalImages(req, parseImages(existingProperty.images));
+
     const property = await prisma.property.update({
       where: { id },
       data: {
         title: title !== undefined ? String(title).trim() : undefined,
-        code: code !== undefined ? String(code).trim() : undefined,
+        code: finalCode,
         description:
           description !== undefined
             ? description
@@ -405,19 +529,14 @@ async function updateProperty(req, res) {
           bathrooms !== undefined ? Number(bathrooms) : undefined,
         garage:
           garage !== undefined || garageSpots !== undefined
-            ? toNullableNumber(garage ?? garageSpots)
+            ? toNullableInt(garage ?? garageSpots)
             : undefined,
         area: area !== undefined ? Number(area) : undefined,
         ownerId:
           ownerId !== undefined && ownerId !== null && ownerId !== ""
             ? String(ownerId).trim()
             : undefined,
-        images:
-          images !== undefined
-            ? Array.isArray(images)
-              ? images
-              : []
-            : undefined
+        images: finalImages
       },
       include: {
         owner: {
@@ -431,12 +550,30 @@ async function updateProperty(req, res) {
       }
     });
 
-    return res.json(mapProperty(property));
+    return res.json({
+      message: "Imóvel atualizado com sucesso.",
+      property: mapProperty(property)
+    });
   } catch (error) {
     console.error("Erro ao atualizar imóvel:", error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        error: error.message
+      });
+    }
+
+    if (error.code === "P2002") {
+      return res.status(400).json({
+        error: "Já existe um imóvel com este código."
+      });
+    }
+
     return res.status(500).json({
       error: "Erro ao atualizar imóvel.",
-      details: error.message
+      details: error.message,
+      code: error.code || null,
+      meta: error.meta || null
     });
   }
 }
@@ -489,54 +626,52 @@ async function listPublicProperties(req, res) {
       andFilters.push({
         OR: [
           { title: { contains: search, mode: "insensitive" } },
+          { code: { contains: search, mode: "insensitive" } },
           { city: { contains: search, mode: "insensitive" } },
           { state: { contains: search, mode: "insensitive" } },
           { district: { contains: search, mode: "insensitive" } },
           { street: { contains: search, mode: "insensitive" } },
-          { code: { contains: search, mode: "insensitive" } }
+          { type: { contains: search, mode: "insensitive" } }
         ]
       });
     }
 
     if (normalizedType) {
       andFilters.push({
-        type: { equals: normalizedType, mode: "insensitive" }
+        type: { contains: normalizedType, mode: "insensitive" }
       });
     }
 
     if (city) {
       andFilters.push({
-        city: { equals: city, mode: "insensitive" }
+        city: { contains: city, mode: "insensitive" }
       });
     }
 
     if (priceFilter) {
-      andFilters.push({
-        price: priceFilter
-      });
+      andFilters.push({ price: priceFilter });
     }
 
     const where = {
       AND: andFilters
     };
 
-    const [total, properties, cityList] = await Promise.all([
+    const [total, properties] = await Promise.all([
       prisma.property.count({ where }),
       prisma.property.findMany({
         where,
         orderBy: getOrderBy(sort),
         skip,
-        take: perPage
-      }),
-      prisma.property.findMany({
-        select: { city: true },
-        distinct: ["city"],
-        where: {
-          status: "DISPONIVEL",
-          NOT: [{ city: "" }]
-        },
-        orderBy: {
-          city: "asc"
+        take: perPage,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              fullName: true,
+              email: true,
+              phone: true
+            }
+          }
         }
       })
     ]);
@@ -547,10 +682,7 @@ async function listPublicProperties(req, res) {
         page: currentPage,
         limit: perPage,
         total,
-        totalPages: Math.max(Math.ceil(total / perPage), 1)
-      },
-      filters: {
-        cities: cityList.map((item) => item.city).filter(Boolean)
+        totalPages: Math.ceil(total / perPage)
       }
     });
   } catch (error) {
@@ -565,22 +697,33 @@ async function getPublicPropertyById(req, res) {
   try {
     const { id } = req.params;
 
-    const property = await prisma.property.findUnique({
-      where: { id }
+    const property = await prisma.property.findFirst({
+      where: {
+        id,
+        status: "DISPONIVEL"
+      },
+      include: {
+        owner: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+            phone: true
+          }
+        }
+      }
     });
 
     if (!property) {
       return res.status(404).json({ error: "Imóvel não encontrado." });
     }
 
-    if (property.status && property.status !== "DISPONIVEL") {
-      return res.status(404).json({ error: "Imóvel não disponível." });
-    }
-
     return res.json(mapProperty(property));
   } catch (error) {
     console.error("Erro ao buscar imóvel público:", error);
-    return res.status(500).json({ error: "Erro ao buscar imóvel." });
+    return res.status(500).json({
+      error: "Erro ao buscar imóvel público."
+    });
   }
 }
 
