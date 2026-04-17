@@ -7,30 +7,39 @@ function getApiBaseUrl() {
 }
 
 function getImage(property) {
+  const base = getApiBaseUrl();
+
   if (property.image) return property.image;
   if (property.imageUrl) return property.imageUrl;
 
   if (property.coverImage) {
-    if (String(property.coverImage).startsWith("http")) {
+    if (String(property.coverImage).startsWith("http://") || String(property.coverImage).startsWith("https://")) {
       return property.coverImage;
     }
 
-    return `${getApiBaseUrl()}/uploads/${property.coverImage}`;
+    return `${base}${property.coverImage}`;
   }
 
   if (property.images && property.images.length > 0) {
     const firstImage = property.images[0];
 
     if (typeof firstImage === "string") {
-      if (firstImage.startsWith("http")) {
+      if (firstImage.startsWith("http://") || firstImage.startsWith("https://")) {
         return firstImage;
       }
 
-      return `${getApiBaseUrl()}/uploads/${firstImage}`;
+      return `${base}${firstImage}`;
     }
 
     if (firstImage?.url) {
-      return firstImage.url;
+      if (
+        String(firstImage.url).startsWith("http://") ||
+        String(firstImage.url).startsWith("https://")
+      ) {
+        return firstImage.url;
+      }
+
+      return `${base}${firstImage.url}`;
     }
   }
 
@@ -70,6 +79,9 @@ export default function PropertyCard({ property }) {
           src={getImage(property)}
           alt={property.title || "Imóvel"}
           className="property-card-image"
+          onError={(e) => {
+            e.currentTarget.src = "https://via.placeholder.com/800x500?text=Sem+Imagem";
+          }}
         />
 
         <span className="property-card-type">
@@ -97,7 +109,9 @@ export default function PropertyCard({ property }) {
           <span>{getBedrooms(property)} quartos</span>
           <span>{property.bathrooms ?? 0} banheiros</span>
           <span>{property.area ?? 0} m²</span>
-          <span>{getGarage(property)} vaga{getGarage(property) === 1 ? "" : "s"}</span>
+          <span>
+            {getGarage(property)} vaga{getGarage(property) === 1 ? "" : "s"}
+          </span>
         </div>
 
         <div className="property-card-actions">
