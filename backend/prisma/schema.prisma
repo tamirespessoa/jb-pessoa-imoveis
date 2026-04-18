@@ -7,6 +7,13 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum UserRole {
+  ADMIN
+  CORRETOR
+  ANALISTA_CREDITO
+  RECEPCIONISTA
+}
+
 model Appointment {
   id              String   @id @default(cuid())
   propertyId      String
@@ -226,7 +233,7 @@ model User {
   email         String   @unique
   password      String
   name          String
-  role          String   @default("ADMIN")
+  role          UserRole @default(CORRETOR)
   online        Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -240,12 +247,12 @@ model User {
 }
 
 model Financing {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   clientId       String
   propertyId     String?
   assignedToId   String?
-  stage          String   @default("LEAD_SIMULACAO")
-  status         String   @default("NAO_ATENDIDO")
+  stage          String    @default("LEAD_SIMULACAO")
+  status         String    @default("NAO_ATENDIDO")
   propertyValue  Float
   financedValue  Float?
   entryValue     Float?
@@ -254,12 +261,12 @@ model Financing {
   attendedByName String?
   viewedAt       DateTime?
   startedAt      DateTime?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  client     Person   @relation("ClientFinancings", fields: [clientId], references: [id], onDelete: Cascade)
+  client     Person    @relation("ClientFinancings", fields: [clientId], references: [id], onDelete: Cascade)
   property   Property? @relation("PropertyFinancings", fields: [propertyId], references: [id], onDelete: SetNull)
-  assignedTo User?    @relation("UserFinancings", fields: [assignedToId], references: [id], onDelete: SetNull)
+  assignedTo User?     @relation("UserFinancings", fields: [assignedToId], references: [id], onDelete: SetNull)
 
   @@index([clientId])
   @@index([propertyId])

@@ -1,6 +1,58 @@
 import { useEffect, useState } from "react";
 import api from "../services/api";
 
+function getRoleLabel(role) {
+  if (role === "ADMIN") return "Administrador";
+  if (role === "CORRETOR") return "Corretor";
+  if (role === "ANALISTA_CREDITO") return "Analista de Crédito";
+  if (role === "RECEPCIONISTA") return "Recepcionista";
+  return role || "-";
+}
+
+function getRoleBadgeStyle(role) {
+  const base = {
+    ...styles.badge
+  };
+
+  if (role === "ADMIN") {
+    return {
+      ...base,
+      background: "#ede9fe",
+      color: "#5b21b6"
+    };
+  }
+
+  if (role === "CORRETOR") {
+    return {
+      ...base,
+      background: "#dbeafe",
+      color: "#1d4ed8"
+    };
+  }
+
+  if (role === "ANALISTA_CREDITO") {
+    return {
+      ...base,
+      background: "#ecfdf5",
+      color: "#047857"
+    };
+  }
+
+  if (role === "RECEPCIONISTA") {
+    return {
+      ...base,
+      background: "#fff7ed",
+      color: "#c2410c"
+    };
+  }
+
+  return {
+    ...base,
+    background: "#f3f4f6",
+    color: "#374151"
+  };
+}
+
 function Users() {
   const currentUser = JSON.parse(localStorage.getItem("user") || "{}");
 
@@ -66,12 +118,12 @@ function Users() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (!form.name || !form.email) {
+    if (!form.name.trim() || !form.email.trim()) {
       alert("Preencha nome e email.");
       return;
     }
 
-    if (!editingId && !form.password) {
+    if (!editingId && !form.password.trim()) {
       alert("A senha é obrigatória para criar usuário.");
       return;
     }
@@ -79,18 +131,28 @@ function Users() {
     try {
       setSaving(true);
 
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        role: form.role
+      };
+
+      if (form.password.trim()) {
+        payload.password = form.password.trim();
+      }
+
       if (editingId) {
-        await api.put(`/users/${editingId}`, form);
+        await api.put(`/users/${editingId}`, payload);
         alert("Usuário atualizado com sucesso.");
       } else {
-        await api.post("/users", form);
+        await api.post("/users", payload);
         alert("Usuário criado com sucesso.");
       }
 
       resetForm();
       await loadUsers();
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao salvar usuário:", error);
       alert(
         error.response?.data?.error ||
           (editingId ? "Erro ao atualizar usuário." : "Erro ao criar usuário.")
@@ -140,7 +202,10 @@ function Users() {
     <div style={styles.page}>
       <div style={styles.header}>
         <h1 style={styles.title}>Usuários do sistema</h1>
-        <p style={styles.subtitle}>Gerencie administradores e corretores</p>
+        <p style={styles.subtitle}>
+          Gerencie administradores, corretores, analistas de crédito e
+          recepcionistas
+        </p>
       </div>
 
       <div style={styles.grid}>
@@ -187,6 +252,8 @@ function Users() {
             >
               <option value="CORRETOR">Corretor</option>
               <option value="ADMIN">Administrador</option>
+              <option value="ANALISTA_CREDITO">Analista de Crédito</option>
+              <option value="RECEPCIONISTA">Recepcionista</option>
             </select>
 
             <div style={styles.formActions}>
@@ -196,8 +263,8 @@ function Users() {
                     ? "Salvando..."
                     : "Criando..."
                   : editingId
-                  ? "Salvar alterações"
-                  : "Criar usuário"}
+                    ? "Salvar alterações"
+                    : "Criar usuário"}
               </button>
 
               {editingId && (
@@ -241,16 +308,8 @@ function Users() {
                         <td style={styles.td}>{u.name}</td>
                         <td style={styles.td}>{u.email}</td>
                         <td style={styles.td}>
-                          <span
-                            style={{
-                              ...styles.badge,
-                              background:
-                                u.role === "ADMIN" ? "#ede9fe" : "#dbeafe",
-                              color:
-                                u.role === "ADMIN" ? "#5b21b6" : "#1d4ed8"
-                            }}
-                          >
-                            {u.role}
+                          <span style={getRoleBadgeStyle(u.role)}>
+                            {getRoleLabel(u.role)}
                           </span>
                         </td>
                         <td style={styles.td}>

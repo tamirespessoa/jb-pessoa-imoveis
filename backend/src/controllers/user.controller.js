@@ -1,6 +1,25 @@
 const prisma = require("../config/prisma");
 const bcrypt = require("bcryptjs");
 
+const ALLOWED_ROLES = [
+  "ADMIN",
+  "CORRETOR",
+  "ANALISTA_CREDITO",
+  "RECEPCIONISTA"
+];
+
+function validateRole(role) {
+  const finalRole = role || "CORRETOR";
+
+  if (!ALLOWED_ROLES.includes(finalRole)) {
+    const error = new Error("Perfil inválido.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  return finalRole;
+}
+
 async function createUser(req, res) {
   try {
     const { name, email, password, role } = req.body;
@@ -23,6 +42,7 @@ async function createUser(req, res) {
       });
     }
 
+    const finalRole = validateRole(role);
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await prisma.user.create({
@@ -30,7 +50,7 @@ async function createUser(req, res) {
         name: name.trim(),
         email: normalizedEmail,
         password: hashedPassword,
-        role: role || "CORRETOR"
+        role: finalRole
       },
       select: {
         id: true,
@@ -45,6 +65,12 @@ async function createUser(req, res) {
     return res.status(201).json(user);
   } catch (error) {
     console.error("Erro ao criar usuário:", error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        error: error.message
+      });
+    }
 
     return res.status(500).json({
       error: "Erro ao criar usuário."
@@ -114,10 +140,12 @@ async function updateUser(req, res) {
       });
     }
 
+    const finalRole = validateRole(role);
+
     const data = {
       name: name.trim(),
       email: normalizedEmail,
-      role
+      role: finalRole
     };
 
     if (typeof online === "boolean") {
@@ -144,6 +172,12 @@ async function updateUser(req, res) {
     return res.json(updatedUser);
   } catch (error) {
     console.error("Erro ao atualizar usuário:", error);
+
+    if (error.statusCode) {
+      return res.status(error.statusCode).json({
+        error: error.message
+      });
+    }
 
     return res.status(500).json({
       error: "Erro ao atualizar usuário."
