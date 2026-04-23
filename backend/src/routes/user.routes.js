@@ -10,15 +10,24 @@ const {
   updateUser,
   deleteUser,
   updateMyOnlineStatus,
-  listOnlineBrokers
+  listOnlineBrokers,
+  listAssignableBrokers
 } = require("../controllers/user.controller");
 
 router.patch("/me/status", authMiddleware, updateMyOnlineStatus);
+
 router.get(
   "/online-brokers",
   authMiddleware,
   permit("ADMIN"),
   listOnlineBrokers
+);
+
+router.get(
+  "/assignable-brokers",
+  authMiddleware,
+  permit("ADMIN"),
+  listAssignableBrokers
 );
 
 router.get("/", authMiddleware, permit("ADMIN"), listUsers);

@@ -263,7 +263,9 @@ async function listOnlineBrokers(req, res) {
   try {
     const brokers = await prisma.user.findMany({
       where: {
-        role: "CORRETOR",
+        role: {
+          in: ["CORRETOR", "ADMIN"]
+        },
         online: true
       },
       orderBy: {
@@ -288,11 +290,42 @@ async function listOnlineBrokers(req, res) {
   }
 }
 
+async function listAssignableBrokers(req, res) {
+  try {
+    const brokers = await prisma.user.findMany({
+      where: {
+        role: {
+          in: ["CORRETOR", "ADMIN"]
+        }
+      },
+      orderBy: {
+        name: "asc"
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        online: true
+      }
+    });
+
+    return res.json(brokers);
+  } catch (error) {
+    console.error("Erro ao listar corretores atribuíveis:", error);
+
+    return res.status(500).json({
+      error: "Erro ao listar corretores atribuíveis."
+    });
+  }
+}
+
 module.exports = {
   createUser,
   listUsers,
   updateUser,
   deleteUser,
   updateMyOnlineStatus,
-  listOnlineBrokers
+  listOnlineBrokers,
+  listAssignableBrokers
 };

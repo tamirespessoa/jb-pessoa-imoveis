@@ -1,5 +1,33 @@
 const prisma = require("../config/prisma");
 
+function canReceiveLeads(user) {
+  if (!user) return false;
+
+  return ["CORRETOR", "ADMIN"].includes(user.role) && user.online === true;
+}
+
+async function getAvailableBrokers() {
+  const users = await prisma.user.findMany({
+    where: {
+      role: {
+        in: ["CORRETOR", "ADMIN"]
+      }
+    },
+    orderBy: {
+      name: "asc"
+    },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+      online: true
+    }
+  });
+
+  return users.filter(canReceiveLeads);
+}
+
 async function createLeadWithRotation(req, res) {
   try {
     const { name, phone, email, message, propertyId } = req.body;
@@ -10,21 +38,7 @@ async function createLeadWithRotation(req, res) {
       });
     }
 
-    const onlineBrokers = await prisma.user.findMany({
-      where: {
-        role: "CORRETOR",
-        online: true
-      },
-      orderBy: {
-        name: "asc"
-      },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        online: true
-      }
-    });
+    const onlineBrokers = await getAvailableBrokers();
 
     if (onlineBrokers.length === 0) {
       const leadWithoutBroker = await prisma.lead.create({
@@ -35,6 +49,17 @@ async function createLeadWithRotation(req, res) {
           message: message ? String(message).trim() : null,
           propertyId: propertyId || null,
           status: "NOVO"
+        },
+        include: {
+          assignedTo: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              online: true
+            }
+          }
         }
       });
 
@@ -89,6 +114,7 @@ async function createLeadWithRotation(req, res) {
             id: true,
             name: true,
             email: true,
+            role: true,
             online: true
           }
         }
@@ -138,6 +164,7 @@ async function listLeads(req, res) {
             id: true,
             name: true,
             email: true,
+            role: true,
             online: true
           }
         }
@@ -196,6 +223,7 @@ async function updateLeadStatus(req, res) {
             id: true,
             name: true,
             email: true,
+            role: true,
             online: true
           }
         }
@@ -213,8 +241,104 @@ async function updateLeadStatus(req, res) {
   }
 }
 
+async function assignLeadBroker(req, res) {
+  try {
+    const { id } = req.params;
+    const { brokerId } = req.body;
+
+    if (req.user.role !== "ADMIN") {
+      return res.status(403).json({
+        error: "Apenas administradores podem atribuir corretores."
+      });
+    }
+
+    const existingLead = await prisma.lead.findUnique({
+      where: { id }
+    });
+
+    if (!existingLead) {
+      return res.status(404).json({
+        error: "Lead não encontrado."
+      });
+    }
+
+    if (!brokerId) {
+      const updatedLead = await prisma.lead.update({
+        where: { id },
+        data: {
+          assignedToId: null
+        },
+        include: {
+          assignedTo: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+              online: true
+            }
+          }
+        }
+      });
+
+      return res.json(updatedLead);
+    }
+
+    const broker = await prisma.user.findUnique({
+      where: { id: String(brokerId) },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        online: true
+      }
+    });
+
+    if (!broker) {
+      return res.status(404).json({
+        error: "Corretor não encontrado."
+      });
+    }
+
+    if (!["CORRETOR", "ADMIN"].includes(broker.role)) {
+      return res.status(400).json({
+        error: "Usuário selecionado não pode receber leads."
+      });
+    }
+
+    const updatedLead = await prisma.lead.update({
+      where: { id },
+      data: {
+        assignedToId: broker.id
+      },
+      include: {
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            online: true
+          }
+        }
+      }
+    });
+
+    return res.json(updatedLead);
+  } catch (error) {
+    console.error("Erro ao atribuir corretor:", error);
+
+    return res.status(500).json({
+      error: "Erro ao atribuir corretor.",
+      details: error.message
+    });
+  }
+}
+
 module.exports = {
   createLeadWithRotation,
   listLeads,
-  updateLeadStatus
+  updateLeadStatus,
+  assignLeadBroker
 };
