@@ -124,20 +124,31 @@ export default function Chat() {
     }
   }
 
-  function updateStatus(status) {
+  async function updateStatus(status) {
     const isOnline = status === "ONLINE";
 
-    const updatedUser = {
-      ...user,
-      online: isOnline,
-      attendanceStatus: status
-    };
+    try {
+      const response = await api.patch("/users/me/status", {
+        online: isOnline
+      });
 
-    localStorage.setItem("user", JSON.stringify(updatedUser));
-    setUser(updatedUser);
-    setAttendanceStatus(status);
-    setStatusMenuOpen(false);
-    window.dispatchEvent(new Event("storage"));
+      const updatedUser = {
+        ...user,
+        ...response.data,
+        attendanceStatus: status
+      };
+
+      localStorage.setItem("user", JSON.stringify(updatedUser));
+      setUser(updatedUser);
+      setAttendanceStatus(status);
+      setStatusMenuOpen(false);
+      window.dispatchEvent(new Event("storage"));
+    } catch (error) {
+      console.error("Erro ao atualizar status online:", error);
+      alert(
+        error.response?.data?.error || "Não foi possível atualizar seu status."
+      );
+    }
   }
 
   const conversationCount = useMemo(

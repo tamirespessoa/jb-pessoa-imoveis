@@ -4,9 +4,11 @@ import api from "../services/api";
 function Leads() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const [leads, setLeads] = useState([]);
-  const [brokers, setBrokers] = useState([]);
+  const [onlineBrokers, setOnlineBrokers] = useState([]);
+  const [assignableBrokers, setAssignableBrokers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusLoadingId, setStatusLoadingId] = useState("");
+  const [assignLoadingId, setAssignLoadingId] = useState("");
   const [search, setSearch] = useState("");
 
   async function loadData(showLoader = true) {
@@ -19,15 +21,23 @@ function Leads() {
 
       if (user.role === "ADMIN") {
         requests.push(api.get("/users/online-brokers"));
+        requests.push(api.get("/users/assignable-brokers"));
       }
 
       const responses = await Promise.all(requests);
 
       setLeads(responses[0].data || []);
-      setBrokers(user.role === "ADMIN" ? responses[1].data || [] : []);
+
+      if (user.role === "ADMIN") {
+        setOnlineBrokers(responses[1].data || []);
+        setAssignableBrokers(responses[2].data || []);
+      } else {
+        setOnlineBrokers([]);
+        setAssignableBrokers([]);
+      }
     } catch (error) {
       console.error("Erro ao carregar leads:", error);
-      alert("Erro ao carregar leads.");
+      alert(error.response?.data?.error || "Erro ao carregar leads.");
     } finally {
       if (showLoader) {
         setLoading(false);
@@ -66,10 +76,26 @@ function Leads() {
     }
   }
 
+  async function handleAssignBroker(id, brokerId) {
+    try {
+      setAssignLoadingId(id);
+
+      await api.patch(`/leads/${id}/assign`, {
+        brokerId: brokerId || null
+      });
+
+      await loadData(false);
+    } catch (error) {
+      console.error("Erro ao atribuir corretor:", error);
+      alert(error.response?.data?.error || "Erro ao atribuir corretor.");
+    } finally {
+      setAssignLoadingId("");
+    }
+  }
+
   function getWhatsAppUrl(lead) {
     const phone = String(lead.phone || "").replace(/\D/g, "");
     const brokerName = lead.assignedTo?.name || user.name || "corretor";
-
     const message = `Olá, ${lead.name}. Sou ${brokerName} da JB Pessoa Imóveis e estou entrando em contato sobre seu interesse.`;
 
     return `https://wa.me/55${phone}?text=${encodeURIComponent(message)}`;
@@ -85,22 +111,42 @@ function Leads() {
 
   function getStatusStyle(status) {
     if (status === "NOVO") {
-      return { background: "#dbeafe", color: "#1d4ed8" };
+      return {
+        background: "rgba(37, 99, 235, 0.12)",
+        color: "#1d4ed8",
+        border: "1px solid rgba(37, 99, 235, 0.18)"
+      };
     }
 
     if (status === "EM_ATENDIMENTO") {
-      return { background: "#fef3c7", color: "#b45309" };
+      return {
+        background: "rgba(217, 119, 6, 0.12)",
+        color: "#b45309",
+        border: "1px solid rgba(217, 119, 6, 0.18)"
+      };
     }
 
     if (status === "ATENDIDO") {
-      return { background: "#dcfce7", color: "#166534" };
+      return {
+        background: "rgba(22, 163, 74, 0.12)",
+        color: "#166534",
+        border: "1px solid rgba(22, 163, 74, 0.18)"
+      };
     }
 
     if (status === "DESCARTADO") {
-      return { background: "#fee2e2", color: "#b91c1c" };
+      return {
+        background: "rgba(220, 38, 38, 0.12)",
+        color: "#b91c1c",
+        border: "1px solid rgba(220, 38, 38, 0.18)"
+      };
     }
 
-    return { background: "#f3f4f6", color: "#374151" };
+    return {
+      background: "#f3f4f6",
+      color: "#374151",
+      border: "1px solid #e5e7eb"
+    };
   }
 
   const stats = useMemo(() => {
@@ -117,6 +163,7 @@ function Leads() {
     <div style={styles.page}>
       <div style={styles.header}>
         <div>
+          <span style={styles.sectionBadge}>Painel comercial</span>
           <h1 style={styles.title}>
             {user.role === "ADMIN" ? "Leads do sistema" : "Meus leads"}
           </h1>
@@ -141,15 +188,20 @@ function Leads() {
       {user.role === "ADMIN" && (
         <div style={styles.onlineSection}>
           <div style={styles.onlineHeader}>
-            <h2 style={styles.onlineTitle}>Corretores online</h2>
-            <span style={styles.onlineCount}>{brokers.length}</span>
+            <div>
+              <h2 style={styles.onlineTitle}>Corretores online</h2>
+              <p style={styles.onlineSubtitle}>
+                Usuários disponíveis para receber atendimento
+              </p>
+            </div>
+            <span style={styles.onlineCount}>{onlineBrokers.length}</span>
           </div>
 
-          {brokers.length === 0 ? (
+          {onlineBrokers.length === 0 ? (
             <p style={styles.emptyText}>Nenhum corretor online no momento.</p>
           ) : (
             <div style={styles.brokersGrid}>
-              {brokers.map((broker) => (
+              {onlineBrokers.map((broker) => (
                 <div key={broker.id} style={styles.brokerCard}>
                   <div style={styles.brokerAvatar}>
                     {broker.name?.charAt(0)?.toUpperCase() || "C"}
@@ -157,7 +209,9 @@ function Leads() {
 
                   <div style={styles.brokerInfo}>
                     <strong style={styles.brokerName}>{broker.name}</strong>
-                    <span style={styles.brokerEmail}>{broker.email}</span>
+                    <span style={styles.brokerEmail}>
+                      {broker.email} ({broker.role})
+                    </span>
                   </div>
 
                   <span style={styles.onlinePill}>Online</span>
@@ -179,9 +233,9 @@ function Leads() {
         </div>
 
         {loading ? (
-          <p>Carregando leads...</p>
+          <p style={styles.loadingText}>Carregando leads...</p>
         ) : filteredLeads.length === 0 ? (
-          <p>Nenhum lead encontrado.</p>
+          <p style={styles.loadingText}>Nenhum lead encontrado.</p>
         ) : (
           <div style={styles.tableWrapper}>
             <table style={styles.table}>
@@ -191,32 +245,67 @@ function Leads() {
                   <th style={styles.th}>Contato</th>
                   <th style={styles.th}>Mensagem</th>
                   <th style={styles.th}>Corretor</th>
+                  {user.role === "ADMIN" && (
+                    <th style={styles.th}>Atribuir corretor</th>
+                  )}
                   <th style={styles.th}>Status</th>
                   <th style={styles.th}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredLeads.map((lead) => (
-                  <tr key={lead.id}>
+                  <tr key={lead.id} style={styles.tr}>
                     <td style={styles.td}>
-                      <div style={styles.mainText}>{lead.name}</div>
-                      <div style={styles.subText}>
-                        {new Date(lead.createdAt).toLocaleString("pt-BR")}
+                      <div style={styles.clientBlock}>
+                        <div style={styles.clientAvatar}>
+                          {lead.name?.charAt(0)?.toUpperCase() || "C"}
+                        </div>
+                        <div>
+                          <div style={styles.mainText}>{lead.name}</div>
+                          <div style={styles.subText}>
+                            {new Date(lead.createdAt).toLocaleString("pt-BR")}
+                          </div>
+                        </div>
                       </div>
                     </td>
 
                     <td style={styles.td}>
-                      <div>{lead.phone || "-"}</div>
+                      <div style={styles.contactPrimary}>{lead.phone || "-"}</div>
                       <div style={styles.subText}>{lead.email || "-"}</div>
                     </td>
 
                     <td style={styles.td}>
-                      {lead.message || "Sem mensagem"}
+                      <div style={styles.messageBox}>
+                        {lead.message || "Sem mensagem"}
+                      </div>
                     </td>
 
                     <td style={styles.td}>
-                      {lead.assignedTo?.name || "Não atribuído"}
+                      <div style={styles.assignedBox}>
+                        {lead.assignedTo?.name || "Não atribuído"}
+                      </div>
                     </td>
+
+                    {user.role === "ADMIN" && (
+                      <td style={styles.td}>
+                        <select
+                          style={styles.select}
+                          value={lead.assignedTo?.id || ""}
+                          onChange={(e) =>
+                            handleAssignBroker(lead.id, e.target.value)
+                          }
+                          disabled={assignLoadingId === lead.id}
+                        >
+                          <option value="">Não atribuído</option>
+                          {assignableBrokers.map((broker) => (
+                            <option key={broker.id} value={broker.id}>
+                              {broker.name} ({broker.role})
+                              {broker.online ? " - online" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                    )}
 
                     <td style={styles.td}>
                       <span
@@ -279,249 +368,318 @@ function StatCard({ label, value }) {
 
 const styles = {
   page: {
-    padding: "24px",
+    padding: "28px",
     display: "flex",
     flexDirection: "column",
-    gap: "20px"
+    gap: "22px",
+    background:
+      "linear-gradient(180deg, #f8fafc 0%, #f3f4f6 38%, #eef2f7 100%)",
+    minHeight: "100vh"
   },
-
   header: {
     display: "flex",
     justifyContent: "space-between",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: "16px",
     flexWrap: "wrap"
   },
-
+  sectionBadge: {
+    display: "inline-block",
+    marginBottom: "12px",
+    padding: "7px 14px",
+    borderRadius: "999px",
+    background: "#f4ead0",
+    color: "#8a6a12",
+    fontSize: "12px",
+    fontWeight: "800",
+    letterSpacing: "0.02em"
+  },
   title: {
     margin: 0,
-    fontSize: "28px",
-    color: "#111827"
+    fontSize: "42px",
+    lineHeight: 1.08,
+    color: "#0f172a",
+    fontWeight: "800"
   },
-
   subtitle: {
-    marginTop: "6px",
-    color: "#6b7280"
+    marginTop: "8px",
+    color: "#64748b",
+    fontSize: "17px"
   },
-
   refreshButton: {
-    padding: "12px 16px",
-    borderRadius: "10px",
+    padding: "14px 18px",
+    borderRadius: "14px",
     border: "none",
-    background: "#111827",
+    background: "linear-gradient(135deg, #0f172a 0%, #111827 100%)",
     color: "#fff",
-    fontWeight: "700",
-    cursor: "pointer"
+    fontWeight: "800",
+    cursor: "pointer",
+    boxShadow: "0 12px 24px rgba(15, 23, 42, 0.18)"
   },
-
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-    gap: "14px"
+    gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+    gap: "16px"
   },
-
   statCard: {
-    background: "#fff",
-    borderRadius: "18px",
-    border: "1px solid #e5e7eb",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
-    padding: "18px"
+    background: "rgba(255,255,255,0.9)",
+    backdropFilter: "blur(6px)",
+    borderRadius: "22px",
+    border: "1px solid rgba(226,232,240,0.95)",
+    boxShadow: "0 14px 35px rgba(15, 23, 42, 0.08)",
+    padding: "22px"
   },
-
   statLabel: {
     display: "block",
-    color: "#6b7280",
-    fontSize: "13px",
-    marginBottom: "8px",
+    color: "#64748b",
+    fontSize: "14px",
+    marginBottom: "10px",
     fontWeight: "700"
   },
-
   statValue: {
-    fontSize: "28px",
-    color: "#111827"
+    fontSize: "32px",
+    color: "#0f172a",
+    fontWeight: "800"
   },
-
   onlineSection: {
-    background: "#fff",
-    borderRadius: "18px",
+    background: "rgba(255,255,255,0.95)",
+    borderRadius: "24px",
     border: "1px solid #e5e7eb",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
-    padding: "20px"
+    boxShadow: "0 16px 40px rgba(15, 23, 42, 0.08)",
+    padding: "24px"
   },
-
   onlineHeader: {
     display: "flex",
     alignItems: "center",
+    justifyContent: "space-between",
     gap: "10px",
-    marginBottom: "16px"
+    marginBottom: "18px",
+    flexWrap: "wrap"
   },
-
   onlineTitle: {
     margin: 0,
-    fontSize: "20px",
-    color: "#111827"
+    fontSize: "28px",
+    color: "#0f172a",
+    fontWeight: "800"
   },
-
+  onlineSubtitle: {
+    margin: "6px 0 0",
+    color: "#64748b",
+    fontSize: "14px"
+  },
   onlineCount: {
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
-    minWidth: "28px",
-    height: "28px",
+    minWidth: "40px",
+    height: "40px",
     borderRadius: "999px",
     background: "#dcfce7",
     color: "#166534",
-    fontWeight: "800",
-    padding: "0 10px"
+    fontWeight: "900",
+    fontSize: "18px",
+    padding: "0 14px"
   },
-
   brokersGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "12px"
+    gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+    gap: "14px"
   },
-
   brokerCard: {
     display: "flex",
     alignItems: "center",
-    gap: "12px",
-    padding: "14px",
+    gap: "14px",
+    padding: "18px",
     background: "#f8fafc",
-    borderRadius: "14px",
-    border: "1px solid #e5e7eb"
+    borderRadius: "18px",
+    border: "1px solid #e5e7eb",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.7)"
   },
-
   brokerAvatar: {
-    width: "42px",
-    height: "42px",
+    width: "54px",
+    height: "54px",
     borderRadius: "50%",
-    background: "#2563eb",
+    background: "linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)",
     color: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontWeight: "800"
+    fontWeight: "900",
+    fontSize: "22px",
+    flexShrink: 0,
+    boxShadow: "0 10px 20px rgba(37,99,235,0.18)"
   },
-
   brokerInfo: {
     flex: 1,
     minWidth: 0,
     display: "flex",
     flexDirection: "column"
   },
-
   brokerName: {
-    color: "#111827"
+    color: "#0f172a",
+    fontSize: "16px",
+    fontWeight: "800"
   },
-
   brokerEmail: {
-    color: "#6b7280",
-    fontSize: "13px",
+    color: "#64748b",
+    fontSize: "14px",
+    marginTop: "2px",
     overflow: "hidden",
     textOverflow: "ellipsis"
   },
-
   onlinePill: {
     background: "#dcfce7",
     color: "#166534",
     borderRadius: "999px",
-    padding: "6px 10px",
-    fontSize: "12px",
-    fontWeight: "800"
+    padding: "8px 14px",
+    fontSize: "13px",
+    fontWeight: "800",
+    whiteSpace: "nowrap"
   },
-
   card: {
-    background: "#fff",
-    borderRadius: "18px",
+    background: "rgba(255,255,255,0.96)",
+    borderRadius: "24px",
     border: "1px solid #e5e7eb",
-    boxShadow: "0 4px 15px rgba(0,0,0,0.05)",
-    padding: "20px"
+    boxShadow: "0 16px 42px rgba(15, 23, 42, 0.08)",
+    padding: "24px"
   },
-
   toolbar: {
     display: "flex",
     gap: "12px",
-    marginBottom: "18px",
+    marginBottom: "22px",
     flexWrap: "wrap"
   },
-
   searchInput: {
     flex: 1,
     minWidth: "280px",
-    padding: "12px",
-    borderRadius: "10px",
-    border: "1px solid #d1d5db"
+    padding: "15px 16px",
+    borderRadius: "14px",
+    border: "1px solid #d1d5db",
+    background: "#f8fafc",
+    fontSize: "15px",
+    outline: "none"
   },
-
   tableWrapper: {
     overflowX: "auto"
   },
-
   table: {
     width: "100%",
-    borderCollapse: "collapse"
+    borderCollapse: "separate",
+    borderSpacing: "0 14px"
   },
-
   th: {
     textAlign: "left",
-    padding: "12px",
-    borderBottom: "1px solid #e5e7eb",
-    color: "#374151",
-    fontSize: "14px"
+    padding: "0 14px 8px",
+    color: "#475569",
+    fontSize: "14px",
+    whiteSpace: "nowrap",
+    fontWeight: "800"
   },
-
+  tr: {
+    background: "#ffffff",
+    boxShadow: "0 8px 24px rgba(15, 23, 42, 0.06)"
+  },
   td: {
-    padding: "12px",
-    borderBottom: "1px solid #f3f4f6",
+    padding: "18px 14px",
     color: "#111827",
     fontSize: "14px",
-    verticalAlign: "top"
+    verticalAlign: "top",
+    borderTop: "1px solid #eef2f7",
+    borderBottom: "1px solid #eef2f7"
   },
-
+  clientBlock: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "12px"
+  },
+  clientAvatar: {
+    width: "46px",
+    height: "46px",
+    borderRadius: "14px",
+    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "800",
+    fontSize: "18px",
+    flexShrink: 0
+  },
   mainText: {
-    fontWeight: "700"
+    fontWeight: "800",
+    fontSize: "16px",
+    color: "#0f172a",
+    lineHeight: 1.3
   },
-
+  contactPrimary: {
+    fontWeight: "700",
+    color: "#0f172a",
+    marginBottom: "4px"
+  },
   subText: {
-    color: "#6b7280",
-    fontSize: "12px",
-    marginTop: "4px"
+    color: "#64748b",
+    fontSize: "13px",
+    marginTop: "4px",
+    lineHeight: 1.5
   },
-
+  messageBox: {
+    maxWidth: "320px",
+    lineHeight: 1.55,
+    color: "#1e293b",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    padding: "12px 14px",
+    borderRadius: "14px",
+    whiteSpace: "pre-line"
+  },
+  assignedBox: {
+    fontWeight: "700",
+    color: "#0f172a",
+    lineHeight: 1.45
+  },
   badge: {
-    display: "inline-block",
-    padding: "6px 10px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "8px 12px",
     borderRadius: "999px",
     fontSize: "12px",
-    fontWeight: "700"
+    fontWeight: "800",
+    whiteSpace: "nowrap"
   },
-
   actions: {
     display: "flex",
     flexDirection: "column",
-    gap: "8px"
+    gap: "10px"
   },
-
   whatsButton: {
     display: "inline-flex",
     justifyContent: "center",
     alignItems: "center",
-    padding: "10px 12px",
-    borderRadius: "8px",
-    background: "#16a34a",
+    minHeight: "44px",
+    padding: "10px 14px",
+    borderRadius: "12px",
+    background: "linear-gradient(135deg, #16a34a 0%, #16a34a 100%)",
     color: "#fff",
-    fontWeight: "700",
-    textDecoration: "none"
+    fontWeight: "800",
+    textDecoration: "none",
+    boxShadow: "0 10px 20px rgba(22,163,74,0.16)"
   },
-
   select: {
-    padding: "10px",
-    borderRadius: "8px",
-    border: "1px solid #d1d5db"
+    padding: "12px 14px",
+    borderRadius: "12px",
+    border: "1px solid #d1d5db",
+    minWidth: "220px",
+    background: "#fff",
+    fontSize: "14px",
+    outline: "none"
   },
-
+  loadingText: {
+    color: "#64748b",
+    margin: 0
+  },
   emptyText: {
-    color: "#6b7280",
+    color: "#64748b",
     margin: 0
   }
 };

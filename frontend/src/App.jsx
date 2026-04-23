@@ -50,7 +50,6 @@ function AppRoutes({ logged, setLogged }) {
 
   return (
     <Routes>
-      {/* SITE PÚBLICO */}
       <Route path="/" element={<Navigate to="/site" replace />} />
       <Route path="/site" element={<SiteHome />} />
       <Route path="/site/imoveis" element={<SiteProperties />} />
@@ -60,7 +59,6 @@ function AppRoutes({ logged, setLogged }) {
         element={<SiteRegisterProperty />}
       />
 
-      {/* LOGIN */}
       <Route
         path="/login"
         element={
@@ -72,7 +70,6 @@ function AppRoutes({ logged, setLogged }) {
         }
       />
 
-      {/* SISTEMA INTERNO */}
       <Route
         element={
           <ProtectedRoute logged={logged}>
@@ -96,7 +93,6 @@ function AppRoutes({ logged, setLogged }) {
         <Route path="/financiamentos" element={<Financiamentos />} />
       </Route>
 
-      {/* FALLBACK */}
       <Route path="*" element={<Navigate to="/site" replace />} />
     </Routes>
   );

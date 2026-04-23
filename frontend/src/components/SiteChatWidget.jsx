@@ -167,7 +167,8 @@ export default function SiteChatWidget() {
         position: "fixed",
         right: widgetRight,
         bottom: widgetBottom,
-        zIndex: 9999,
+        zIndex: 5,
+        pointerEvents: "none",
         fontFamily: "Arial, sans-serif"
       }}
     >
@@ -177,7 +178,8 @@ export default function SiteChatWidget() {
             display: "flex",
             justifyContent: "flex-end",
             alignItems: "center",
-            gap: 12
+            gap: 12,
+            pointerEvents: "none"
           }}
         >
           {menuOpen && (
@@ -193,7 +195,8 @@ export default function SiteChatWidget() {
                 transform: menuOpen
                   ? "translateY(0) scale(1)"
                   : "translateY(10px) scale(0.98)",
-                transition: "all 0.25s ease"
+                transition: "all 0.25s ease",
+                pointerEvents: "auto"
               }}
             >
               <button
@@ -252,7 +255,8 @@ export default function SiteChatWidget() {
               justifyContent: "space-between",
               gap: 14,
               position: "relative",
-              transition: "all 0.25s ease"
+              transition: "all 0.25s ease",
+              pointerEvents: "auto"
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = "translateY(-2px)";

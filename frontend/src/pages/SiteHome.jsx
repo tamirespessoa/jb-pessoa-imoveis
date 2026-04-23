@@ -33,6 +33,10 @@ export default function SiteHome() {
     }
   }
 
+  function handleGoToRegisterProperty() {
+    window.location.href = "/site/cadastrar-imovel";
+  }
+
   return (
     <div className="site-home">
       <header className="site-header">
@@ -107,22 +111,30 @@ export default function SiteHome() {
       </section>
 
       <section className="site-register-highlight">
-        <div className="site-container register-highlight-content">
-          <div className="register-text">
-            <span className="section-badge">Para proprietários</span>
-            <h2>Quer anunciar seu imóvel conosco?</h2>
-            <p>
-              Cadastre seu imóvel pelo site e nossa equipe entrará em contato
-              para avaliar, orientar e ajudar na venda ou locação com segurança.
-            </p>
-          </div>
+        <div className="site-container">
+          <div className="register-highlight-shell">
+            <div className="register-highlight-content">
+              <div className="register-text">
+                <span className="section-badge">Para proprietários</span>
+                <h2>Quer anunciar seu imóvel conosco?</h2>
+                <p>
+                  Cadastre seu imóvel pelo site e nossa equipe entrará em
+                  contato para avaliar, orientar e ajudar na venda ou locação
+                  com segurança.
+                </p>
+              </div>
 
-          <Link
-            to="/site/cadastrar-imovel"
-            className="register-highlight-button"
-          >
-            Cadastrar meu imóvel
-          </Link>
+              <div className="register-highlight-action">
+                <button
+                  type="button"
+                  className="register-highlight-button"
+                  onClick={handleGoToRegisterProperty}
+                >
+                  Cadastrar meu imóvel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
 

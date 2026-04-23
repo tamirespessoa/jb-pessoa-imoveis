@@ -2,38 +2,83 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../services/api";
 
 function Properties() {
-  const menuRef = useRef(null);
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  const menuRef = useRef(null);
+  const cepTimeoutRef = useRef(null);
+  const lastFetchedCepRef = useRef("");
+
+  const sectionRefs = {
+    cadastro: useRef(null),
+    localizacao: useRef(null),
+    detalhes: useRef(null),
+    internet: useRef(null),
+    captacao: useRef(null),
+    confidencial: useRef(null)
+  };
 
   const [properties, setProperties] = useState([]);
   const [owners, setOwners] = useState([]);
+  const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedProperty, setSelectedProperty] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [newImages, setNewImages] = useState([]);
   const [viewMode, setViewMode] = useState("list");
+  const [formMode, setFormMode] = useState("EXPRESS");
+  const [activeSection, setActiveSection] = useState("cadastro");
+  const [cepLoading, setCepLoading] = useState(false);
+  const [cepError, setCepError] = useState("");
+  const [cepSuccess, setCepSuccess] = useState("");
 
   const [form, setForm] = useState({
     title: "",
     code: "",
     type: "",
+    category: "Normal",
+    purpose: "Residencial",
     status: "DISPONIVEL",
+
     price: "",
     rentPrice: "",
+    promoPrice: "",
     area: "",
+    builtArea: "",
+    usableArea: "",
+    totalArea: "",
     rooms: "",
+    suites: "",
     bathrooms: "",
     garage: "",
+    livingRooms: "",
+    floor: "",
+    furnished: false,
+    financed: false,
+    exchange: false,
+
     street: "",
     number: "",
     complement: "",
+    block: "",
+    apartment: "",
     zipCode: "",
     district: "",
+    officialDistrict: "",
     city: "",
     state: "",
+    country: "Brasil",
+
     description: "",
+    internalDescription: "",
     ownerId: "",
+    captorName: "",
+
+    publishOnSite: true,
+    siteHighlight: false,
+    valueOnRequest: false,
+    negotiable: false,
+
     images: []
   });
 
@@ -41,6 +86,18 @@ function Properties() {
     import.meta.env.VITE_API_URL ||
     api.defaults.baseURL ||
     "http://localhost:3001";
+
+  const visibleSections =
+    formMode === "EXPRESS"
+      ? ["cadastro", "localizacao", "detalhes", "internet", "confidencial"]
+      : [
+          "cadastro",
+          "localizacao",
+          "detalhes",
+          "internet",
+          "captacao",
+          "confidencial"
+        ];
 
   function normalizeString(value) {
     if (value === undefined || value === null) return null;
@@ -68,6 +125,11 @@ function Properties() {
     return `${apiBaseUrl}${imagePath}`;
   }
 
+  function getMainImage(property) {
+    if (!property?.images?.length) return "";
+    return getImageUrl(property.images[0]);
+  }
+
   function formatCurrency(value) {
     if (value === null || value === undefined || value === "") return "-";
     const number = Number(value);
@@ -76,6 +138,12 @@ function Properties() {
       style: "currency",
       currency: "BRL"
     });
+  }
+
+  function formatZipCode(value) {
+    const digits = String(value || "").replace(/\D/g, "").slice(0, 8);
+    if (digits.length <= 5) return digits;
+    return `${digits.slice(0, 5)}-${digits.slice(5)}`;
   }
 
   function getAddressLine(property) {
@@ -87,9 +155,111 @@ function Properties() {
     return parts.length ? parts.join(", ") : "-";
   }
 
-  function getMainImage(property) {
-    if (!property?.images?.length) return "";
-    return getImageUrl(property.images[0]);
+  function getEmployeeLabel(employee) {
+    const name =
+      employee?.name ||
+      employee?.fullName ||
+      employee?.username ||
+      employee?.email ||
+      "Funcionário";
+
+    const role = employee?.role ? ` - ${employee.role}` : "";
+    return `${name}${role}`;
+  }
+
+  function getEmployeeValue(employee) {
+    return (
+      employee?.name ||
+      employee?.fullName ||
+      employee?.username ||
+      employee?.email ||
+      ""
+    );
+  }
+
+  function scrollToSection(sectionKey) {
+    const target = sectionRefs[sectionKey]?.current;
+    if (!target) return;
+    setActiveSection(sectionKey);
+    target.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  async function fetchAddressByCep(cepValue, options = {}) {
+    const { force = false } = options;
+    const cepClean = String(cepValue || "").replace(/\D/g, "");
+
+    if (cepClean.length !== 8) {
+      setCepLoading(false);
+      setCepError("");
+      setCepSuccess("");
+      return;
+    }
+
+    if (!force && lastFetchedCepRef.current === cepClean) {
+      return;
+    }
+
+    try {
+      setCepLoading(true);
+      setCepError("");
+      setCepSuccess("");
+
+      const response = await fetch(`https://viacep.com.br/ws/${cepClean}/json/`);
+      const data = await response.json();
+
+      if (data.erro) {
+        setCepError("CEP não encontrado.");
+        setCepSuccess("");
+        return;
+      }
+
+      setForm((prev) => ({
+        ...prev,
+        zipCode: formatZipCode(cepClean),
+        street: data.logradouro || "",
+        district: data.bairro || "",
+        officialDistrict: data.bairro || prev.officialDistrict || "",
+        city: data.localidade || "",
+        state: data.uf || ""
+      }));
+
+      lastFetchedCepRef.current = cepClean;
+      setCepSuccess("Endereço preenchido automaticamente.");
+      setCepError("");
+    } catch (error) {
+      console.error("Erro ao buscar CEP:", error);
+      setCepError("Não foi possível consultar o CEP agora.");
+      setCepSuccess("");
+    } finally {
+      setCepLoading(false);
+    }
+  }
+
+  function handleZipCodeChange(e) {
+    const formatted = formatZipCode(e.target.value);
+
+    setForm((prev) => ({
+      ...prev,
+      zipCode: formatted
+    }));
+
+    setCepError("");
+    setCepSuccess("");
+
+    const cleanCep = formatted.replace(/\D/g, "");
+
+    if (cepTimeoutRef.current) {
+      clearTimeout(cepTimeoutRef.current);
+    }
+
+    if (cleanCep.length === 8) {
+      cepTimeoutRef.current = setTimeout(() => {
+        fetchAddressByCep(cleanCep);
+      }, 450);
+    } else {
+      setCepLoading(false);
+      lastFetchedCepRef.current = "";
+    }
   }
 
   async function loadProperties(selectId = null) {
@@ -100,9 +270,7 @@ function Properties() {
 
       if (selectId) {
         const found = list.find((item) => item.id === selectId);
-        if (found) {
-          handleSelectProperty(found, false);
-        }
+        if (found) handleSelectProperty(found, false);
       }
     } catch (error) {
       console.error(
@@ -129,9 +297,24 @@ function Properties() {
     }
   }
 
+  async function loadEmployees() {
+    try {
+      const response = await api.get("/users");
+      const list = Array.isArray(response.data) ? response.data : [];
+      setEmployees(list);
+    } catch (error) {
+      console.error(
+        "Erro ao carregar funcionários:",
+        error.response?.data || error.message
+      );
+      alert("Erro ao carregar funcionários.");
+    }
+  }
+
   useEffect(() => {
     loadProperties();
     loadOwners();
+    loadEmployees();
   }, []);
 
   useEffect(() => {
@@ -150,6 +333,12 @@ function Properties() {
     };
   }, [showMenu]);
 
+  useEffect(() => {
+    return () => {
+      if (cepTimeoutRef.current) clearTimeout(cepTimeoutRef.current);
+    };
+  }, []);
+
   const filteredProperties = useMemo(() => {
     return properties.filter((property) =>
       `${property.title || ""} ${property.code || ""} ${property.city || ""} ${
@@ -165,24 +354,109 @@ function Properties() {
       title: property.title || "",
       code: property.code || "",
       type: property.type || "",
+      category: property.category || "Normal",
+      purpose: property.purpose || "Residencial",
       status: property.status || "DISPONIVEL",
+
       price: property.price ?? "",
       rentPrice: property.rentPrice ?? "",
+      promoPrice: property.promoPrice ?? "",
       area: property.area ?? "",
+      builtArea: property.builtArea ?? property.area ?? "",
+      usableArea: property.usableArea ?? "",
+      totalArea: property.totalArea ?? "",
       rooms: property.rooms ?? "",
+      suites: property.suites ?? "",
       bathrooms: property.bathrooms ?? "",
       garage: property.garage ?? "",
+      livingRooms: property.livingRooms ?? "",
+      floor: property.floor ?? "",
+      furnished: Boolean(property.furnished),
+      financed: Boolean(property.financed),
+      exchange: Boolean(property.exchange),
+
       street: property.street || "",
       number: property.number || "",
       complement: property.complement || "",
-      zipCode: property.zipCode || "",
+      block: property.block || "",
+      apartment: property.apartment || "",
+      zipCode: property.zipCode ? formatZipCode(property.zipCode) : "",
       district: property.district || "",
+      officialDistrict: property.officialDistrict || property.district || "",
       city: property.city || "",
       state: property.state || "",
+      country: property.country || "Brasil",
+
       description: property.description || "",
+      internalDescription: property.internalDescription || "",
       ownerId: property.ownerId ? String(property.ownerId) : "",
+      captorName: property.captorName || "",
+
+      publishOnSite:
+        property.publishOnSite !== undefined ? Boolean(property.publishOnSite) : true,
+      siteHighlight: Boolean(property.siteHighlight),
+      valueOnRequest: Boolean(property.valueOnRequest),
+      negotiable: Boolean(property.negotiable),
+
       images: property.images || []
     });
+
+    setCepError("");
+    setCepSuccess("");
+    setCepLoading(false);
+    lastFetchedCepRef.current = String(property.zipCode || "").replace(/\D/g, "");
+  }
+
+  function emptyForm() {
+    return {
+      title: "",
+      code: "",
+      type: "",
+      category: "Normal",
+      purpose: "Residencial",
+      status: "DISPONIVEL",
+
+      price: "",
+      rentPrice: "",
+      promoPrice: "",
+      area: "",
+      builtArea: "",
+      usableArea: "",
+      totalArea: "",
+      rooms: "",
+      suites: "",
+      bathrooms: "",
+      garage: "",
+      livingRooms: "",
+      floor: "",
+      furnished: false,
+      financed: false,
+      exchange: false,
+
+      street: "",
+      number: "",
+      complement: "",
+      block: "",
+      apartment: "",
+      zipCode: "",
+      district: "",
+      officialDistrict: "",
+      city: "",
+      state: "",
+      country: "Brasil",
+
+      description: "",
+      internalDescription: "",
+      ownerId: "",
+      captorName: "",
+
+      publishOnSite: true,
+      siteHighlight: false,
+      valueOnRequest: false,
+      negotiable: false,
+
+      images: []
+    };
   }
 
   function handleSelectProperty(property, openForm = false) {
@@ -193,6 +467,7 @@ function Properties() {
 
     if (openForm) {
       setViewMode("form");
+      setActiveSection("cadastro");
     }
   }
 
@@ -217,29 +492,12 @@ function Properties() {
     setShowMenu(false);
     setNewImages([]);
     setViewMode("form");
-
-    setForm({
-      title: "",
-      code: "",
-      type: "",
-      status: "DISPONIVEL",
-      price: "",
-      rentPrice: "",
-      area: "",
-      rooms: "",
-      bathrooms: "",
-      garage: "",
-      street: "",
-      number: "",
-      complement: "",
-      zipCode: "",
-      district: "",
-      city: "",
-      state: "",
-      description: "",
-      ownerId: "",
-      images: []
-    });
+    setActiveSection("cadastro");
+    setCepError("");
+    setCepSuccess("");
+    setCepLoading(false);
+    lastFetchedCepRef.current = "";
+    setForm(emptyForm());
   }
 
   function handleBackToList() {
@@ -248,10 +506,10 @@ function Properties() {
   }
 
   function handleChange(e) {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
     setForm((prev) => ({
       ...prev,
-      [name]: value
+      [name]: type === "checkbox" ? checked : value
     }));
   }
 
@@ -282,35 +540,20 @@ function Properties() {
     if (!form.title.trim()) return alert("Título do imóvel é obrigatório.");
     if (!form.type.trim()) return alert("Tipo é obrigatório.");
     if (!form.price.toString().trim()) return alert("Preço é obrigatório.");
-    if (!form.area.toString().trim()) return alert("Área é obrigatória.");
-    if (!form.rooms.toString().trim()) {
-      return alert("Quantidade de quartos é obrigatória.");
-    }
-    if (!form.bathrooms.toString().trim()) {
-      return alert("Quantidade de banheiros é obrigatória.");
-    }
-    if (!form.street.trim()) return alert("Rua é obrigatória.");
-    if (!form.number.trim()) return alert("Número é obrigatório.");
-    if (!form.zipCode.trim()) return alert("CEP é obrigatório.");
-    if (!form.district.trim()) return alert("Bairro é obrigatório.");
-    if (!form.city.trim()) return alert("Cidade é obrigatória.");
-    if (!form.state.trim()) return alert("Estado é obrigatório.");
     if (!form.ownerId) return alert("Selecione o proprietário.");
 
     const payload = new FormData();
 
     const price = numberOrNull(form.price);
     const rentPrice = numberOrNull(form.rentPrice);
-    const area = numberOrNull(form.area);
+    const area = numberOrNull(form.area || form.builtArea);
     const rooms = intOrNull(form.rooms);
     const bathrooms = intOrNull(form.bathrooms);
     const garage = intOrNull(form.garage);
 
     payload.append("title", form.title.trim());
 
-    if (form.code.trim()) {
-      payload.append("code", form.code.trim());
-    }
+    if (form.code.trim()) payload.append("code", form.code.trim());
 
     payload.append("type", form.type.trim());
     payload.append("status", normalizeString(form.status) || "DISPONIVEL");
@@ -326,22 +569,21 @@ function Properties() {
     payload.append("state", form.state.trim());
     payload.append("ownerId", String(form.ownerId));
 
-    if (rentPrice !== null) {
-      payload.append("rentPrice", String(rentPrice));
-    }
-
-    if (garage !== null) {
-      payload.append("garage", String(garage));
-    }
+    if (rentPrice !== null) payload.append("rentPrice", String(rentPrice));
+    if (garage !== null) payload.append("garage", String(garage));
 
     const complement = normalizeString(form.complement);
-    if (complement !== null) {
-      payload.append("complement", complement);
-    }
+    if (complement !== null) payload.append("complement", complement);
 
     const description = normalizeString(form.description);
-    if (description !== null) {
-      payload.append("description", description);
+    if (description !== null) payload.append("description", description);
+
+    const captorName = normalizeString(form.captorName);
+    if (captorName !== null) payload.append("captorName", captorName);
+
+    const internalDescription = normalizeString(form.internalDescription);
+    if (internalDescription !== null) {
+      payload.append("internalDescription", internalDescription);
     }
 
     payload.append("existingImages", JSON.stringify(form.images || []));
@@ -368,8 +610,6 @@ function Properties() {
       setViewMode("list");
     } catch (error) {
       console.error("Erro ao salvar imóvel:", error);
-      console.error("error.response?.data:", error.response?.data);
-      console.error("error.message:", error.message);
 
       const apiMessage =
         error.response?.data?.error ||
@@ -415,67 +655,7 @@ function Properties() {
   async function handleRefresh() {
     await loadProperties(editingId || null);
     await loadOwners();
-  }
-
-  function handlePrint() {
-    if (!selectedProperty) {
-      alert("Selecione um imóvel para imprimir.");
-      return;
-    }
-
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Não foi possível abrir a janela de impressão.");
-      return;
-    }
-
-    const imagesHtml = (selectedProperty.images || [])
-      .map(
-        (img) =>
-          `<img src="${getImageUrl(
-            img
-          )}" style="width:220px;height:160px;object-fit:cover;margin:8px;border-radius:8px;" />`
-      )
-      .join("");
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Imóvel - ${selectedProperty.title}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 24px; }
-            h1 { margin-bottom: 24px; }
-            p { margin: 8px 0; }
-          </style>
-        </head>
-        <body>
-          <h1>${selectedProperty.title}</h1>
-          <div>${imagesHtml}</div>
-          <p><strong>Código:</strong> ${selectedProperty.code || "-"}</p>
-          <p><strong>Tipo:</strong> ${selectedProperty.type || "-"}</p>
-          <p><strong>Status:</strong> ${selectedProperty.status || "-"}</p>
-          <p><strong>Preço:</strong> ${selectedProperty.price ?? "-"}</p>
-          <p><strong>Aluguel:</strong> ${selectedProperty.rentPrice ?? "-"}</p>
-          <p><strong>Área:</strong> ${selectedProperty.area ?? "-"}</p>
-          <p><strong>Quartos:</strong> ${selectedProperty.rooms ?? "-"}</p>
-          <p><strong>Banheiros:</strong> ${selectedProperty.bathrooms ?? "-"}</p>
-          <p><strong>Garagem:</strong> ${selectedProperty.garage ?? "-"}</p>
-          <p><strong>CEP:</strong> ${selectedProperty.zipCode || "-"}</p>
-          <p><strong>Rua:</strong> ${selectedProperty.street || "-"}</p>
-          <p><strong>Número:</strong> ${selectedProperty.number || "-"}</p>
-          <p><strong>Complemento:</strong> ${selectedProperty.complement || "-"}</p>
-          <p><strong>Bairro:</strong> ${selectedProperty.district || "-"}</p>
-          <p><strong>Cidade:</strong> ${selectedProperty.city || "-"}</p>
-          <p><strong>Estado:</strong> ${selectedProperty.state || "-"}</p>
-          <p><strong>Descrição:</strong> ${selectedProperty.description || "-"}</p>
-          <p><strong>Proprietário:</strong> ${selectedProperty.owner?.fullName || "-"}</p>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
+    await loadEmployees();
   }
 
   async function handleShare() {
@@ -503,14 +683,125 @@ Preço: ${selectedProperty.price ?? "-"}
     }
   }
 
+  function renderMediaSidebar() {
+    const allImages =
+      viewMode === "form" ? [...form.images, ...newImages] : selectedProperty?.images || [];
+
+    return (
+      <aside style={styles.mediaSidebar}>
+        <div style={styles.mediaHeader}>
+          <span style={styles.mediaTitle}>Fotos ({allImages.length})</span>
+          <div style={styles.mediaIcons}>
+            <span style={styles.mediaIcon}>✉</span>
+            <span style={styles.mediaIcon}>✎</span>
+          </div>
+        </div>
+
+        <div style={styles.mediaMainBox}>
+          {allImages.length > 0 ? (
+            <img
+              src={
+                typeof allImages[0] === "string"
+                  ? getImageUrl(allImages[0])
+                  : URL.createObjectURL(allImages[0])
+              }
+              alt="Principal"
+              style={styles.mediaMainImage}
+            />
+          ) : (
+            <div style={styles.mediaEmpty}>Sem foto principal</div>
+          )}
+        </div>
+
+        <div style={styles.mediaThumbGrid}>
+          {allImages.slice(1, 7).map((image, index) => (
+            <div key={index} style={styles.mediaThumbCard}>
+              <img
+                src={
+                  typeof image === "string"
+                    ? getImageUrl(image)
+                    : URL.createObjectURL(image)
+                }
+                alt={`thumb-${index}`}
+                style={styles.mediaThumbImage}
+              />
+            </div>
+          ))}
+
+          {allImages.length === 0 && (
+            <div style={styles.mediaPlaceholder}>
+              Nenhuma imagem cadastrada
+            </div>
+          )}
+        </div>
+      </aside>
+    );
+  }
+
+  function renderSectionNav() {
+    const items = [
+      { key: "cadastro", label: "Cadastro" },
+      { key: "localizacao", label: "Localização" },
+      { key: "detalhes", label: "Detalhes" },
+      { key: "internet", label: "Internet e Anúncios" },
+      ...(formMode === "AVANCADA" ? [{ key: "captacao", label: "Captação" }] : []),
+      { key: "confidencial", label: "Confidencial" }
+    ];
+
+    return (
+      <aside style={styles.sectionSidebar}>
+        {items.map((item) => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => scrollToSection(item.key)}
+            style={{
+              ...styles.sectionNavButton,
+              ...(activeSection === item.key ? styles.sectionNavButtonActive : {})
+            }}
+          >
+            {item.label}
+          </button>
+        ))}
+      </aside>
+    );
+  }
+
+  function renderTopSwitch() {
+    return (
+      <div style={styles.topSwitch}>
+        <button
+          type="button"
+          onClick={() => setFormMode("EXPRESS")}
+          style={{
+            ...styles.switchButton,
+            ...(formMode === "EXPRESS" ? styles.switchButtonActive : {})
+          }}
+        >
+          EXPRESS
+        </button>
+        <button
+          type="button"
+          onClick={() => setFormMode("AVANCADA")}
+          style={{
+            ...styles.switchButton,
+            ...(formMode === "AVANCADA" ? styles.switchButtonActive : {})
+          }}
+        >
+          AVANÇADA
+        </button>
+      </div>
+    );
+  }
+
   function renderList() {
     return (
       <div style={styles.listPage}>
         <div style={styles.listHeader}>
           <div>
-            <h1 style={styles.pageTitle}>Últimos imóveis cadastrados</h1>
+            <h1 style={styles.pageTitle}>Imóveis cadastrados</h1>
             <p style={styles.pageSubtitle}>
-              Clique na linha para ver detalhes ou editar.
+              Clique em um imóvel para ver detalhes ou editar.
             </p>
           </div>
 
@@ -521,20 +812,12 @@ Preço: ${selectedProperty.price ?? "-"}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <button
-              type="button"
-              style={styles.secondaryButton}
-              onClick={handleRefresh}
-            >
+            <button type="button" style={styles.secondaryButton} onClick={handleRefresh}>
               Atualizar
             </button>
 
             {user.role === "ADMIN" && (
-              <button
-                type="button"
-                style={styles.primaryButton}
-                onClick={handleNewProperty}
-              >
+              <button type="button" style={styles.primaryButton} onClick={handleNewProperty}>
                 + Novo imóvel
               </button>
             )}
@@ -550,7 +833,6 @@ Preço: ${selectedProperty.price ?? "-"}
                 <th style={styles.th}>Tipo</th>
                 <th style={styles.th}>Valor</th>
                 <th style={styles.thCenter}>Dorm.</th>
-                <th style={styles.thCenter}>Suítes</th>
                 <th style={styles.thCenter}>Gar.</th>
                 <th style={styles.thCenter}>Área</th>
                 <th style={styles.th}>Bairro/Cidade</th>
@@ -562,7 +844,7 @@ Preço: ${selectedProperty.price ?? "-"}
             <tbody>
               {filteredProperties.length === 0 ? (
                 <tr>
-                  <td colSpan="11" style={styles.emptyTableCell}>
+                  <td colSpan="10" style={styles.emptyTableCell}>
                     Nenhum imóvel encontrado.
                   </td>
                 </tr>
@@ -580,15 +862,7 @@ Preço: ${selectedProperty.price ?? "-"}
                             src={getMainImage(property)}
                             alt={property.title}
                             style={styles.tableImage}
-                            onError={(e) => {
-                              e.currentTarget.style.display = "none";
-                              const fallback = e.currentTarget.nextSibling;
-                              if (fallback) fallback.style.display = "flex";
-                            }}
                           />
-                          <div style={{ ...styles.noImage, display: "none" }}>
-                            Sem foto
-                          </div>
                         </div>
                       ) : (
                         <div style={styles.noImage}>Sem foto</div>
@@ -596,32 +870,23 @@ Preço: ${selectedProperty.price ?? "-"}
                     </td>
 
                     <td style={styles.tdStrong}>{property.code || "-"}</td>
-
                     <td style={styles.td}>
                       <div>{property.type || "-"}</div>
-                      <div style={styles.subText}>
-                        {property.status || "Normal"}
-                      </div>
+                      <div style={styles.subText}>{property.status || "-"}</div>
                     </td>
-
                     <td style={styles.td}>{formatCurrency(property.price)}</td>
                     <td style={styles.tdCenter}>{property.rooms ?? "-"}</td>
-                    <td style={styles.tdCenter}>-</td>
                     <td style={styles.tdCenter}>{property.garage ?? "-"}</td>
                     <td style={styles.tdCenter}>
                       {property.area ? `${property.area}m²` : "-"}
                     </td>
-
                     <td style={styles.td}>
                       <div>{property.district || "-"}</div>
                       <div style={styles.subText}>
-                        {property.city || "-"}-{property.state || "-"}
+                        {property.city || "-"} - {property.state || "-"}
                       </div>
                     </td>
-
-                    <td style={styles.td}>
-                      <div>{getAddressLine(property)}</div>
-                    </td>
+                    <td style={styles.td}>{getAddressLine(property)}</td>
 
                     <td
                       style={styles.tdCenter}
@@ -650,18 +915,12 @@ Preço: ${selectedProperty.price ?? "-"}
   }
 
   function renderDetails() {
-    if (!selectedProperty) {
-      return renderList();
-    }
+    if (!selectedProperty) return renderList();
 
     return (
       <div style={styles.detailsPage}>
         <div style={styles.detailsTopBar}>
-          <button
-            type="button"
-            style={styles.backListButton}
-            onClick={handleBackToList}
-          >
+          <button type="button" style={styles.backListButton} onClick={handleBackToList}>
             ← Voltar para lista
           </button>
 
@@ -676,20 +935,8 @@ Preço: ${selectedProperty.price ?? "-"}
               </button>
             )}
 
-            <button
-              type="button"
-              style={styles.secondaryButton}
-              onClick={handleShare}
-            >
+            <button type="button" style={styles.secondaryButton} onClick={handleShare}>
               Compartilhar
-            </button>
-
-            <button
-              type="button"
-              style={styles.secondaryButton}
-              onClick={handlePrint}
-            >
-              Imprimir
             </button>
 
             <button
@@ -731,8 +978,7 @@ Preço: ${selectedProperty.price ?? "-"}
 
           <div style={styles.detailsContent}>
             <h2 style={styles.detailsTitle}>
-              {selectedProperty.title} - {selectedProperty.city}/
-              {selectedProperty.state}
+              {selectedProperty.title} - {selectedProperty.city}/{selectedProperty.state}
             </h2>
 
             <div style={styles.detailsPrice}>
@@ -742,44 +988,29 @@ Preço: ${selectedProperty.price ?? "-"}
             <div style={styles.infoGrid}>
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Código</div>
-                <div style={styles.infoValue}>
-                  {selectedProperty.code || "-"}
-                </div>
+                <div style={styles.infoValue}>{selectedProperty.code || "-"}</div>
               </div>
-
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Tipo</div>
-                <div style={styles.infoValue}>
-                  {selectedProperty.type || "-"}
-                </div>
+                <div style={styles.infoValue}>{selectedProperty.type || "-"}</div>
               </div>
-
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Área</div>
                 <div style={styles.infoValue}>
                   {selectedProperty.area ? `${selectedProperty.area}m²` : "-"}
                 </div>
               </div>
-
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Quartos</div>
-                <div style={styles.infoValue}>
-                  {selectedProperty.rooms ?? "-"}
-                </div>
+                <div style={styles.infoValue}>{selectedProperty.rooms ?? "-"}</div>
               </div>
-
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Banheiros</div>
-                <div style={styles.infoValue}>
-                  {selectedProperty.bathrooms ?? "-"}
-                </div>
+                <div style={styles.infoValue}>{selectedProperty.bathrooms ?? "-"}</div>
               </div>
-
               <div style={styles.infoCard}>
                 <div style={styles.infoLabel}>Garagem</div>
-                <div style={styles.infoValue}>
-                  {selectedProperty.garage ?? "-"}
-                </div>
+                <div style={styles.infoValue}>{selectedProperty.garage ?? "-"}</div>
               </div>
             </div>
 
@@ -790,12 +1021,9 @@ Preço: ${selectedProperty.price ?? "-"}
               </p>
 
               <h3 style={styles.sectionTitle}>Endereço</h3>
+              <p style={styles.descriptionText}>{getAddressLine(selectedProperty)}</p>
               <p style={styles.descriptionText}>
-                {getAddressLine(selectedProperty)}
-              </p>
-              <p style={styles.descriptionText}>
-                {selectedProperty.district || "-"} -{" "}
-                {selectedProperty.city || "-"} /{" "}
+                {selectedProperty.district || "-"} - {selectedProperty.city || "-"} /{" "}
                 {selectedProperty.state || "-"}
               </p>
 
@@ -815,11 +1043,7 @@ Preço: ${selectedProperty.price ?? "-"}
       return (
         <div style={styles.formPage}>
           <div style={styles.formTopBar}>
-            <button
-              type="button"
-              style={styles.backListButton}
-              onClick={handleBackToList}
-            >
+            <button type="button" style={styles.backListButton} onClick={handleBackToList}>
               ← Voltar para lista
             </button>
           </div>
@@ -837,325 +1061,685 @@ Preço: ${selectedProperty.price ?? "-"}
     return (
       <div style={styles.formPage}>
         <div style={styles.formTopBar}>
-          <button
-            type="button"
-            style={styles.backListButton}
-            onClick={handleBackToList}
-          >
+          <button type="button" style={styles.backListButton} onClick={handleBackToList}>
             ← Voltar para lista
           </button>
 
-          <div style={styles.formTopTitle}>
-            {editingId ? `Editar imóvel (${form.code || ""})` : "Novo imóvel"}
-          </div>
+          {renderTopSwitch()}
         </div>
 
-        <div style={styles.formContainer}>
-          <form onSubmit={handleSubmit}>
-            <div style={styles.formHeader}>
-              <div style={styles.dot}></div>
-              <h2 style={styles.formTitle}>Cadastro</h2>
-            </div>
+        <div style={styles.editorLayout}>
+          <div style={{ minWidth: 0 }}>
+            {renderMediaSidebar()}
+          </div>
 
-            <div style={styles.rowSingle}>
-              <div style={styles.fieldWithIcon}>
-                <div style={styles.fieldIcon}>🏠</div>
-                <div style={styles.fieldContent}>
-                  <label style={styles.label}>*Título do imóvel</label>
-                  <input
-                    style={styles.lineInput}
-                    name="title"
-                    value={form.title}
-                    onChange={handleChange}
-                  />
+          <div style={{ ...styles.editorCenter, minWidth: 0 }}>
+            <form onSubmit={handleSubmit}>
+              <section ref={sectionRefs.cadastro} style={styles.formSection}>
+                <div style={styles.sectionHeaderRow}>
+                  <div style={styles.formHeaderBadge}></div>
+                  <h2 style={styles.formSectionTitle}>Cadastro</h2>
                 </div>
-              </div>
-            </div>
 
-            <div style={styles.rowTriple}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Código</label>
-                <input
-                  style={styles.lineInput}
-                  name="code"
-                  value={form.code}
-                  onChange={handleChange}
-                  placeholder="Deixe em branco para gerar automático"
-                />
-              </div>
+                <div style={styles.rowTriple}>
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>*Tipo</label>
+                    <select
+                      style={styles.lineSelect}
+                      name="type"
+                      value={form.type}
+                      onChange={handleChange}
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="Apartamento">Apartamento</option>
+                      <option value="Casa">Casa</option>
+                      <option value="Sobrado">Sobrado</option>
+                      <option value="Terreno">Terreno</option>
+                      <option value="Comércio">Comércio</option>
+                    </select>
+                  </div>
 
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>*Tipo</label>
-                <select
-                  style={styles.selectInput}
-                  name="type"
-                  value={form.type}
-                  onChange={handleChange}
-                >
-                  <option value="">Selecione...</option>
-                  <option value="Apartamento">Apartamento</option>
-                  <option value="Casa">Casa</option>
-                  <option value="Sobrado">Sobrado</option>
-                  <option value="Terreno">Terreno</option>
-                  <option value="Comércio">Comércio</option>
-                </select>
-              </div>
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>*Categoria</label>
+                    <select
+                      style={styles.lineSelect}
+                      name="category"
+                      value={form.category}
+                      onChange={handleChange}
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Destaque">Destaque</option>
+                      <option value="Oportunidade">Oportunidade</option>
+                    </select>
+                  </div>
 
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Status</label>
-                <select
-                  style={styles.selectInput}
-                  name="status"
-                  value={form.status || "DISPONIVEL"}
-                  onChange={handleChange}
-                >
-                  <option value="DISPONIVEL">Disponível</option>
-                  <option value="RESERVADO">Reservado</option>
-                  <option value="EM_ANALISE">Em análise</option>
-                </select>
-              </div>
-            </div>
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>*Finalidade</label>
+                    <select
+                      style={styles.lineSelect}
+                      name="purpose"
+                      value={form.purpose}
+                      onChange={handleChange}
+                    >
+                      <option value="Residencial">Residencial</option>
+                      <option value="Comercial">Comercial</option>
+                      <option value="Misto">Misto</option>
+                    </select>
+                  </div>
+                </div>
 
-            <div style={styles.rowDouble}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>*Preço de venda</label>
-                <input
-                  style={styles.lineInput}
-                  name="price"
-                  value={form.price}
-                  onChange={handleChange}
-                />
-              </div>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Preço de aluguel</label>
-                <input
-                  style={styles.lineInput}
-                  name="rentPrice"
-                  value={form.rentPrice}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
+                <div style={styles.separator}></div>
 
-            <div style={styles.rowFour}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>*Área</label>
-                <input
-                  style={styles.lineInput}
-                  name="area"
-                  value={form.area}
-                  onChange={handleChange}
-                />
-              </div>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>*Quartos</label>
-                <input
-                  style={styles.lineInput}
-                  name="rooms"
-                  value={form.rooms}
-                  onChange={handleChange}
-                />
-              </div>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>*Banheiros</label>
-                <input
-                  style={styles.lineInput}
-                  name="bathrooms"
-                  value={form.bathrooms}
-                  onChange={handleChange}
-                />
-              </div>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Garagem</label>
-                <input
-                  style={styles.lineInput}
-                  name="garage"
-                  value={form.garage}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
+                <div style={styles.subSectionTitle}>Valores</div>
 
-            <div style={styles.rowDouble}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>CEP</label>
-                <input
-                  style={styles.lineInput}
-                  name="zipCode"
-                  value={form.zipCode}
-                  onChange={handleChange}
-                />
-              </div>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Número</label>
-                <input
-                  style={styles.lineInput}
-                  name="number"
-                  value={form.number}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
+                <div style={styles.rowFour}>
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>*Venda</label>
+                    <input
+                      style={styles.lineInput}
+                      name="price"
+                      value={form.price}
+                      onChange={handleChange}
+                    />
+                  </div>
 
-            <div style={styles.rowDouble}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Rua</label>
-                <input
-                  style={styles.lineInput}
-                  name="street"
-                  value={form.street}
-                  onChange={handleChange}
-                />
-              </div>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Complemento</label>
-                <input
-                  style={styles.lineInput}
-                  name="complement"
-                  value={form.complement}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>Locação</label>
+                    <input
+                      style={styles.lineInput}
+                      name="rentPrice"
+                      value={form.rentPrice}
+                      onChange={handleChange}
+                    />
+                  </div>
 
-            <div style={styles.rowTriple}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Bairro</label>
-                <input
-                  style={styles.lineInput}
-                  name="district"
-                  value={form.district}
-                  onChange={handleChange}
-                />
-              </div>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Cidade</label>
-                <input
-                  style={styles.lineInput}
-                  name="city"
-                  value={form.city}
-                  onChange={handleChange}
-                />
-              </div>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Estado</label>
-                <input
-                  style={styles.lineInput}
-                  name="state"
-                  value={form.state}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>Preço promocional</label>
+                    <input
+                      style={styles.lineInput}
+                      name="promoPrice"
+                      value={form.promoPrice}
+                      onChange={handleChange}
+                    />
+                  </div>
 
-            <div style={styles.rowDouble}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Descrição</label>
-                <input
-                  style={styles.lineInput}
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                />
-              </div>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>*Proprietário</label>
-                <select
-                  style={styles.selectInput}
-                  name="ownerId"
-                  value={form.ownerId}
-                  onChange={handleChange}
-                >
-                  <option value="">Selecione...</option>
-                  {owners.map((owner) => (
-                    <option key={owner.id} value={owner.id}>
-                      {owner.fullName}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>Status</label>
+                    <select
+                      style={styles.lineSelect}
+                      name="status"
+                      value={form.status}
+                      onChange={handleChange}
+                    >
+                      <option value="DISPONIVEL">Disponível</option>
+                      <option value="RESERVADO">Reservado</option>
+                      <option value="EM_ANALISE">Em análise</option>
+                    </select>
+                  </div>
+                </div>
 
-            <div style={styles.rowSingle}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Imagens do imóvel</label>
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={handleImagesChange}
-                  style={styles.fileInput}
-                />
-              </div>
-            </div>
+                <div style={styles.rowChecks}>
+                  <label style={styles.checkLabel}>
+                    <input
+                      type="checkbox"
+                      name="exchange"
+                      checked={form.exchange}
+                      onChange={handleChange}
+                    />
+                    Permuta
+                  </label>
 
-            {form.images?.length > 0 && (
-              <div style={styles.previewSection}>
-                <h4 style={styles.previewTitle}>Imagens atuais</h4>
-                <div style={styles.imageGrid}>
-                  {form.images.map((imagePath) => (
-                    <div key={imagePath} style={styles.imageCard}>
-                      <img
-                        src={getImageUrl(imagePath)}
-                        alt="Imóvel"
-                        style={styles.previewImage}
-                        onError={(e) => {
-                          e.currentTarget.src = "";
-                        }}
-                      />
-                      <button
-                        type="button"
-                        style={styles.removeImageButton}
-                        onClick={() => removeExistingImage(imagePath)}
-                      >
-                        Remover
-                      </button>
+                  <label style={styles.checkLabel}>
+                    <input
+                      type="checkbox"
+                      name="financed"
+                      checked={form.financed}
+                      onChange={handleChange}
+                    />
+                    Financiado
+                  </label>
+
+                  <label style={styles.checkLabel}>
+                    <input
+                      type="checkbox"
+                      name="furnished"
+                      checked={form.furnished}
+                      onChange={handleChange}
+                    />
+                    Mobiliado
+                  </label>
+                </div>
+
+                <div style={styles.rowDouble}>
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>Código</label>
+                    <input
+                      style={styles.lineInput}
+                      name="code"
+                      value={form.code}
+                      onChange={handleChange}
+                      placeholder="Deixe em branco para gerar automático"
+                    />
+                  </div>
+
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>*Título do imóvel</label>
+                    <input
+                      style={styles.lineInput}
+                      name="title"
+                      value={form.title}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {visibleSections.includes("localizacao") && (
+                <section ref={sectionRefs.localizacao} style={styles.formSection}>
+                  <h2 style={styles.formSectionTitle}>Localização</h2>
+
+                  <div style={styles.rowDouble}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>CEP</label>
+
+                      <div style={styles.cepRow}>
+                        <input
+                          style={styles.lineInput}
+                          name="zipCode"
+                          value={form.zipCode}
+                          onChange={handleZipCodeChange}
+                          onBlur={() => fetchAddressByCep(form.zipCode, { force: true })}
+                          placeholder="00000-000"
+                          maxLength={9}
+                        />
+
+                        <button
+                          type="button"
+                          style={styles.cepButton}
+                          onClick={() => fetchAddressByCep(form.zipCode, { force: true })}
+                        >
+                          Buscar CEP
+                        </button>
+                      </div>
+
+                      {cepLoading && (
+                        <span style={styles.cepLoadingText}>Buscando endereço...</span>
+                      )}
+
+                      {!cepLoading && cepError && (
+                        <span style={styles.cepErrorText}>{cepError}</span>
+                      )}
+
+                      {!cepLoading && !cepError && cepSuccess && (
+                        <span style={styles.cepSuccessText}>{cepSuccess}</span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
 
-            {newImages.length > 0 && (
-              <div style={styles.previewSection}>
-                <h4 style={styles.previewTitle}>Novas imagens</h4>
-                <div style={styles.imageGrid}>
-                  {newImages.map((file, index) => (
-                    <div key={`${file.name}-${index}`} style={styles.imageCard}>
-                      <img
-                        src={URL.createObjectURL(file)}
-                        alt="Nova"
-                        style={styles.previewImage}
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Número</label>
+                      <input
+                        style={styles.lineInput}
+                        name="number"
+                        value={form.number}
+                        onChange={handleChange}
                       />
-                      <button
-                        type="button"
-                        style={styles.removeImageButton}
-                        onClick={() => removeNewImage(index)}
-                      >
-                        Remover
-                      </button>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
 
-            <div style={styles.actionRow}>
-              {user.role === "ADMIN" && editingId && (
-                <button
-                  type="button"
-                  style={styles.deleteButton}
-                  onClick={handleDelete}
-                >
-                  Excluir
-                </button>
+                  <div style={styles.rowTriple}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Endereço</label>
+                      <input
+                        style={styles.lineInput}
+                        name="street"
+                        value={form.street}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Bloco</label>
+                      <input
+                        style={styles.lineInput}
+                        name="block"
+                        value={form.block}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Apartamento</label>
+                      <input
+                        style={styles.lineInput}
+                        name="apartment"
+                        value={form.apartment}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.rowDouble}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Complemento</label>
+                      <input
+                        style={styles.lineInput}
+                        name="complement"
+                        value={form.complement}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Bairro comercial</label>
+                      <input
+                        style={styles.lineInput}
+                        name="district"
+                        value={form.district}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.rowTriple}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Bairro oficial</label>
+                      <input
+                        style={styles.lineInput}
+                        name="officialDistrict"
+                        value={form.officialDistrict}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Cidade</label>
+                      <input
+                        style={styles.lineInput}
+                        name="city"
+                        value={form.city}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>UF</label>
+                      <input
+                        style={styles.lineInput}
+                        name="state"
+                        value={form.state}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.rowSingle}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>País</label>
+                      <input
+                        style={styles.lineInput}
+                        name="country"
+                        value={form.country}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+                </section>
               )}
-            </div>
 
-            <button type="submit" style={styles.floatingSaveButton}>
-              💾
-            </button>
-          </form>
+              {visibleSections.includes("detalhes") && (
+                <section ref={sectionRefs.detalhes} style={styles.formSection}>
+                  <h2 style={styles.formSectionTitle}>Detalhes</h2>
+
+                  <div style={styles.subSectionTitle}>Principal</div>
+
+                  <div style={styles.rowFour}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Dormitórios</label>
+                      <input
+                        style={styles.lineInput}
+                        name="rooms"
+                        value={form.rooms}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Suítes</label>
+                      <input
+                        style={styles.lineInput}
+                        name="suites"
+                        value={form.suites}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Salas</label>
+                      <input
+                        style={styles.lineInput}
+                        name="livingRooms"
+                        value={form.livingRooms}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Banheiros</label>
+                      <input
+                        style={styles.lineInput}
+                        name="bathrooms"
+                        value={form.bathrooms}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.rowTriple}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Garagens</label>
+                      <input
+                        style={styles.lineInput}
+                        name="garage"
+                        value={form.garage}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Andar</label>
+                      <input
+                        style={styles.lineInput}
+                        name="floor"
+                        value={form.floor}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Descrição pública</label>
+                      <textarea
+                        style={styles.textareaInput}
+                        name="description"
+                        value={form.description}
+                        onChange={handleChange}
+                        rows={4}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.separator}></div>
+
+                  <div style={styles.subSectionTitle}>Áreas</div>
+
+                  <div style={styles.rowFour}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Construída</label>
+                      <input
+                        style={styles.lineInput}
+                        name="builtArea"
+                        value={form.builtArea}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Útil</label>
+                      <input
+                        style={styles.lineInput}
+                        name="usableArea"
+                        value={form.usableArea}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Total</label>
+                      <input
+                        style={styles.lineInput}
+                        name="totalArea"
+                        value={form.totalArea}
+                        onChange={handleChange}
+                      />
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Área principal</label>
+                      <input
+                        style={styles.lineInput}
+                        name="area"
+                        value={form.area}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {visibleSections.includes("internet") && (
+                <section ref={sectionRefs.internet} style={styles.formSection}>
+                  <h2 style={styles.formSectionTitle}>Internet e Anúncios</h2>
+
+                  <div style={styles.rowChecks}>
+                    <label style={styles.checkLabel}>
+                      <input
+                        type="checkbox"
+                        name="publishOnSite"
+                        checked={form.publishOnSite}
+                        onChange={handleChange}
+                      />
+                      Site da Empresa
+                    </label>
+
+                    <label style={styles.checkLabel}>
+                      <input
+                        type="checkbox"
+                        name="siteHighlight"
+                        checked={form.siteHighlight}
+                        onChange={handleChange}
+                      />
+                      Destaque
+                    </label>
+
+                    <label style={styles.checkLabel}>
+                      <input
+                        type="checkbox"
+                        name="valueOnRequest"
+                        checked={form.valueOnRequest}
+                        onChange={handleChange}
+                      />
+                      Valor sob consulta
+                    </label>
+
+                    <label style={styles.checkLabel}>
+                      <input
+                        type="checkbox"
+                        name="negotiable"
+                        checked={form.negotiable}
+                        onChange={handleChange}
+                      />
+                      Valor negociável
+                    </label>
+                  </div>
+
+                  <div style={styles.rowSingle}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Descrição do anúncio</label>
+                      <textarea
+                        style={styles.textareaInputLarge}
+                        name="description"
+                        value={form.description}
+                        onChange={handleChange}
+                        rows={6}
+                      />
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {visibleSections.includes("captacao") && (
+                <section ref={sectionRefs.captacao} style={styles.formSection}>
+                  <h2 style={styles.formSectionTitle}>Captação</h2>
+
+                  <div style={styles.rowDouble}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Captador principal</label>
+                      <select
+                        style={styles.lineSelect}
+                        name="captorName"
+                        value={form.captorName}
+                        onChange={handleChange}
+                      >
+                        <option value="">Selecione...</option>
+                        {employees.map((employee) => (
+                          <option
+                            key={employee.id}
+                            value={getEmployeeValue(employee)}
+                          >
+                            {getEmployeeLabel(employee)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>*Proprietário</label>
+                      <select
+                        style={styles.lineSelect}
+                        name="ownerId"
+                        value={form.ownerId}
+                        onChange={handleChange}
+                      >
+                        <option value="">Selecione...</option>
+                        {owners.map((owner) => (
+                          <option key={owner.id} value={owner.id}>
+                            {owner.fullName}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {visibleSections.includes("confidencial") && (
+                <section ref={sectionRefs.confidencial} style={styles.formSection}>
+                  <h2 style={styles.formSectionTitle}>Confidencial</h2>
+
+                  {formMode === "EXPRESS" && !visibleSections.includes("captacao") && (
+                    <div style={styles.rowSingle}>
+                      <div style={styles.fieldContent}>
+                        <label style={styles.label}>*Proprietário</label>
+                        <select
+                          style={styles.lineSelect}
+                          name="ownerId"
+                          value={form.ownerId}
+                          onChange={handleChange}
+                        >
+                          <option value="">Selecione...</option>
+                          {owners.map((owner) => (
+                            <option key={owner.id} value={owner.id}>
+                              {owner.fullName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={styles.rowSingle}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Descrição interna*</label>
+                      <textarea
+                        style={styles.textareaInputLarge}
+                        name="internalDescription"
+                        value={form.internalDescription}
+                        onChange={handleChange}
+                        rows={7}
+                        placeholder="Informações internas do imóvel. Esta parte não será exibida no site."
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.rowSingle}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Imagens do imóvel</label>
+                      <input
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        onChange={handleImagesChange}
+                        style={styles.fileInput}
+                      />
+                    </div>
+                  </div>
+
+                  {form.images?.length > 0 && (
+                    <div style={styles.previewSection}>
+                      <h4 style={styles.previewTitle}>Imagens atuais</h4>
+                      <div style={styles.imageGrid}>
+                        {form.images.map((imagePath) => (
+                          <div key={imagePath} style={styles.imageCard}>
+                            <img
+                              src={getImageUrl(imagePath)}
+                              alt="Imóvel"
+                              style={styles.previewImage}
+                            />
+                            <button
+                              type="button"
+                              style={styles.removeImageButton}
+                              onClick={() => removeExistingImage(imagePath)}
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {newImages.length > 0 && (
+                    <div style={styles.previewSection}>
+                      <h4 style={styles.previewTitle}>Novas imagens</h4>
+                      <div style={styles.imageGrid}>
+                        {newImages.map((file, index) => (
+                          <div key={`${file.name}-${index}`} style={styles.imageCard}>
+                            <img
+                              src={URL.createObjectURL(file)}
+                              alt="Nova"
+                              style={styles.previewImage}
+                            />
+                            <button
+                              type="button"
+                              style={styles.removeImageButton}
+                              onClick={() => removeNewImage(index)}
+                            >
+                              Remover
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              <div style={styles.actionRow}>
+                {user.role === "ADMIN" && editingId && (
+                  <button type="button" style={styles.deleteButton} onClick={handleDelete}>
+                    Excluir
+                  </button>
+                )}
+              </div>
+
+              <button type="submit" style={styles.floatingSaveButton}>
+                💾
+              </button>
+            </form>
+          </div>
+
+          <div style={{ minWidth: 0 }}>
+            {renderSectionNav()}
+          </div>
         </div>
       </div>
     );
@@ -1173,8 +1757,9 @@ Preço: ${selectedProperty.price ?? "-"}
 const styles = {
   page: {
     minHeight: "100vh",
-    backgroundColor: "#f5f6f8",
-    padding: "24px"
+    background: "#f4f4f4",
+    padding: "20px",
+    boxSizing: "border-box"
   },
 
   listPage: {
@@ -1190,8 +1775,9 @@ const styles = {
   },
   pageTitle: {
     margin: 0,
-    fontSize: "24px",
-    color: "#1f2937"
+    fontSize: "28px",
+    color: "#1f2937",
+    fontWeight: "800"
   },
   pageSubtitle: {
     margin: "6px 0 0 0",
@@ -1208,27 +1794,29 @@ const styles = {
     width: "420px",
     maxWidth: "100%",
     padding: "12px 14px",
-    borderRadius: "10px",
+    borderRadius: "12px",
     border: "1px solid #d1d5db",
     outline: "none",
     fontSize: "14px",
-    backgroundColor: "#fff"
+    backgroundColor: "#fff",
+    boxSizing: "border-box"
   },
   primaryButton: {
     border: "none",
-    backgroundColor: "#2383e2",
+    background: "linear-gradient(135deg, #d1a84c 0%, #b1811f 100%)",
     color: "#fff",
     padding: "12px 16px",
-    borderRadius: "10px",
+    borderRadius: "12px",
     fontWeight: "700",
-    cursor: "pointer"
+    cursor: "pointer",
+    boxShadow: "0 12px 20px rgba(177,129,31,0.20)"
   },
   secondaryButton: {
     border: "1px solid #d1d5db",
     backgroundColor: "#fff",
     color: "#1f2937",
     padding: "12px 16px",
-    borderRadius: "10px",
+    borderRadius: "12px",
     fontWeight: "600",
     cursor: "pointer"
   },
@@ -1332,10 +1920,10 @@ const styles = {
   },
   editButton: {
     border: "none",
-    backgroundColor: "#f59e0b",
+    background: "linear-gradient(135deg, #d1a84c 0%, #b1811f 100%)",
     color: "#fff",
     padding: "8px 12px",
-    borderRadius: "8px",
+    borderRadius: "10px",
     fontWeight: "700",
     cursor: "pointer"
   },
@@ -1343,8 +1931,8 @@ const styles = {
     display: "inline-block",
     padding: "8px 12px",
     borderRadius: "999px",
-    backgroundColor: "#eef2ff",
-    color: "#4338ca",
+    backgroundColor: "#f6efdd",
+    color: "#8a6414",
     fontSize: "12px",
     fontWeight: "700"
   },
@@ -1447,13 +2035,13 @@ const styles = {
   },
   detailsPrice: {
     fontSize: "40px",
-    color: "#2383e2",
+    color: "#b8860b",
     fontWeight: "800",
     marginBottom: "20px"
   },
   infoGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     gap: "12px",
     marginBottom: "22px"
   },
@@ -1492,122 +2080,314 @@ const styles = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "18px",
+    marginBottom: "16px",
     gap: "12px",
     flexWrap: "wrap"
   },
-  formTopTitle: {
-    fontSize: "20px",
+
+  topSwitch: {
+    display: "flex",
+    background: "#ececec",
+    borderRadius: "10px",
+    overflow: "hidden",
+    border: "1px solid #dedede"
+  },
+  switchButton: {
+    border: "none",
+    background: "transparent",
+    padding: "12px 22px",
     fontWeight: "700",
+    cursor: "pointer",
+    color: "#a0a0a0"
+  },
+  switchButtonActive: {
+    background: "#dcdcdc",
     color: "#1f2937"
   },
-  formContainer: {
-    backgroundColor: "#fff",
-    borderRadius: "18px",
-    padding: "26px 30px 80px",
-    boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
-    border: "1px solid #e5e7eb",
-    position: "relative"
+
+  editorLayout: {
+    display: "grid",
+    gridTemplateColumns: "360px minmax(0, 1fr) 220px",
+    gap: "18px",
+    alignItems: "start",
+    width: "100%",
+    minWidth: 0
   },
 
-  accessDeniedCard: {
-    backgroundColor: "#fff",
-    borderRadius: "18px",
-    padding: "32px",
-    boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
-    border: "1px solid #e5e7eb"
+  mediaSidebar: {
+    background: "#f3f3f3",
+    borderRight: "1px solid #ddd",
+    minHeight: "calc(100vh - 100px)",
+    padding: "8px 4px",
+    width: "100%",
+    minWidth: 0,
+    overflow: "hidden"
   },
-  accessDeniedTitle: {
-    margin: "0 0 12px 0",
-    fontSize: "24px",
-    color: "#111827"
+  mediaHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "14px",
+    padding: "0 12px"
   },
-  accessDeniedText: {
-    margin: 0,
-    color: "#6b7280",
-    fontSize: "16px"
+  mediaTitle: {
+    color: "#1d72e8",
+    fontSize: "18px"
   },
-
-  formHeader: {
+  mediaIcons: {
+    display: "flex",
+    gap: "14px"
+  },
+  mediaIcon: {
+    fontSize: "18px",
+    color: "#6b7280"
+  },
+  mediaMainBox: {
+    padding: "0 12px"
+  },
+  mediaMainImage: {
+    width: "100%",
+    maxWidth: "100%",
+    height: "260px",
+    objectFit: "cover",
+    borderRadius: "14px",
+    display: "block",
+    backgroundColor: "#ddd"
+  },
+  mediaEmpty: {
+    width: "100%",
+    height: "260px",
+    borderRadius: "14px",
+    background: "#e5e7eb",
     display: "flex",
     alignItems: "center",
+    justifyContent: "center",
+    color: "#777"
+  },
+  mediaThumbGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
     gap: "14px",
-    marginBottom: "26px"
+    padding: "14px 12px"
   },
-  dot: {
-    width: "18px",
-    height: "18px",
+  mediaThumbCard: {
+    background: "#fff",
+    borderRadius: "14px",
+    overflow: "hidden",
+    minHeight: "120px"
+  },
+  mediaThumbImage: {
+    width: "100%",
+    maxWidth: "100%",
+    height: "160px",
+    objectFit: "cover",
+    display: "block"
+  },
+  mediaPlaceholder: {
+    gridColumn: "1 / -1",
+    textAlign: "center",
+    color: "#999",
+    padding: "30px 10px"
+  },
+
+  editorCenter: {
+    background: "#f4f4f4",
+    padding: "0 10px",
+    width: "100%",
+    minWidth: 0,
+    overflow: "hidden"
+  },
+
+  sectionSidebar: {
+    position: "sticky",
+    top: "20px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    paddingTop: "40px",
+    width: "100%",
+    minWidth: "180px",
+    maxWidth: "220px"
+  },
+  sectionNavButton: {
+    border: "none",
+    background: "transparent",
+    textAlign: "left",
+    padding: "10px 16px",
+    fontSize: "18px",
+    color: "#7b7b7b",
+    cursor: "pointer",
+    borderLeft: "3px solid transparent"
+  },
+  sectionNavButtonActive: {
+    color: "#4a5568",
+    fontWeight: "700",
+    borderLeft: "3px solid #ef4444"
+  },
+
+  formSection: {
+    padding: "18px 0 30px 0",
+    borderBottom: "1px solid #e3e3e3",
+    marginBottom: "16px",
+    width: "100%",
+    minWidth: 0
+  },
+  formSectionTitle: {
+    fontSize: "32px",
+    fontWeight: "500",
+    color: "#101828",
+    margin: "0 0 26px 0"
+  },
+  sectionHeaderRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "16px",
+    marginBottom: "14px"
+  },
+  formHeaderBadge: {
+    width: "24px",
+    height: "24px",
     borderRadius: "50%",
-    backgroundColor: "#9ccc9c"
+    background: "#9fd38d"
   },
-  formTitle: {
-    margin: 0,
-    fontSize: "28px",
-    fontWeight: "600"
+  subSectionTitle: {
+    color: "#1d72e8",
+    fontSize: "20px",
+    marginBottom: "18px"
   },
+  separator: {
+    height: "1px",
+    background: "#e3e3e3",
+    margin: "26px 0"
+  },
+
   rowSingle: {
     marginBottom: "26px"
   },
   rowDouble: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "40px",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "28px",
     marginBottom: "26px"
   },
   rowTriple: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
-    gap: "40px",
+    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+    gap: "28px",
     marginBottom: "26px",
     alignItems: "end"
   },
   rowFour: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr 1fr",
-    gap: "30px",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: "22px",
     marginBottom: "26px"
   },
-  fieldWithIcon: {
-    display: "grid",
-    gridTemplateColumns: "52px 1fr",
-    gap: "16px",
-    alignItems: "end"
+  rowChecks: {
+    display: "flex",
+    gap: "30px",
+    flexWrap: "wrap",
+    marginBottom: "26px"
   },
-  fieldIcon: {
-    fontSize: "30px",
-    color: "#9a8a60",
-    textAlign: "center",
-    paddingBottom: "10px"
+  checkLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    fontSize: "16px",
+    color: "#6b7280"
   },
+
   fieldContent: {
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    minWidth: 0
   },
   label: {
-    color: "#6b7280",
-    fontSize: "15px",
+    color: "#909090",
+    fontSize: "16px",
     marginBottom: "6px"
   },
   lineInput: {
     border: "none",
-    borderBottom: "1px solid #d1d5db",
-    padding: "8px 0 10px 0",
+    borderBottom: "1px solid #d2d2d2",
+    padding: "8px 0 12px 0",
     fontSize: "18px",
     outline: "none",
-    backgroundColor: "transparent"
+    backgroundColor: "transparent",
+    width: "100%",
+    minWidth: 0,
+    boxSizing: "border-box"
   },
-  selectInput: {
+  lineSelect: {
     border: "none",
-    borderBottom: "1px solid #d1d5db",
-    padding: "8px 0 10px 0",
+    borderBottom: "1px solid #d2d2d2",
+    padding: "8px 0 12px 0",
     fontSize: "18px",
     outline: "none",
-    backgroundColor: "transparent"
+    backgroundColor: "transparent",
+    width: "100%",
+    minWidth: 0,
+    boxSizing: "border-box"
   },
-  fileInput: {
+  textareaInput: {
+    border: "1px solid #dcdcdc",
+    borderRadius: "10px",
+    padding: "14px",
     fontSize: "16px",
-    marginTop: "8px"
+    outline: "none",
+    resize: "vertical",
+    background: "#fff",
+    width: "100%",
+    boxSizing: "border-box"
   },
+  textareaInputLarge: {
+    border: "1px solid #dcdcdc",
+    borderRadius: "10px",
+    padding: "14px",
+    fontSize: "16px",
+    outline: "none",
+    resize: "vertical",
+    background: "#fff",
+    minHeight: "160px",
+    width: "100%",
+    boxSizing: "border-box"
+  },
+
+  cepRow: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "12px",
+    alignItems: "center"
+  },
+  cepButton: {
+    border: "none",
+    background: "#111827",
+    color: "#fff",
+    padding: "10px 16px",
+    borderRadius: "10px",
+    fontWeight: "700",
+    cursor: "pointer",
+    whiteSpace: "nowrap"
+  },
+  cepLoadingText: {
+    marginTop: "8px",
+    color: "#a16207",
+    fontSize: "13px",
+    fontWeight: "600"
+  },
+  cepErrorText: {
+    marginTop: "8px",
+    color: "#dc2626",
+    fontSize: "13px",
+    fontWeight: "600"
+  },
+  cepSuccessText: {
+    marginTop: "8px",
+    color: "#15803d",
+    fontSize: "13px",
+    fontWeight: "600"
+  },
+
   previewSection: {
     marginBottom: "26px"
   },
@@ -1643,10 +2423,16 @@ const styles = {
     padding: "8px 10px",
     cursor: "pointer"
   },
+  fileInput: {
+    fontSize: "16px",
+    marginTop: "8px"
+  },
+
   actionRow: {
     display: "flex",
     justifyContent: "flex-start",
-    marginTop: "10px"
+    marginTop: "10px",
+    marginBottom: "80px"
   },
   deleteButton: {
     backgroundColor: "#ef4444",
@@ -1658,17 +2444,35 @@ const styles = {
   },
   floatingSaveButton: {
     position: "fixed",
-    right: "28px",
-    bottom: "24px",
-    width: "66px",
-    height: "66px",
+    right: "34px",
+    bottom: "30px",
+    width: "72px",
+    height: "72px",
     borderRadius: "50%",
     border: "none",
-    backgroundColor: "#ff4a3d",
+    background: "#ff4c39",
     color: "#fff",
     fontSize: "28px",
     cursor: "pointer",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.2)"
+    boxShadow: "0 8px 20px rgba(0,0,0,0.25)"
+  },
+
+  accessDeniedCard: {
+    backgroundColor: "#fff",
+    borderRadius: "18px",
+    padding: "32px",
+    boxShadow: "0 4px 18px rgba(0,0,0,0.06)",
+    border: "1px solid #e5e7eb"
+  },
+  accessDeniedTitle: {
+    margin: "0 0 12px 0",
+    fontSize: "24px",
+    color: "#111827"
+  },
+  accessDeniedText: {
+    margin: 0,
+    color: "#6b7280",
+    fontSize: "16px"
   }
 };
 

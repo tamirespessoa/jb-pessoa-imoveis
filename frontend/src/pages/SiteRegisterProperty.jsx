@@ -47,7 +47,33 @@ export default function SiteRegisterProperty() {
     setErrorMessage("");
 
     try {
-      await publicApi.post("/property-requests", formData);
+      const payload = {
+        ownerName: formData.ownerName.trim(),
+        phone: formData.ownerPhone.trim(),
+        whatsapp: formData.ownerPhone.trim(),
+        email: formData.ownerEmail.trim(),
+        propertyType: formData.title.trim() || "Imóvel",
+        purpose: formData.type === "RENT" ? "ALUGUEL" : "VENDA",
+        city: formData.city.trim(),
+        neighborhood: formData.district.trim(),
+        address: [formData.street, formData.number, formData.complement]
+          .filter(Boolean)
+          .join(", "),
+        bedrooms: formData.rooms ? Number(formData.rooms) : null,
+        bathrooms: formData.bathrooms ? Number(formData.bathrooms) : null,
+        parkingSpots: formData.garage ? Number(formData.garage) : null,
+        area: formData.area ? Number(formData.area) : null,
+        price: formData.price ? String(formData.price) : null,
+        description: [
+          formData.description?.trim(),
+          formData.state ? `Estado: ${formData.state}` : "",
+          formData.zipCode ? `CEP: ${formData.zipCode}` : ""
+        ]
+          .filter(Boolean)
+          .join("\n")
+      };
+
+      await publicApi.post("/property-requests", payload);
 
       setSuccessMessage(
         "Seu imóvel foi enviado com sucesso. Nossa equipe entrará em contato em breve."
@@ -56,7 +82,8 @@ export default function SiteRegisterProperty() {
     } catch (error) {
       console.error("Erro ao enviar cadastro de imóvel:", error);
       setErrorMessage(
-        "Não foi possível enviar o cadastro agora. Tente novamente."
+        error.response?.data?.error ||
+          "Não foi possível enviar o cadastro agora. Tente novamente."
       );
     } finally {
       setLoading(false);
@@ -141,6 +168,7 @@ export default function SiteRegisterProperty() {
                         type="email"
                         value={formData.ownerEmail}
                         onChange={handleChange}
+                        required
                       />
                     </div>
                   </div>
@@ -248,6 +276,7 @@ export default function SiteRegisterProperty() {
                         type="text"
                         value={formData.district}
                         onChange={handleChange}
+                        required
                       />
                     </div>
 
@@ -259,6 +288,7 @@ export default function SiteRegisterProperty() {
                         type="text"
                         value={formData.city}
                         onChange={handleChange}
+                        required
                       />
                     </div>
 
