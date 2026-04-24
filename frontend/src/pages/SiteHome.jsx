@@ -252,6 +252,10 @@ export default function SiteHome() {
             </a>
           </div>
         </div>
+
+        <div className="site-footer-copy">
+          © {new Date().getFullYear()} JB Pessoa Imóveis. Todos os direitos reservados.
+        </div>
       </footer>
 
       <SiteChatWidget />
