@@ -11,7 +11,7 @@ export default function SiteHome() {
   const navigate = useNavigate();
 
   const whatsappLink =
-    "https://wa.me/5511983185430?text=Olá! Gostaria de atendimento sobre imóveis.";
+    "https://wa.me/5511983416160?text=Olá! Gostaria de atendimento sobre imóveis.";
 
   function handleSearch() {
     const value = search.trim();
@@ -226,7 +226,7 @@ export default function SiteHome() {
       </section>
 
       <footer className="site-footer">
-        <div className="site-container footer-content">
+        <div className="site-container footer-premium-content">
           <div className="site-footer-brand">
             <div className="site-footer-logo">
               <img src={logo} alt="JB Pessoa Imóveis" />
@@ -234,13 +234,27 @@ export default function SiteHome() {
 
             <p>
               Atendimento com seriedade, transparência e foco no melhor negócio.
+              A JB Pessoa Imóveis conecta você às melhores oportunidades para
+              compra, venda e investimento.
             </p>
           </div>
 
-          <div className="footer-info">
-            <h3>JB Pessoa Imóveis</h3>
-            <p>Telefone: (11) 98318-5430</p>
-            <p>Email: contato@jbpessoaimoveis.com.br</p>
+          <div className="footer-column">
+            <h3>Contato</h3>
+
+            <p>
+              <strong>WhatsApp:</strong>{" "}
+              <a href={whatsappLink} target="_blank" rel="noreferrer">
+                (11) 98341-6160
+              </a>
+            </p>
+
+            <p>
+              <strong>E-mail:</strong>{" "}
+              <a href="mailto:imobiliaria@jbpessoaimoveis.com">
+                imobiliaria@jbpessoaimoveis.com
+              </a>
+            </p>
 
             <a
               href={whatsappLink}
@@ -250,6 +264,22 @@ export default function SiteHome() {
             >
               Falar no WhatsApp
             </a>
+          </div>
+
+          <div className="footer-column">
+            <h3>Endereço</h3>
+            <p>Rua Paulo Badi, 67</p>
+            <p>Cidade Tiradentes — São Paulo</p>
+            <p>CEP: 08471-080</p>
+          </div>
+
+          <div className="footer-column">
+            <h3>Links rápidos</h3>
+            <Link to="/site">Início</Link>
+            <Link to="/site/imoveis">Imóveis</Link>
+            <Link to="/site/cadastrar-imovel">Cadastre seu imóvel</Link>
+            <a href="#simulador">Simulador</a>
+            <a href="#contato">Contato</a>
           </div>
         </div>
 
