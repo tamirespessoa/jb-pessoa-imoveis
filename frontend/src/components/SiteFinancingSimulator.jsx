@@ -33,6 +33,9 @@ export default function SiteFinancingSimulator() {
     propertyValue: "",
     downPayment: "",
     years: "35",
+    hasMinorChild: "",
+    hasDependents: "",
+    dependentsCount: "",
     notes: ""
   });
 
@@ -71,6 +74,9 @@ export default function SiteFinancingSimulator() {
         `Prazo: ${form.years || "-"} anos`,
         `Valor financiado: ${financedAmount || 0}`,
         `Parcela estimada: ${installment.toFixed(2)}`,
+        `Possui filho menor de idade: ${form.hasMinorChild || "-"}`,
+        `Possui dependente: ${form.hasDependents || "-"}`,
+        `Quantidade de dependentes: ${form.dependentsCount || "-"}`,
         `Observações: ${form.notes || "-"}`
       ].join(" | ");
 
@@ -94,6 +100,9 @@ export default function SiteFinancingSimulator() {
         propertyValue: "",
         downPayment: "",
         years: "35",
+        hasMinorChild: "",
+        hasDependents: "",
+        dependentsCount: "",
         notes: ""
       });
     } catch (error) {
@@ -213,6 +222,44 @@ export default function SiteFinancingSimulator() {
                 <option value="30">30 anos</option>
                 <option value="35">35 anos</option>
               </select>
+            </div>
+
+            <div className="simulator-field">
+              <label>Possui filho menor de idade?</label>
+              <select
+                name="hasMinorChild"
+                value={form.hasMinorChild}
+                onChange={handleChange}
+              >
+                <option value="">Selecione...</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+
+            <div className="simulator-field">
+              <label>Possui dependente?</label>
+              <select
+                name="hasDependents"
+                value={form.hasDependents}
+                onChange={handleChange}
+              >
+                <option value="">Selecione...</option>
+                <option value="Sim">Sim</option>
+                <option value="Não">Não</option>
+              </select>
+            </div>
+
+            <div className="simulator-field">
+              <label>Quantidade de dependentes</label>
+              <input
+                type="number"
+                name="dependentsCount"
+                value={form.dependentsCount}
+                onChange={handleChange}
+                placeholder="Ex.: 2"
+                min="0"
+              />
             </div>
 
             <div className="simulator-field simulator-field-full">
