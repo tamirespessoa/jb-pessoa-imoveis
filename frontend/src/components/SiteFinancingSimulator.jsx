@@ -23,6 +23,72 @@ function calculateInstallment(financedAmount, years) {
   return Number.isFinite(installment) ? installment : 0;
 }
 
+function calculateBankAnalysis(form, installment, financedAmount) {
+  const income = Number(form.monthlyIncome || 0);
+  const dependents = Number(form.dependentsCount || 0);
+
+  const maxInstallment = income * 0.3;
+  const commitment = income > 0 ? (installment / income) * 100 : 0;
+
+  let risk = "Informe a renda mensal para análise.";
+  let status = "Pendente";
+  let score = 0;
+
+  if (income > 0) {
+    score = 100;
+
+    if (commitment > 30) score -= 35;
+    if (commitment > 40) score -= 25;
+    if (dependents >= 1) score -= dependents * 5;
+    if (form.hasMinorChild === "Sim") score -= 5;
+    if (form.maritalStatus === "Divorciado" || form.maritalStatus === "Viúvo") {
+      score -= 5;
+    }
+
+    score = Math.max(score, 0);
+
+    if (commitment <= 30 && score >= 70) {
+      status = "Boa chance de aprovação";
+      risk = "A parcela está dentro do limite geralmente aceito pelos bancos.";
+    } else if (commitment <= 40 && score >= 50) {
+      status = "Atenção";
+      risk =
+        "A simulação pode passar por análise mais rigorosa. Pode ser necessário aumentar a entrada ou reduzir o prazo.";
+    } else {
+      status = "Alto risco de reprovação";
+      risk =
+        "A parcela estimada está alta em relação à renda informada. Recomenda-se aumentar a entrada ou buscar imóvel de menor valor.";
+    }
+  }
+
+  return {
+    income,
+    dependents,
+    maxInstallment,
+    commitment,
+    status,
+    risk,
+    score,
+    financedAmount
+  };
+}
+
+function getClientFriendlyStatus(status) {
+  if (status === "Boa chance de aprovação") {
+    return "Ótimo perfil para financiamento";
+  }
+
+  if (status === "Atenção") {
+    return "Perfil em análise";
+  }
+
+  if (status === "Alto risco de reprovação") {
+    return "Vamos encontrar a melhor solução para você";
+  }
+
+  return "Pré-análise em andamento";
+}
+
 export default function SiteFinancingSimulator() {
   const [form, setForm] = useState({
     name: "",
@@ -33,6 +99,7 @@ export default function SiteFinancingSimulator() {
     propertyValue: "",
     downPayment: "",
     years: "35",
+    maritalStatus: "",
     hasMinorChild: "",
     hasDependents: "",
     dependentsCount: "",
@@ -49,6 +116,10 @@ export default function SiteFinancingSimulator() {
   const installment = useMemo(() => {
     return calculateInstallment(financedAmount, Number(form.years || 0));
   }, [financedAmount, form.years]);
+
+  const bankAnalysis = useMemo(() => {
+    return calculateBankAnalysis(form, installment, financedAmount);
+  }, [form, installment, financedAmount]);
 
   function handleChange(e) {
     const { name, value } = e.target;
@@ -74,10 +145,16 @@ export default function SiteFinancingSimulator() {
         `Prazo: ${form.years || "-"} anos`,
         `Valor financiado: ${financedAmount || 0}`,
         `Parcela estimada: ${installment.toFixed(2)}`,
+        `Estado civil: ${form.maritalStatus || "-"}`,
         `Possui filho menor de idade: ${form.hasMinorChild || "-"}`,
-        `Possui dependente: ${form.hasDependents || "-"}`,
+        `Possui dependentes: ${form.hasDependents || "-"}`,
         `Quantidade de dependentes: ${form.dependentsCount || "-"}`,
-        `Observações: ${form.notes || "-"}`
+        `Comprometimento de renda: ${bankAnalysis.commitment.toFixed(2)}%`,
+        `Limite recomendado de parcela: ${bankAnalysis.maxInstallment.toFixed(2)}`,
+        `Análise automática: ${bankAnalysis.status}`,
+        `Score estimado: ${bankAnalysis.score}`,
+        `Observações da análise: ${bankAnalysis.risk}`,
+        `Observações do cliente: ${form.notes || "-"}`
       ].join(" | ");
 
       const response = await publicApi.post("/leads", {
@@ -89,7 +166,9 @@ export default function SiteFinancingSimulator() {
 
       console.log("Lead criado com sucesso:", response.data);
 
-      setFeedback("Simulação enviada com sucesso! Nossa equipe entrará em contato.");
+      setFeedback(
+        "Pré-análise enviada com sucesso! Nossa equipe vai avaliar as melhores condições para você."
+      );
 
       setForm({
         name: "",
@@ -100,6 +179,7 @@ export default function SiteFinancingSimulator() {
         propertyValue: "",
         downPayment: "",
         years: "35",
+        maritalStatus: "",
         hasMinorChild: "",
         hasDependents: "",
         dependentsCount: "",
@@ -225,6 +305,21 @@ export default function SiteFinancingSimulator() {
             </div>
 
             <div className="simulator-field">
+              <label>Estado civil</label>
+              <select
+                name="maritalStatus"
+                value={form.maritalStatus}
+                onChange={handleChange}
+              >
+                <option value="">Selecione...</option>
+                <option value="Solteiro">Solteiro</option>
+                <option value="Casado">Casado</option>
+                <option value="Divorciado">Divorciado</option>
+                <option value="Viúvo">Viúvo</option>
+              </select>
+            </div>
+
+            <div className="simulator-field">
               <label>Possui filho menor de idade?</label>
               <select
                 name="hasMinorChild"
@@ -238,7 +333,7 @@ export default function SiteFinancingSimulator() {
             </div>
 
             <div className="simulator-field">
-              <label>Possui dependente?</label>
+              <label>Possui dependentes?</label>
               <select
                 name="hasDependents"
                 value={form.hasDependents}
@@ -309,9 +404,25 @@ export default function SiteFinancingSimulator() {
                 <strong>{formatCurrency(installment)}</strong>
               </div>
 
+              <div className="simulator-result-row">
+                <span>Limite recomendado</span>
+                <strong>{formatCurrency(bankAnalysis.maxInstallment)}</strong>
+              </div>
+
+              <div className="simulator-result-row">
+                <span>Comprometimento da renda</span>
+                <strong>{bankAnalysis.commitment.toFixed(2)}%</strong>
+              </div>
+
+              <div className="simulator-result-row">
+                <span>Resultado da pré-análise</span>
+                <strong>{getClientFriendlyStatus(bankAnalysis.status)}</strong>
+              </div>
+
               <small>
-                Simulação ilustrativa. O valor final depende da análise de crédito,
-                banco, taxa de juros e perfil do cliente.
+                Pré-análise ilustrativa. A aprovação final depende da análise de
+                crédito, documentação apresentada, política do banco, taxa de
+                juros e perfil do cliente.
               </small>
             </div>
           </div>

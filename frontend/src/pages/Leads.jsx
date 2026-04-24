@@ -1,6 +1,70 @@
 import { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
 
+function getLeadField(message, label) {
+  if (!message) return "";
+
+  const parts = String(message).split(" | ");
+  const found = parts.find((part) => part.startsWith(`${label}:`));
+
+  if (!found) return "";
+
+  return found.replace(`${label}:`, "").trim();
+}
+
+function getLeadAnalysis(message) {
+  const status = getLeadField(message, "Análise automática");
+  const score = getLeadField(message, "Score estimado");
+  const commitment = getLeadField(message, "Comprometimento de renda");
+  const installment = getLeadField(message, "Parcela estimada");
+
+  if (status.includes("Boa chance")) {
+    return {
+      label: "🟢 Alta prioridade",
+      description: "Cliente com ótimo perfil para atendimento",
+      color: "#166534",
+      background: "#dcfce7",
+      score,
+      commitment,
+      installment
+    };
+  }
+
+  if (status.includes("Atenção")) {
+    return {
+      label: "🟡 Média prioridade",
+      description: "Cliente precisa de análise mais cuidadosa",
+      color: "#92400e",
+      background: "#fef3c7",
+      score,
+      commitment,
+      installment
+    };
+  }
+
+  if (status.includes("Alto risco")) {
+    return {
+      label: "🔴 Baixa prioridade",
+      description: "Cliente pode precisar de ajuste na entrada ou valor do imóvel",
+      color: "#991b1b",
+      background: "#fee2e2",
+      score,
+      commitment,
+      installment
+    };
+  }
+
+  return {
+    label: "⚪ Sem análise",
+    description: "Lead sem dados completos de financiamento",
+    color: "#475569",
+    background: "#f1f5f9",
+    score,
+    commitment,
+    installment
+  };
+}
+
 function Leads() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const [leads, setLeads] = useState([]);
@@ -253,101 +317,121 @@ function Leads() {
                 </tr>
               </thead>
               <tbody>
-                {filteredLeads.map((lead) => (
-                  <tr key={lead.id} style={styles.tr}>
-                    <td style={styles.td}>
-                      <div style={styles.clientBlock}>
-                        <div style={styles.clientAvatar}>
-                          {lead.name?.charAt(0)?.toUpperCase() || "C"}
-                        </div>
-                        <div>
-                          <div style={styles.mainText}>{lead.name}</div>
-                          <div style={styles.subText}>
-                            {new Date(lead.createdAt).toLocaleString("pt-BR")}
+                {filteredLeads.map((lead) => {
+                  const analysis = getLeadAnalysis(lead.message);
+
+                  return (
+                    <tr key={lead.id} style={styles.tr}>
+                      <td style={styles.td}>
+                        <div style={styles.clientBlock}>
+                          <div style={styles.clientAvatar}>
+                            {lead.name?.charAt(0)?.toUpperCase() || "C"}
+                          </div>
+                          <div>
+                            <div style={styles.mainText}>{lead.name}</div>
+                            <div style={styles.subText}>
+                              {new Date(lead.createdAt).toLocaleString("pt-BR")}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    </td>
-
-                    <td style={styles.td}>
-                      <div style={styles.contactPrimary}>{lead.phone || "-"}</div>
-                      <div style={styles.subText}>{lead.email || "-"}</div>
-                    </td>
-
-                    <td style={styles.td}>
-                      <div style={styles.messageBox}>
-                        {lead.message || "Sem mensagem"}
-                      </div>
-                    </td>
-
-                    <td style={styles.td}>
-                      <div style={styles.assignedBox}>
-                        {lead.assignedTo?.name || "Não atribuído"}
-                      </div>
-                    </td>
-
-                    {user.role === "ADMIN" && (
-                      <td style={styles.td}>
-                        <select
-                          style={styles.select}
-                          value={lead.assignedTo?.id || ""}
-                          onChange={(e) =>
-                            handleAssignBroker(lead.id, e.target.value)
-                          }
-                          disabled={assignLoadingId === lead.id}
-                        >
-                          <option value="">Não atribuído</option>
-                          {assignableBrokers.map((broker) => (
-                            <option key={broker.id} value={broker.id}>
-                              {broker.name} ({broker.role})
-                              {broker.online ? " - online" : ""}
-                            </option>
-                          ))}
-                        </select>
                       </td>
-                    )}
 
-                    <td style={styles.td}>
-                      <span
-                        style={{
-                          ...styles.badge,
-                          ...getStatusStyle(lead.status)
-                        }}
-                      >
-                        {getStatusLabel(lead.status)}
-                      </span>
-                    </td>
+                      <td style={styles.td}>
+                        <div style={styles.contactPrimary}>{lead.phone || "-"}</div>
+                        <div style={styles.subText}>{lead.email || "-"}</div>
+                      </td>
 
-                    <td style={styles.td}>
-                      <div style={styles.actions}>
-                        <a
-                          href={getWhatsAppUrl(lead)}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={styles.whatsButton}
+                      <td style={styles.td}>
+                        <div
+                          style={{
+                            ...styles.analysisBox,
+                            background: analysis.background,
+                            color: analysis.color
+                          }}
                         >
-                          WhatsApp
-                        </a>
+                          <strong>{analysis.label}</strong>
+                          <span>{analysis.description}</span>
+                          <small>
+                            Score: {analysis.score || "-"} | Parcela:{" "}
+                            {analysis.installment || "-"} | Renda:{" "}
+                            {analysis.commitment || "-"}
+                          </small>
+                        </div>
 
-                        <select
-                          style={styles.select}
-                          value={lead.status}
-                          onChange={(e) =>
-                            handleStatusChange(lead.id, e.target.value)
-                          }
-                          disabled={statusLoadingId === lead.id}
+                        <div style={styles.messageBox}>
+                          {lead.message || "Sem mensagem"}
+                        </div>
+                      </td>
+
+                      <td style={styles.td}>
+                        <div style={styles.assignedBox}>
+                          {lead.assignedTo?.name || "Não atribuído"}
+                        </div>
+                      </td>
+
+                      {user.role === "ADMIN" && (
+                        <td style={styles.td}>
+                          <select
+                            style={styles.select}
+                            value={lead.assignedTo?.id || ""}
+                            onChange={(e) =>
+                              handleAssignBroker(lead.id, e.target.value)
+                            }
+                            disabled={assignLoadingId === lead.id}
+                          >
+                            <option value="">Não atribuído</option>
+                            {assignableBrokers.map((broker) => (
+                              <option key={broker.id} value={broker.id}>
+                                {broker.name} ({broker.role})
+                                {broker.online ? " - online" : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      )}
+
+                      <td style={styles.td}>
+                        <span
+                          style={{
+                            ...styles.badge,
+                            ...getStatusStyle(lead.status)
+                          }}
                         >
-                          <option value="NOVO">Novo</option>
-                          <option value="EM_ATENDIMENTO">
-                            Em atendimento
-                          </option>
-                          <option value="ATENDIDO">Atendido</option>
-                          <option value="DESCARTADO">Descartado</option>
-                        </select>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                          {getStatusLabel(lead.status)}
+                        </span>
+                      </td>
+
+                      <td style={styles.td}>
+                        <div style={styles.actions}>
+                          <a
+                            href={getWhatsAppUrl(lead)}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={styles.whatsButton}
+                          >
+                            WhatsApp
+                          </a>
+
+                          <select
+                            style={styles.select}
+                            value={lead.status}
+                            onChange={(e) =>
+                              handleStatusChange(lead.id, e.target.value)
+                            }
+                            disabled={statusLoadingId === lead.id}
+                          >
+                            <option value="NOVO">Novo</option>
+                            <option value="EM_ATENDIMENTO">
+                              Em atendimento
+                            </option>
+                            <option value="ATENDIDO">Atendido</option>
+                            <option value="DESCARTADO">Descartado</option>
+                          </select>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -631,6 +715,17 @@ const styles = {
     padding: "12px 14px",
     borderRadius: "14px",
     whiteSpace: "pre-line"
+  },
+  analysisBox: {
+    maxWidth: "320px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    lineHeight: 1.45,
+    border: "1px solid rgba(15, 23, 42, 0.08)",
+    padding: "12px 14px",
+    borderRadius: "14px",
+    marginBottom: "10px"
   },
   assignedBox: {
     fontWeight: "700",
