@@ -142,7 +142,7 @@ export default function PropertyCard({ property }) {
           </Link>
 
           <a
-            href={`https://wa.me/5511983185430?text=${encodeURIComponent(
+            href={`https://wa.me/5511983416160?text=${encodeURIComponent(
               `Olá! Tenho interesse no imóvel "${property.title || ""}".`
             )}`}
             target="_blank"

@@ -18,7 +18,7 @@ function getApiBaseUrl() {
 }
 
 function getWhatsAppLink(property) {
-  const phone = "5511983185430";
+  const phone = "5511983416160";
   const text = `Olá! Tenho interesse no imóvel "${property.title}".`;
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
