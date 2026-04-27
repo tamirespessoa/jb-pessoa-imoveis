@@ -145,7 +145,7 @@ export default function SitePropertyDetails() {
     `Olá! Tenho interesse no imóvel "${property.title}" no valor de ${formattedPrice}. Pode me dar mais informações?`
   );
 
-  const whatsappLink = `https://wa.me/5511983185430?text=${whatsappMessage}`;
+  const whatsappLink = `https://wa.me/5511983416160?text=${whatsappMessage}`;
 
   return (
     <SiteLayout>

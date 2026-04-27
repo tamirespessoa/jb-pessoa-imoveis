@@ -122,7 +122,7 @@ export default function PublicProperties() {
                     </Link>
 
                     <a
-                      href={`https://wa.me/5511983185430?text=${encodeURIComponent(
+                      href={`https://wa.me/5511983416160?text=${encodeURIComponent(
                         `Olá, tenho interesse no imóvel ${property.title || property.id}`
                       )}`}
                       target="_blank"

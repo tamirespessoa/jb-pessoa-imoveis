@@ -117,7 +117,7 @@ export default function SiteChatWidget() {
 
   function openWhatsApp() {
     window.open(
-      "https://wa.me/5511983185430?text=Olá! Gostaria de atendimento sobre imóveis.",
+      "https://wa.me/5511983416160?text=Olá! Gostaria de atendimento sobre imóveis.",
       "_blank"
     );
     setMenuOpen(false);

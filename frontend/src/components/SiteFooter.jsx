@@ -27,10 +27,10 @@ export default function SiteFooter() {
 
           <div>
             <h4>Contato</h4>
-            <a href="https://wa.me/5511983185430" target="_blank" rel="noreferrer">
+            <a href="https://wa.me/5511983416160" target="_blank" rel="noreferrer">
               WhatsApp
             </a>
-            <a href="tel:+5511983185430">(11) 98318-5430</a>
+            <a href="tel:+5511983416160">(11) 98318-5430</a>
             <span>São Paulo - SP</span>
           </div>
         </div>
