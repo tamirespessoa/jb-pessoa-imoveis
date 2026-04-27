@@ -3,7 +3,11 @@ const path = require("path");
 const sharp = require("sharp");
 const fs = require("fs");
 
-const uploadPath = path.join(__dirname, "../../uploads");
+const uploadPath =
+  process.env.NODE_ENV === "production"
+    ? "/opt/render/project/src/uploads"
+    : path.join(__dirname, "../../uploads");
+
 const watermarkPath = path.join(uploadPath, "watermark.png");
 
 if (!fs.existsSync(uploadPath)) {
@@ -17,6 +21,7 @@ const storage = multer.diskStorage({
 
   filename(req, file, cb) {
     const ext = path.extname(file.originalname).toLowerCase();
+
     const cleanName = path
       .basename(file.originalname, ext)
       .normalize("NFD")
@@ -55,7 +60,6 @@ async function applyPremiumWatermark(filePath) {
   }
 
   const metadata = await sharp(filePath).metadata();
-
   const imageWidth = metadata.width || 1200;
   const watermarkWidth = Math.floor(imageWidth * 0.38);
 
@@ -65,9 +69,6 @@ async function applyPremiumWatermark(filePath) {
       withoutEnlargement: true
     })
     .ensureAlpha()
-    .modulate({
-      brightness: 1
-    })
     .composite([
       {
         input: Buffer.from([255, 255, 255, 115]),
