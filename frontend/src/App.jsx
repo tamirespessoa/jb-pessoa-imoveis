@@ -20,6 +20,7 @@ import Perfil from "./pages/Perfil";
 import Chat from "./pages/Chat";
 import DadosEmpresa from "./pages/DadosEmpresa";
 import Financiamentos from "./pages/Financiamentos";
+import Portals from "./pages/Portals";
 
 // SITE PÚBLICO
 import SiteHome from "./pages/SiteHome";
@@ -51,6 +52,7 @@ function AppRoutes({ logged, setLogged }) {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/site" replace />} />
+
       <Route path="/site" element={<SiteHome />} />
       <Route path="/site/imoveis" element={<SiteProperties />} />
       <Route path="/site/imoveis/:id" element={<SitePropertyDetails />} />
@@ -91,6 +93,7 @@ function AppRoutes({ logged, setLogged }) {
         <Route path="/chat" element={<Chat />} />
         <Route path="/dados-empresa" element={<DadosEmpresa />} />
         <Route path="/financiamentos" element={<Financiamentos />} />
+        <Route path="/portais" element={<Portals />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/site" replace />} />

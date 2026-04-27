@@ -29,7 +29,10 @@ function Layout() {
       { label: "CENTRAL DE NEGÓCIOS", path: "/imoveis" },
       { label: "PROPRIETÁRIOS", path: "/proprietarios" },
       { label: "AGENDAMENTOS", path: "/agendamentos" },
-      { label: "PORTAIS", path: "/documentos" },
+
+      // 🔥 CORREÇÃO AQUI
+      { label: "PORTAIS", path: "/portais" },
+
       { label: "MEU SITE", path: "/site" }
     ],
     []

@@ -31,6 +31,19 @@ function Properties() {
   const [cepLoading, setCepLoading] = useState(false);
   const [cepError, setCepError] = useState("");
   const [cepSuccess, setCepSuccess] = useState("");
+  const [showOwnerModal, setShowOwnerModal] = useState(false);
+  const [ownerSaving, setOwnerSaving] = useState(false);
+  const [ownerForm, setOwnerForm] = useState({
+    fullName: "",
+    cpf: "",
+    rg: "",
+    email: "",
+    phone: "",
+    commercialPhone: "",
+    residentialPhone: "",
+    contactPhone: "",
+    whatsapp: false
+  });
 
   const [form, setForm] = useState({
     title: "",
@@ -76,6 +89,8 @@ function Properties() {
 
     publishOnSite: true,
     siteHighlight: false,
+    publishOnPortals: false,
+    highlightOnPortals: false,
     valueOnRequest: false,
     negotiable: false,
 
@@ -395,6 +410,8 @@ function Properties() {
       publishOnSite:
         property.publishOnSite !== undefined ? Boolean(property.publishOnSite) : true,
       siteHighlight: Boolean(property.siteHighlight),
+      publishOnPortals: Boolean(property.publishOnPortals),
+      highlightOnPortals: Boolean(property.highlightOnPortals),
       valueOnRequest: Boolean(property.valueOnRequest),
       negotiable: Boolean(property.negotiable),
 
@@ -513,6 +530,137 @@ function Properties() {
     }));
   }
 
+  function emptyOwnerForm() {
+    return {
+      fullName: "",
+      cpf: "",
+      rg: "",
+      email: "",
+      phone: "",
+      commercialPhone: "",
+      residentialPhone: "",
+      contactPhone: "",
+      whatsapp: false
+    };
+  }
+
+  function handleOpenOwnerModal() {
+    setOwnerForm(emptyOwnerForm());
+    setShowOwnerModal(true);
+  }
+
+  function handleCloseOwnerModal() {
+    if (ownerSaving) return;
+    setShowOwnerModal(false);
+    setOwnerForm(emptyOwnerForm());
+  }
+
+  function handleOwnerFormChange(e) {
+    const { name, value, type, checked } = e.target;
+    setOwnerForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value
+    }));
+  }
+
+  async function handleSaveOwner(e) {
+    e.preventDefault();
+
+    if (!ownerForm.fullName.trim()) {
+      alert("Informe o nome completo do proprietário.");
+      return;
+    }
+
+    try {
+      setOwnerSaving(true);
+
+      const payload = {
+        type: "PROPRIETARIO",
+        fullName: ownerForm.fullName.trim(),
+        cpf: normalizeString(ownerForm.cpf),
+        rg: normalizeString(ownerForm.rg),
+        email: normalizeString(ownerForm.email),
+        phone: normalizeString(ownerForm.phone),
+        commercialPhone: normalizeString(ownerForm.commercialPhone),
+        residentialPhone: normalizeString(ownerForm.residentialPhone),
+        contactPhone: normalizeString(ownerForm.contactPhone),
+        whatsapp: Boolean(ownerForm.whatsapp)
+      };
+
+      const response = await api.post("/persons", payload);
+      const createdOwner = response.data?.person || response.data;
+
+      if (!createdOwner?.id) {
+        await loadOwners();
+        alert("Proprietário cadastrado, mas não foi possível selecionar automaticamente.");
+        setShowOwnerModal(false);
+        setOwnerForm(emptyOwnerForm());
+        return;
+      }
+
+      setOwners((prev) => {
+        const alreadyExists = prev.some((item) => item.id === createdOwner.id);
+        if (alreadyExists) return prev;
+        return [...prev, createdOwner].sort((a, b) =>
+          String(a.fullName || "").localeCompare(String(b.fullName || ""), "pt-BR")
+        );
+      });
+
+      setForm((prev) => ({
+        ...prev,
+        ownerId: String(createdOwner.id)
+      }));
+
+      alert("Proprietário cadastrado e selecionado com sucesso.");
+      setShowOwnerModal(false);
+      setOwnerForm(emptyOwnerForm());
+    } catch (error) {
+      console.error(
+        "Erro ao cadastrar proprietário:",
+        error.response?.data || error.message
+      );
+
+      const apiMessage =
+        error.response?.data?.error ||
+        error.response?.data?.details ||
+        error.response?.data?.message ||
+        error.message ||
+        "Erro ao cadastrar proprietário.";
+
+      alert(`Erro ao cadastrar proprietário:\n${apiMessage}`);
+    } finally {
+      setOwnerSaving(false);
+    }
+  }
+
+  function renderOwnerSelect() {
+    return (
+      <div style={styles.ownerSelectWrapper}>
+        <select
+          style={styles.lineSelect}
+          name="ownerId"
+          value={form.ownerId}
+          onChange={handleChange}
+        >
+          <option value="">Selecione...</option>
+          {owners.map((owner) => (
+            <option key={owner.id} value={owner.id}>
+              {owner.fullName}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="button"
+          style={styles.addOwnerButton}
+          onClick={handleOpenOwnerModal}
+        >
+          + Cadastrar proprietário
+        </button>
+      </div>
+    );
+  }
+
   function handleImagesChange(e) {
     const files = Array.from(e.target.files || []);
     setNewImages(files);
@@ -585,6 +733,13 @@ function Properties() {
     if (internalDescription !== null) {
       payload.append("internalDescription", internalDescription);
     }
+
+    payload.append("publishOnSite", String(Boolean(form.publishOnSite)));
+    payload.append("siteHighlight", String(Boolean(form.siteHighlight)));
+    payload.append("publishOnPortals", String(Boolean(form.publishOnPortals)));
+    payload.append("highlightOnPortals", String(Boolean(form.highlightOnPortals)));
+    payload.append("valueOnRequest", String(Boolean(form.valueOnRequest)));
+    payload.append("negotiable", String(Boolean(form.negotiable)));
 
     payload.append("existingImages", JSON.stringify(form.images || []));
 
@@ -1537,7 +1692,27 @@ Preço: ${selectedProperty.price ?? "-"}
                         checked={form.siteHighlight}
                         onChange={handleChange}
                       />
-                      Destaque
+                      Destaque no site
+                    </label>
+
+                    <label style={styles.checkLabel}>
+                      <input
+                        type="checkbox"
+                        name="publishOnPortals"
+                        checked={form.publishOnPortals}
+                        onChange={handleChange}
+                      />
+                      Publicar nos portais
+                    </label>
+
+                    <label style={styles.checkLabel}>
+                      <input
+                        type="checkbox"
+                        name="highlightOnPortals"
+                        checked={form.highlightOnPortals}
+                        onChange={handleChange}
+                      />
+                      Destaque nos portais
                     </label>
 
                     <label style={styles.checkLabel}>
@@ -1603,19 +1778,7 @@ Preço: ${selectedProperty.price ?? "-"}
 
                     <div style={styles.fieldContent}>
                       <label style={styles.label}>*Proprietário</label>
-                      <select
-                        style={styles.lineSelect}
-                        name="ownerId"
-                        value={form.ownerId}
-                        onChange={handleChange}
-                      >
-                        <option value="">Selecione...</option>
-                        {owners.map((owner) => (
-                          <option key={owner.id} value={owner.id}>
-                            {owner.fullName}
-                          </option>
-                        ))}
-                      </select>
+                      {renderOwnerSelect()}
                     </div>
                   </div>
                 </section>
@@ -1629,19 +1792,7 @@ Preço: ${selectedProperty.price ?? "-"}
                     <div style={styles.rowSingle}>
                       <div style={styles.fieldContent}>
                         <label style={styles.label}>*Proprietário</label>
-                        <select
-                          style={styles.lineSelect}
-                          name="ownerId"
-                          value={form.ownerId}
-                          onChange={handleChange}
-                        >
-                          <option value="">Selecione...</option>
-                          {owners.map((owner) => (
-                            <option key={owner.id} value={owner.id}>
-                              {owner.fullName}
-                            </option>
-                          ))}
-                        </select>
+                        {renderOwnerSelect()}
                       </div>
                     </div>
                   )}
@@ -1745,11 +1896,161 @@ Preço: ${selectedProperty.price ?? "-"}
     );
   }
 
+  function renderOwnerModal() {
+    if (!showOwnerModal) return null;
+
+    return (
+      <div style={styles.modalOverlay} onMouseDown={handleCloseOwnerModal}>
+        <div style={styles.ownerModalCard} onMouseDown={(e) => e.stopPropagation()}>
+          <div style={styles.ownerModalHeader}>
+            <div>
+              <h2 style={styles.ownerModalTitle}>Cadastrar proprietário</h2>
+              <p style={styles.ownerModalSubtitle}>
+                Cadastre o proprietário sem sair da tela do imóvel. Depois de salvar,
+                ele será selecionado automaticamente no campo Proprietário.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              style={styles.ownerModalCloseButton}
+              onClick={handleCloseOwnerModal}
+            >
+              ×
+            </button>
+          </div>
+
+          <form onSubmit={handleSaveOwner}>
+            <div style={styles.ownerModalGrid}>
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>*Nome completo</label>
+                <input
+                  style={styles.lineInput}
+                  name="fullName"
+                  value={ownerForm.fullName}
+                  onChange={handleOwnerFormChange}
+                  placeholder="Nome do proprietário"
+                />
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>CPF</label>
+                <input
+                  style={styles.lineInput}
+                  name="cpf"
+                  value={ownerForm.cpf}
+                  onChange={handleOwnerFormChange}
+                  placeholder="000.000.000-00"
+                />
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>RG</label>
+                <input
+                  style={styles.lineInput}
+                  name="rg"
+                  value={ownerForm.rg}
+                  onChange={handleOwnerFormChange}
+                  placeholder="RG do proprietário"
+                />
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>E-mail</label>
+                <input
+                  style={styles.lineInput}
+                  name="email"
+                  value={ownerForm.email}
+                  onChange={handleOwnerFormChange}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Telefone principal</label>
+                <input
+                  style={styles.lineInput}
+                  name="phone"
+                  value={ownerForm.phone}
+                  onChange={handleOwnerFormChange}
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Telefone comercial</label>
+                <input
+                  style={styles.lineInput}
+                  name="commercialPhone"
+                  value={ownerForm.commercialPhone}
+                  onChange={handleOwnerFormChange}
+                  placeholder="Telefone comercial"
+                />
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Telefone residencial</label>
+                <input
+                  style={styles.lineInput}
+                  name="residentialPhone"
+                  value={ownerForm.residentialPhone}
+                  onChange={handleOwnerFormChange}
+                  placeholder="Telefone residencial"
+                />
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Telefone de contato</label>
+                <input
+                  style={styles.lineInput}
+                  name="contactPhone"
+                  value={ownerForm.contactPhone}
+                  onChange={handleOwnerFormChange}
+                  placeholder="Outro telefone"
+                />
+              </div>
+            </div>
+
+            <label style={styles.ownerWhatsappCheck}>
+              <input
+                type="checkbox"
+                name="whatsapp"
+                checked={ownerForm.whatsapp}
+                onChange={handleOwnerFormChange}
+              />
+              Esse proprietário usa WhatsApp no telefone principal
+            </label>
+
+            <div style={styles.ownerModalActions}>
+              <button
+                type="button"
+                style={styles.ownerCancelButton}
+                onClick={handleCloseOwnerModal}
+                disabled={ownerSaving}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="submit"
+                style={styles.ownerSaveButton}
+                disabled={ownerSaving}
+              >
+                {ownerSaving ? "Salvando..." : "Salvar proprietário"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={styles.page}>
       {viewMode === "list" && renderList()}
       {viewMode === "details" && renderDetails()}
       {viewMode === "form" && renderForm()}
+      {renderOwnerModal()}
     </div>
   );
 }
@@ -2457,6 +2758,119 @@ const styles = {
     boxShadow: "0 8px 20px rgba(0,0,0,0.25)"
   },
 
+
+
+  ownerSelectWrapper: {
+    display: "grid",
+    gridTemplateColumns: "1fr auto",
+    gap: "12px",
+    alignItems: "end",
+    width: "100%"
+  },
+  addOwnerButton: {
+    border: "none",
+    background: "linear-gradient(135deg, #d1a84c 0%, #b1811f 100%)",
+    color: "#fff",
+    padding: "10px 14px",
+    borderRadius: "10px",
+    fontWeight: "700",
+    cursor: "pointer",
+    whiteSpace: "nowrap",
+    boxShadow: "0 10px 18px rgba(177,129,31,0.18)"
+  },
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "rgba(17, 24, 39, 0.58)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+    zIndex: 9999
+  },
+  ownerModalCard: {
+    width: "760px",
+    maxWidth: "100%",
+    maxHeight: "90vh",
+    overflowY: "auto",
+    backgroundColor: "#fff",
+    borderRadius: "20px",
+    padding: "24px",
+    boxShadow: "0 30px 80px rgba(0,0,0,0.32)",
+    border: "1px solid #ead7a8"
+  },
+  ownerModalHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: "18px",
+    borderBottom: "1px solid #e5e7eb",
+    paddingBottom: "16px",
+    marginBottom: "20px"
+  },
+  ownerModalTitle: {
+    margin: 0,
+    fontSize: "26px",
+    color: "#111827",
+    fontWeight: "800"
+  },
+  ownerModalSubtitle: {
+    margin: "8px 0 0 0",
+    color: "#6b7280",
+    fontSize: "14px",
+    lineHeight: 1.5
+  },
+  ownerModalCloseButton: {
+    border: "none",
+    backgroundColor: "#f3f4f6",
+    color: "#111827",
+    width: "40px",
+    height: "40px",
+    borderRadius: "12px",
+    fontSize: "28px",
+    lineHeight: "36px",
+    cursor: "pointer"
+  },
+  ownerModalGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "22px",
+    marginBottom: "18px"
+  },
+  ownerWhatsappCheck: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    color: "#4b5563",
+    fontSize: "15px",
+    marginBottom: "24px"
+  },
+  ownerModalActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: "12px",
+    borderTop: "1px solid #e5e7eb",
+    paddingTop: "18px"
+  },
+  ownerCancelButton: {
+    border: "1px solid #d1d5db",
+    backgroundColor: "#fff",
+    color: "#111827",
+    padding: "12px 16px",
+    borderRadius: "12px",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
+  ownerSaveButton: {
+    border: "none",
+    background: "linear-gradient(135deg, #d1a84c 0%, #b1811f 100%)",
+    color: "#fff",
+    padding: "12px 18px",
+    borderRadius: "12px",
+    fontWeight: "800",
+    cursor: "pointer",
+    boxShadow: "0 12px 22px rgba(177,129,31,0.22)"
+  },
   accessDeniedCard: {
     backgroundColor: "#fff",
     borderRadius: "18px",
