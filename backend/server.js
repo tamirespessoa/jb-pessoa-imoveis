@@ -31,9 +31,7 @@ const allowedOrigins = [
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin) {
-        return callback(null, true);
-      }
+      if (!origin) return callback(null, true);
 
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
@@ -51,13 +49,19 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+const uploadDir =
+  process.env.NODE_ENV === "production"
+    ? "/opt/render/project/src/uploads"
+    : path.join(__dirname, "uploads");
+
+console.log("Pasta de uploads:", uploadDir);
+
+app.use("/uploads", express.static(uploadDir));
 
 app.get("/", (req, res) => {
   res.json({ message: "API JB Pessoa Imóveis funcionando!" });
 });
 
-// ROTAS
 app.use("/auth", authRoutes);
 app.use("/users", userRoutes);
 app.use("/persons", personRoutes);
@@ -70,7 +74,6 @@ app.use("/leads", leadRoutes);
 app.use("/chat", chatRoutes);
 app.use("/portals", portalRoutes);
 
-// ERRO GLOBAL
 app.use((err, req, res, next) => {
   console.error("Erro global:", err);
 
