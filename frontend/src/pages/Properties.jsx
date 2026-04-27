@@ -132,12 +132,42 @@ function Properties() {
     return Number.isNaN(parsed) ? null : parsed;
   }
 
+  function getFallbackImageUrl() {
+    return "https://via.placeholder.com/600x400?text=Im%C3%B3vel+sem+foto";
+  }
+
   function getImageUrl(imagePath) {
     if (!imagePath) return "";
-    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-      return imagePath;
+
+    if (typeof imagePath !== "string") return "";
+
+    const originalPath = imagePath.trim();
+
+    if (!originalPath) return "";
+
+    if (originalPath.startsWith("http://") || originalPath.startsWith("https://")) {
+      return originalPath;
     }
-    return `${apiBaseUrl}${imagePath}`;
+
+    const cleanBaseUrl = String(apiBaseUrl || "http://localhost:3001").replace(/\/$/, "");
+    const normalizedPath = originalPath.replace(/\\/g, "/");
+
+    let finalPath = normalizedPath;
+
+    if (finalPath.startsWith("uploads/")) {
+      finalPath = `/${finalPath}`;
+    } else if (!finalPath.startsWith("/uploads/") && !finalPath.startsWith("/")) {
+      finalPath = `/uploads/${finalPath}`;
+    } else if (!finalPath.startsWith("/")) {
+      finalPath = `/${finalPath}`;
+    }
+
+    return `${cleanBaseUrl}${finalPath}`;
+  }
+
+  function handleImageError(e) {
+    e.currentTarget.onerror = null;
+    e.currentTarget.src = getFallbackImageUrl();
   }
 
   function getMainImage(property) {
@@ -838,6 +868,205 @@ Preço: ${selectedProperty.price ?? "-"}
     }
   }
 
+  function getPhotoItems() {
+    const existingItems = (form.images || []).map((image, index) => ({
+      key: `existing-${image}-${index}`,
+      kind: "existing",
+      value: image,
+      index,
+      label: `Foto ${String(index + 1).padStart(2, "0")}`,
+      url: getImageUrl(image)
+    }));
+
+    const newItems = (newImages || []).map((file, index) => ({
+      key: `new-${file.name}-${index}`,
+      kind: "new",
+      value: file,
+      index,
+      label: `Nova ${String(index + 1).padStart(2, "0")}`,
+      url: URL.createObjectURL(file)
+    }));
+
+    return [...existingItems, ...newItems];
+  }
+
+  function handleOpenPhotoEditor() {
+    if (user.role !== "ADMIN") {
+      alert("Somente administradores podem editar fotos.");
+      return;
+    }
+
+    setViewMode("photos");
+  }
+
+  function handleSetMainPhoto(item) {
+    if (!item) return;
+
+    if (item.kind === "existing") {
+      setForm((prev) => {
+        const images = [...(prev.images || [])];
+        const selected = images[item.index];
+
+        if (!selected) return prev;
+
+        const reordered = [
+          selected,
+          ...images.filter((_, index) => index !== item.index)
+        ];
+
+        return {
+          ...prev,
+          images: reordered
+        };
+      });
+
+      return;
+    }
+
+    if (item.kind === "new") {
+      setNewImages((prev) => {
+        const images = [...prev];
+        const selected = images[item.index];
+
+        if (!selected) return prev;
+
+        return [
+          selected,
+          ...images.filter((_, index) => index !== item.index)
+        ];
+      });
+    }
+  }
+
+  function handleDeletePhoto(item) {
+    if (!item) return;
+
+    const confirmed = window.confirm("Deseja remover esta foto?");
+    if (!confirmed) return;
+
+    if (item.kind === "existing") {
+      setForm((prev) => ({
+        ...prev,
+        images: (prev.images || []).filter((_, index) => index !== item.index)
+      }));
+      return;
+    }
+
+    if (item.kind === "new") {
+      setNewImages((prev) => prev.filter((_, index) => index !== item.index));
+    }
+  }
+
+  async function handleDownloadPhoto(item) {
+    if (!item) return;
+
+    try {
+      const url = item.url;
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download =
+        item.kind === "new"
+          ? item.value.name || `${item.label}.jpg`
+          : `${selectedProperty?.code || "imovel"}-${item.label}.jpg`;
+
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error(error);
+      alert("Não foi possível baixar esta foto.");
+    }
+  }
+
+  async function handleRefreshPhotos() {
+    if (editingId) {
+      await loadProperties(editingId);
+    } else {
+      await loadProperties();
+    }
+
+    alert("Fotos atualizadas.");
+  }
+
+  async function handleSavePhotos() {
+    if (!editingId) {
+      alert("Salve o imóvel antes de editar fotos.");
+      return;
+    }
+
+    if (user.role !== "ADMIN") {
+      alert("Somente administradores podem salvar fotos.");
+      return;
+    }
+
+    try {
+      const payload = new FormData();
+
+      payload.append("title", form.title.trim());
+      payload.append("type", form.type.trim());
+      payload.append("status", normalizeString(form.status) || "DISPONIVEL");
+      payload.append("price", String(numberOrNull(form.price) ?? 0));
+      payload.append("area", String(numberOrNull(form.area || form.builtArea) ?? 0));
+      payload.append("rooms", String(intOrNull(form.rooms) ?? 0));
+      payload.append("bathrooms", String(intOrNull(form.bathrooms) ?? 0));
+      payload.append("street", form.street.trim());
+      payload.append("number", form.number.trim());
+      payload.append("zipCode", form.zipCode.trim());
+      payload.append("district", form.district.trim());
+      payload.append("city", form.city.trim());
+      payload.append("state", form.state.trim());
+      payload.append("ownerId", String(form.ownerId));
+      payload.append("existingImages", JSON.stringify(form.images || []));
+
+      const rentPrice = numberOrNull(form.rentPrice);
+      const garage = intOrNull(form.garage);
+      const complement = normalizeString(form.complement);
+      const description = normalizeString(form.description);
+      const captorName = normalizeString(form.captorName);
+      const internalDescription = normalizeString(form.internalDescription);
+
+      if (form.code.trim()) payload.append("code", form.code.trim());
+      if (rentPrice !== null) payload.append("rentPrice", String(rentPrice));
+      if (garage !== null) payload.append("garage", String(garage));
+      if (complement !== null) payload.append("complement", complement);
+      if (description !== null) payload.append("description", description);
+      if (captorName !== null) payload.append("captorName", captorName);
+      if (internalDescription !== null) {
+        payload.append("internalDescription", internalDescription);
+      }
+
+      payload.append("publishOnSite", String(Boolean(form.publishOnSite)));
+      payload.append("siteHighlight", String(Boolean(form.siteHighlight)));
+      payload.append("publishOnPortals", String(Boolean(form.publishOnPortals)));
+      payload.append("highlightOnPortals", String(Boolean(form.highlightOnPortals)));
+      payload.append("valueOnRequest", String(Boolean(form.valueOnRequest)));
+      payload.append("negotiable", String(Boolean(form.negotiable)));
+
+      newImages.forEach((file) => {
+        payload.append("images", file);
+      });
+
+      const response = await api.put(`/properties/${editingId}`, payload);
+
+      alert("Fotos salvas com sucesso.");
+      setNewImages([]);
+      await loadProperties(response.data?.property?.id || editingId);
+      setViewMode("form");
+    } catch (error) {
+      console.error("Erro ao salvar fotos:", error.response?.data || error.message);
+
+      const apiMessage =
+        error.response?.data?.error ||
+        error.response?.data?.details ||
+        error.response?.data?.message ||
+        error.message ||
+        "Erro ao salvar fotos.";
+
+      alert(`Erro ao salvar fotos:\n${apiMessage}`);
+    }
+  }
+
   function renderMediaSidebar() {
     const allImages =
       viewMode === "form" ? [...form.images, ...newImages] : selectedProperty?.images || [];
@@ -847,8 +1076,22 @@ Preço: ${selectedProperty.price ?? "-"}
         <div style={styles.mediaHeader}>
           <span style={styles.mediaTitle}>Fotos ({allImages.length})</span>
           <div style={styles.mediaIcons}>
-            <span style={styles.mediaIcon}>✉</span>
-            <span style={styles.mediaIcon}>✎</span>
+            <button
+              type="button"
+              style={styles.mediaIconButton}
+              title="Enviar fotos por e-mail"
+            >
+              ✉
+            </button>
+
+            <button
+              type="button"
+              style={styles.mediaIconButton}
+              title="Editar fotos"
+              onClick={handleOpenPhotoEditor}
+            >
+              ✎
+            </button>
           </div>
         </div>
 
@@ -862,6 +1105,7 @@ Preço: ${selectedProperty.price ?? "-"}
               }
               alt="Principal"
               style={styles.mediaMainImage}
+              onError={handleImageError}
             />
           ) : (
             <div style={styles.mediaEmpty}>Sem foto principal</div>
@@ -879,6 +1123,7 @@ Preço: ${selectedProperty.price ?? "-"}
                 }
                 alt={`thumb-${index}`}
                 style={styles.mediaThumbImage}
+                onError={handleImageError}
               />
             </div>
           ))}
@@ -892,6 +1137,173 @@ Preço: ${selectedProperty.price ?? "-"}
       </aside>
     );
   }
+
+  function renderPhotoEditor() {
+    const photoItems = getPhotoItems();
+
+    if (user.role !== "ADMIN") {
+      return (
+        <div style={styles.photoEditorPage}>
+          <div style={styles.photoEditorTopBar}>
+            <button type="button" style={styles.photoBackButton} onClick={() => setViewMode("form")}>
+              ← Voltar
+            </button>
+            <h1 style={styles.photoEditorTitle}>Editar fotos</h1>
+          </div>
+
+          <div style={styles.accessDeniedCard}>
+            <h2 style={styles.accessDeniedTitle}>Acesso restrito</h2>
+            <p style={styles.accessDeniedText}>
+              Somente administradores podem editar fotos do imóvel.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div style={styles.photoEditorPage}>
+        <div style={styles.photoEditorTopBar}>
+          <div style={styles.photoEditorTitleGroup}>
+            <button
+              type="button"
+              style={styles.photoBackButton}
+              onClick={() => setViewMode("form")}
+              title="Voltar"
+            >
+              ←
+            </button>
+
+            <h1 style={styles.photoEditorTitle}>
+              Editar fotos ({photoItems.length})
+            </h1>
+          </div>
+
+          <div style={styles.photoEditorActions}>
+            <button
+              type="button"
+              style={styles.photoTopIconButton}
+              onClick={() => {
+                if (photoItems[0]) handleDownloadPhoto(photoItems[0]);
+              }}
+              title="Baixar foto principal"
+            >
+              ⬇
+            </button>
+
+            <button
+              type="button"
+              style={styles.photoTopIconButton}
+              onClick={handleRefreshPhotos}
+              title="Atualizar fotos"
+            >
+              ⟳
+            </button>
+
+            <button
+              type="button"
+              style={styles.photoTopIconButtonDanger}
+              onClick={() => {
+                if (photoItems[0]) handleDeletePhoto(photoItems[0]);
+              }}
+              title="Excluir foto principal"
+            >
+              🗑
+            </button>
+          </div>
+        </div>
+
+        <div style={styles.photoEditorBody}>
+          {photoItems.length === 0 ? (
+            <div style={styles.photoEditorEmpty}>
+              <h2 style={styles.photoEditorEmptyTitle}>Nenhuma foto cadastrada</h2>
+              <p style={styles.photoEditorEmptyText}>
+                Volte para o formulário do imóvel e selecione imagens no campo “Imagens do imóvel”.
+              </p>
+            </div>
+          ) : (
+            <div style={styles.photoGridEditor}>
+              {photoItems.map((item, index) => (
+                <div
+                  key={item.key}
+                  style={{
+                    ...styles.photoEditCard,
+                    ...(index === 0 ? styles.photoEditCardMain : {})
+                  }}
+                >
+                  <div style={styles.photoEditImageBox}>
+                    <img
+                      src={item.url}
+                      alt={item.label}
+                      style={styles.photoEditImage}
+                      onError={handleImageError}
+                    />
+
+                    <span style={styles.photoNumberBadge}>
+                      Foto {String(index + 1).padStart(2, "0")}
+                    </span>
+
+                    {index === 0 && (
+                      <span style={styles.photoMainBadge}>
+                        Principal
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={styles.photoEditFooter}>
+                    <button
+                      type="button"
+                      style={styles.photoFooterAction}
+                      onClick={() => handleSetMainPhoto(item)}
+                      title="Definir como principal"
+                    >
+                      {index === 0 ? "✓" : "☐"} Principal
+                    </button>
+
+                    <button
+                      type="button"
+                      style={styles.photoFooterAction}
+                      title="Publicar foto"
+                    >
+                      ✓ Publicar
+                    </button>
+
+                    <button
+                      type="button"
+                      style={styles.photoFooterIcon}
+                      onClick={() => handleDownloadPhoto(item)}
+                      title="Baixar foto"
+                    >
+                      ⬇
+                    </button>
+
+                    <button
+                      type="button"
+                      style={styles.photoFooterIconDanger}
+                      onClick={() => handleDeletePhoto(item)}
+                      title="Excluir foto"
+                    >
+                      🗑
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button
+          type="button"
+          style={styles.photoFloatingSaveButton}
+          onClick={handleSavePhotos}
+          title="Salvar alterações das fotos"
+        >
+          💾
+        </button>
+      </div>
+    );
+  }
+
 
   function renderSectionNav() {
     const items = [
@@ -1017,6 +1429,7 @@ Preço: ${selectedProperty.price ?? "-"}
                             src={getMainImage(property)}
                             alt={property.title}
                             style={styles.tableImage}
+                            onError={handleImageError}
                           />
                         </div>
                       ) : (
@@ -1072,119 +1485,188 @@ Preço: ${selectedProperty.price ?? "-"}
   function renderDetails() {
     if (!selectedProperty) return renderList();
 
+    const photoCount = selectedProperty.images?.length || 0;
+    const titleLine = `${selectedProperty.type || "Imóvel"} - ${selectedProperty.city || "-"} / ${selectedProperty.state || "-"}`;
+    const siteUrl = selectedProperty.id ? `/site/imovel/${selectedProperty.id}` : "/site/imoveis";
+
     return (
-      <div style={styles.detailsPage}>
-        <div style={styles.detailsTopBar}>
-          <button type="button" style={styles.backListButton} onClick={handleBackToList}>
-            ← Voltar para lista
-          </button>
-
-          <div style={styles.detailsTopActions} ref={menuRef}>
-            {user.role === "ADMIN" && (
-              <button
-                type="button"
-                style={styles.secondaryButton}
-                onClick={() => handleOpenEdit(selectedProperty)}
-              >
-                Editar
-              </button>
-            )}
-
-            <button type="button" style={styles.secondaryButton} onClick={handleShare}>
-              Compartilhar
-            </button>
-
-            <button
-              type="button"
-              style={styles.menuButton}
-              onClick={() => setShowMenu(!showMenu)}
-            >
-              ⋮
-            </button>
-
-            {showMenu && (
-              <div style={styles.dropdownMenu}>
-                <button type="button" style={styles.dropdownItem}>
-                  Histórico do imóvel
-                </button>
-                <button type="button" style={styles.dropdownItem}>
-                  Documentos do imóvel
-                </button>
-                <button type="button" style={styles.dropdownItem}>
-                  Proprietário vinculado
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div style={styles.detailsCard}>
-          <div style={styles.detailsImageArea}>
+      <div style={styles.premiumDetailsOverlay}>
+        <div style={styles.premiumDetailsModal}>
+          <div style={styles.premiumHero}>
             {getMainImage(selectedProperty) ? (
               <img
                 src={getMainImage(selectedProperty)}
-                alt={selectedProperty.title}
-                style={styles.heroImage}
+                alt={selectedProperty.title || "Imóvel"}
+                style={styles.premiumHeroImage}
+                onError={handleImageError}
               />
             ) : (
-              <div style={styles.noHeroImage}>Sem imagem</div>
+              <div style={styles.premiumNoHeroImage}>Sem imagem</div>
             )}
-          </div>
 
-          <div style={styles.detailsContent}>
-            <h2 style={styles.detailsTitle}>
-              {selectedProperty.title} - {selectedProperty.city}/{selectedProperty.state}
-            </h2>
+            <div style={styles.premiumHeroShade}></div>
 
-            <div style={styles.detailsPrice}>
-              {formatCurrency(selectedProperty.price)}
+            <div style={styles.premiumHeroTopBar}>
+              <button
+                type="button"
+                style={styles.premiumHeroBackButton}
+                onClick={handleBackToList}
+                title="Voltar"
+              >
+                ←
+              </button>
+
+              <h2 style={styles.premiumHeroTitle}>{titleLine}</h2>
+
+              <div style={styles.premiumHeroActions}>
+                <button
+                  type="button"
+                  style={styles.premiumHeroIconButton}
+                  onClick={handleShare}
+                  title="Compartilhar"
+                >
+                  ⤴
+                </button>
+
+                <button
+                  type="button"
+                  style={styles.premiumHeroIconButton}
+                  title="Proprietário"
+                >
+                  👤
+                </button>
+
+                {user.role === "ADMIN" && (
+                  <button
+                    type="button"
+                    style={styles.premiumHeroIconButton}
+                    onClick={() => handleOpenEdit(selectedProperty)}
+                    title="Editar imóvel"
+                  >
+                    ✎
+                  </button>
+                )}
+              </div>
             </div>
 
-            <div style={styles.infoGrid}>
-              <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Código</div>
-                <div style={styles.infoValue}>{selectedProperty.code || "-"}</div>
+            <div style={styles.premiumHeroBottomBar}>
+              <div style={styles.premiumHeroBadge}>
+                <span style={styles.premiumStatusDot}></span>
+                {selectedProperty.type || "Imóvel"} | {selectedProperty.code || "Sem código"}
               </div>
-              <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Tipo</div>
-                <div style={styles.infoValue}>{selectedProperty.type || "-"}</div>
+
+              <div style={styles.premiumPhotoBadge}>
+                📷 {photoCount}
               </div>
-              <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Área</div>
-                <div style={styles.infoValue}>
-                  {selectedProperty.area ? `${selectedProperty.area}m²` : "-"}
+
+              <div style={styles.premiumCaptorBox}>
+                <div style={styles.premiumAvatar}>
+                  {(selectedProperty.captorName || selectedProperty.owner?.fullName || "JB")
+                    .slice(0, 2)
+                    .toUpperCase()}
+                </div>
+                <div>
+                  <strong style={styles.premiumCaptorName}>
+                    {selectedProperty.captorName || "Captador não informado"}
+                  </strong>
+                  <span style={styles.premiumCaptorSub}>
+                    {selectedProperty.owner?.fullName || "Proprietário não informado"}
+                  </span>
                 </div>
               </div>
-              <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Quartos</div>
-                <div style={styles.infoValue}>{selectedProperty.rooms ?? "-"}</div>
+            </div>
+          </div>
+
+          <div style={styles.premiumDetailsBody}>
+            <div style={styles.premiumDetailsCard}>
+              <div style={styles.premiumPriceRow}>
+                <span style={styles.premiumPriceLabel}>Venda</span>
+                <strong style={styles.premiumPriceValue}>
+                  {formatCurrency(selectedProperty.price)}
+                </strong>
               </div>
-              <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Banheiros</div>
-                <div style={styles.infoValue}>{selectedProperty.bathrooms ?? "-"}</div>
+
+              <div style={styles.premiumDivider}></div>
+
+              <div style={styles.premiumAddressRow}>
+                <span style={styles.premiumAddressIcon}>📍</span>
+                <div>
+                  <p style={styles.premiumAddressText}>
+                    {getAddressLine(selectedProperty)}
+                  </p>
+                  <p style={styles.premiumAddressSub}>
+                    {selectedProperty.district || "-"} - {selectedProperty.city || "-"} / {selectedProperty.state || "-"}
+                  </p>
+                </div>
               </div>
-              <div style={styles.infoCard}>
-                <div style={styles.infoLabel}>Garagem</div>
-                <div style={styles.infoValue}>{selectedProperty.garage ?? "-"}</div>
+
+              <div style={styles.premiumDivider}></div>
+
+              <div style={styles.premiumAddressRow}>
+                <span style={styles.premiumAddressIcon}>🏢</span>
+                <div>
+                  <p style={styles.premiumAddressText}>
+                    Proprietário: {selectedProperty.owner?.fullName || "-"}
+                  </p>
+                  <p style={styles.premiumAddressSub}>
+                    Telefone: {selectedProperty.owner?.phone || "-"}
+                  </p>
+                </div>
               </div>
             </div>
 
-            <div style={styles.descriptionBox}>
-              <h3 style={styles.sectionTitle}>Descrição</h3>
-              <p style={styles.descriptionText}>
+            <div style={styles.premiumDetailsCard}>
+              <div style={styles.premiumFeaturesGrid}>
+                <div style={styles.premiumFeatureItem}>
+                  <span style={styles.premiumFeatureIcon}>⛶</span>
+                  <span style={styles.premiumFeatureLabel}>Área</span>
+                  <strong style={styles.premiumFeatureValue}>
+                    {selectedProperty.area ? `${selectedProperty.area}m²` : "-"}
+                  </strong>
+                </div>
+
+                <div style={styles.premiumFeatureItem}>
+                  <span style={styles.premiumFeatureIcon}>🛏</span>
+                  <span style={styles.premiumFeatureLabel}>Quartos</span>
+                  <strong style={styles.premiumFeatureValue}>
+                    {selectedProperty.rooms ?? "-"}
+                  </strong>
+                </div>
+
+                <div style={styles.premiumFeatureItem}>
+                  <span style={styles.premiumFeatureIcon}>🛁</span>
+                  <span style={styles.premiumFeatureLabel}>Banheiros</span>
+                  <strong style={styles.premiumFeatureValue}>
+                    {selectedProperty.bathrooms ?? "-"}
+                  </strong>
+                </div>
+
+                <div style={styles.premiumFeatureItem}>
+                  <span style={styles.premiumFeatureIcon}>🚗</span>
+                  <span style={styles.premiumFeatureLabel}>Garagem</span>
+                  <strong style={styles.premiumFeatureValue}>
+                    {selectedProperty.garage ?? "-"}
+                  </strong>
+                </div>
+              </div>
+
+              <div style={styles.premiumDivider}></div>
+
+              <div style={styles.premiumDescriptionHeader}>
+                <h3 style={styles.premiumDescriptionTitle}>Descrição</h3>
+
+                <a
+                  href={siteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={styles.premiumSiteLink}
+                >
+                  Ver imóvel no site
+                </a>
+              </div>
+
+              <p style={styles.premiumDescriptionText}>
                 {selectedProperty.description || "Sem descrição cadastrada."}
-              </p>
-
-              <h3 style={styles.sectionTitle}>Endereço</h3>
-              <p style={styles.descriptionText}>{getAddressLine(selectedProperty)}</p>
-              <p style={styles.descriptionText}>
-                {selectedProperty.district || "-"} - {selectedProperty.city || "-"} /{" "}
-                {selectedProperty.state || "-"}
-              </p>
-
-              <h3 style={styles.sectionTitle}>Proprietário</h3>
-              <p style={styles.descriptionText}>
-                {selectedProperty.owner?.fullName || "-"}
               </p>
             </div>
           </div>
@@ -1192,7 +1674,6 @@ Preço: ${selectedProperty.price ?? "-"}
       </div>
     );
   }
-
   function renderForm() {
     if (user.role !== "ADMIN") {
       return (
@@ -1834,6 +2315,7 @@ Preço: ${selectedProperty.price ?? "-"}
                               src={getImageUrl(imagePath)}
                               alt="Imóvel"
                               style={styles.previewImage}
+                              onError={handleImageError}
                             />
                             <button
                               type="button"
@@ -2050,12 +2532,293 @@ Preço: ${selectedProperty.price ?? "-"}
       {viewMode === "list" && renderList()}
       {viewMode === "details" && renderDetails()}
       {viewMode === "form" && renderForm()}
+      {viewMode === "photos" && renderPhotoEditor()}
       {renderOwnerModal()}
     </div>
   );
 }
 
 const styles = {
+
+  premiumDetailsOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(15, 23, 42, 0.62)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "24px",
+    zIndex: 9999,
+    boxSizing: "border-box"
+  },
+  premiumDetailsModal: {
+    width: "min(1080px, 96vw)",
+    maxHeight: "92vh",
+    backgroundColor: "#f8fafc",
+    borderRadius: "18px",
+    overflow: "hidden",
+    boxShadow: "0 28px 80px rgba(0,0,0,0.35)",
+    border: "1px solid rgba(255,255,255,0.35)",
+    display: "flex",
+    flexDirection: "column"
+  },
+  premiumHero: {
+    position: "relative",
+    height: "330px",
+    backgroundColor: "#111827",
+    overflow: "hidden"
+  },
+  premiumHeroImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block"
+  },
+  premiumNoHeroImage: {
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#e5e7eb",
+    fontSize: "20px",
+    backgroundColor: "#111827"
+  },
+  premiumHeroShade: {
+    position: "absolute",
+    inset: 0,
+    background:
+      "linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.16) 42%, rgba(0,0,0,0.72) 100%)"
+  },
+  premiumHeroTopBar: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: "70px",
+    display: "grid",
+    gridTemplateColumns: "52px 1fr auto",
+    alignItems: "center",
+    gap: "12px",
+    padding: "0 24px",
+    boxSizing: "border-box",
+    color: "#fff"
+  },
+  premiumHeroBackButton: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "999px",
+    border: "none",
+    backgroundColor: "rgba(0,0,0,0.35)",
+    color: "#fff",
+    fontSize: "28px",
+    lineHeight: "1",
+    cursor: "pointer"
+  },
+  premiumHeroTitle: {
+    margin: 0,
+    color: "#fff",
+    fontSize: "23px",
+    fontWeight: "600",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
+  },
+  premiumHeroActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px"
+  },
+  premiumHeroIconButton: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "999px",
+    border: "none",
+    backgroundColor: "rgba(0,0,0,0.35)",
+    color: "#fff",
+    fontSize: "20px",
+    cursor: "pointer"
+  },
+  premiumHeroBottomBar: {
+    position: "absolute",
+    left: 24,
+    right: 24,
+    bottom: 18,
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    color: "#fff"
+  },
+  premiumHeroBadge: {
+    backgroundColor: "rgba(0,0,0,0.58)",
+    borderRadius: "8px",
+    padding: "9px 12px",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    fontSize: "16px",
+    fontWeight: "700"
+  },
+  premiumStatusDot: {
+    width: "12px",
+    height: "12px",
+    borderRadius: "50%",
+    backgroundColor: "#86efac",
+    display: "inline-block"
+  },
+  premiumPhotoBadge: {
+    backgroundColor: "rgba(0,0,0,0.58)",
+    borderRadius: "8px",
+    padding: "9px 12px",
+    fontSize: "16px",
+    fontWeight: "700"
+  },
+  premiumCaptorBox: {
+    marginLeft: "auto",
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    backgroundColor: "rgba(0,0,0,0.58)",
+    borderRadius: "12px",
+    padding: "10px 12px",
+    minWidth: "250px"
+  },
+  premiumAvatar: {
+    width: "44px",
+    height: "44px",
+    borderRadius: "50%",
+    background: "linear-gradient(135deg, #d1a84c, #8a6414)",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "800"
+  },
+  premiumCaptorName: {
+    display: "block",
+    color: "#fff",
+    fontSize: "15px"
+  },
+  premiumCaptorSub: {
+    display: "block",
+    color: "rgba(255,255,255,0.84)",
+    fontSize: "13px",
+    marginTop: "2px"
+  },
+  premiumDetailsBody: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "20px",
+    padding: "22px",
+    overflowY: "auto"
+  },
+  premiumDetailsCard: {
+    backgroundColor: "#fff",
+    borderRadius: "14px",
+    boxShadow: "0 8px 24px rgba(15,23,42,0.10)",
+    border: "1px solid #e5e7eb",
+    padding: "22px",
+    minHeight: "330px",
+    boxSizing: "border-box"
+  },
+  premiumPriceRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px"
+  },
+  premiumPriceLabel: {
+    color: "#8b8f97",
+    fontSize: "18px"
+  },
+  premiumPriceValue: {
+    color: "#1d72e8",
+    fontSize: "30px",
+    fontWeight: "800"
+  },
+  premiumDivider: {
+    height: "1px",
+    backgroundColor: "#e5e7eb",
+    margin: "18px 0"
+  },
+  premiumAddressRow: {
+    display: "grid",
+    gridTemplateColumns: "38px 1fr",
+    gap: "12px",
+    alignItems: "start"
+  },
+  premiumAddressIcon: {
+    fontSize: "26px",
+    lineHeight: "1.2",
+    textAlign: "center"
+  },
+  premiumAddressText: {
+    margin: 0,
+    fontSize: "17px",
+    color: "#1f2937",
+    lineHeight: 1.45,
+    fontWeight: "600"
+  },
+  premiumAddressSub: {
+    margin: "5px 0 0 0",
+    fontSize: "16px",
+    color: "#6b7280",
+    lineHeight: 1.35
+  },
+  premiumFeaturesGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: "12px",
+    textAlign: "center"
+  },
+  premiumFeatureItem: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "6px",
+    color: "#4b5563"
+  },
+  premiumFeatureIcon: {
+    fontSize: "30px",
+    height: "36px",
+    display: "flex",
+    alignItems: "center"
+  },
+  premiumFeatureLabel: {
+    fontSize: "14px",
+    color: "#6b7280"
+  },
+  premiumFeatureValue: {
+    fontSize: "24px",
+    color: "#111827",
+    fontWeight: "800"
+  },
+  premiumDescriptionHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    marginBottom: "10px"
+  },
+  premiumDescriptionTitle: {
+    margin: 0,
+    color: "#1f2937",
+    fontSize: "24px",
+    fontWeight: "600"
+  },
+  premiumSiteLink: {
+    color: "#1d72e8",
+    textDecoration: "underline",
+    fontSize: "14px",
+    whiteSpace: "nowrap"
+  },
+  premiumDescriptionText: {
+    margin: 0,
+    color: "#4b5563",
+    fontSize: "15px",
+    lineHeight: 1.55,
+    whiteSpace: "pre-line"
+  },
   page: {
     minHeight: "100vh",
     background: "#f4f4f4",
@@ -2871,6 +3634,204 @@ const styles = {
     cursor: "pointer",
     boxShadow: "0 12px 22px rgba(177,129,31,0.22)"
   },
+  mediaIconButton: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#6b7280",
+    fontSize: "22px",
+    cursor: "pointer",
+    padding: "6px",
+    borderRadius: "8px",
+    lineHeight: 1
+  },
+
+  photoEditorPage: {
+    minHeight: "100vh",
+    backgroundColor: "#f4f4f4",
+    padding: "0",
+    position: "relative"
+  },
+  photoEditorTopBar: {
+    minHeight: "54px",
+    backgroundColor: "#1e8eea",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "0 18px",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.22)",
+    position: "sticky",
+    top: 0,
+    zIndex: 50
+  },
+  photoEditorTitleGroup: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px"
+  },
+  photoBackButton: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#fff",
+    fontSize: "30px",
+    fontWeight: "800",
+    cursor: "pointer",
+    lineHeight: 1,
+    padding: "8px 10px"
+  },
+  photoEditorTitle: {
+    margin: 0,
+    fontSize: "22px",
+    fontWeight: "700",
+    color: "#fff"
+  },
+  photoEditorActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px"
+  },
+  photoTopIconButton: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#fff",
+    fontSize: "24px",
+    fontWeight: "800",
+    cursor: "pointer",
+    padding: "8px",
+    borderRadius: "8px"
+  },
+  photoTopIconButtonDanger: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#fff",
+    fontSize: "22px",
+    fontWeight: "800",
+    cursor: "pointer",
+    padding: "8px",
+    borderRadius: "8px"
+  },
+  photoEditorBody: {
+    padding: "34px 30px 100px 30px"
+  },
+  photoGridEditor: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(240px, 1fr))",
+    gap: "34px",
+    alignItems: "start"
+  },
+  photoEditCard: {
+    backgroundColor: "#fff",
+    borderRadius: "10px",
+    overflow: "hidden",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.20)",
+    border: "2px solid transparent"
+  },
+  photoEditCardMain: {
+    border: "3px solid #1e8eea",
+    boxShadow: "0 0 0 1px #1e8eea, 0 4px 12px rgba(30,142,234,0.28)"
+  },
+  photoEditImageBox: {
+    position: "relative",
+    height: "270px",
+    backgroundColor: "#000",
+    overflow: "hidden"
+  },
+  photoEditImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+    display: "block",
+    backgroundColor: "#000"
+  },
+  photoNumberBadge: {
+    position: "absolute",
+    top: "16px",
+    left: "18px",
+    color: "#fff",
+    fontSize: "19px",
+    fontWeight: "800",
+    textShadow: "0 2px 6px rgba(0,0,0,0.75)"
+  },
+  photoMainBadge: {
+    position: "absolute",
+    top: "16px",
+    right: "14px",
+    backgroundColor: "rgba(30,142,234,0.95)",
+    color: "#fff",
+    fontSize: "13px",
+    fontWeight: "800",
+    padding: "7px 10px",
+    borderRadius: "999px"
+  },
+  photoEditFooter: {
+    height: "58px",
+    backgroundColor: "#fff",
+    display: "grid",
+    gridTemplateColumns: "1.1fr 1.1fr 44px 44px",
+    alignItems: "center",
+    gap: "4px",
+    padding: "0 10px"
+  },
+  photoFooterAction: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#7b7b7b",
+    fontSize: "16px",
+    cursor: "pointer",
+    textAlign: "left",
+    whiteSpace: "nowrap"
+  },
+  photoFooterIcon: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#606060",
+    fontSize: "20px",
+    cursor: "pointer"
+  },
+  photoFooterIconDanger: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#606060",
+    fontSize: "20px",
+    cursor: "pointer"
+  },
+  photoFloatingSaveButton: {
+    position: "fixed",
+    right: "28px",
+    bottom: "28px",
+    width: "68px",
+    height: "68px",
+    borderRadius: "22px",
+    border: "none",
+    backgroundColor: "#f44336",
+    color: "#fff",
+    fontSize: "28px",
+    boxShadow: "0 10px 22px rgba(244,67,54,0.38)",
+    cursor: "pointer",
+    zIndex: 60
+  },
+  photoEditorEmpty: {
+    maxWidth: "620px",
+    margin: "80px auto",
+    backgroundColor: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "18px",
+    padding: "36px",
+    textAlign: "center",
+    boxShadow: "0 4px 18px rgba(0,0,0,0.06)"
+  },
+  photoEditorEmptyTitle: {
+    margin: "0 0 10px 0",
+    color: "#111827",
+    fontSize: "24px"
+  },
+  photoEditorEmptyText: {
+    margin: 0,
+    color: "#6b7280",
+    fontSize: "16px",
+    lineHeight: 1.5
+  },
+
   accessDeniedCard: {
     backgroundColor: "#fff",
     borderRadius: "18px",

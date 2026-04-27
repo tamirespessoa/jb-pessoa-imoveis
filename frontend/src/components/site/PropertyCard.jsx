@@ -89,7 +89,26 @@ export default function PropertyCard({ property }) {
         </span>
 
         {property.featured && (
-          <span className="property-card-featured">Destaque</span>
+          <span
+            className="property-card-featured"
+            style={{
+              position: "absolute",
+              top: "12px",
+              left: "12px",
+              background: "linear-gradient(135deg, #d4af37, #9b6b12)",
+              color: "#fff",
+              padding: "7px 12px",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: "800",
+              letterSpacing: "0.4px",
+              boxShadow: "0 10px 22px rgba(0,0,0,0.28)",
+              zIndex: 3,
+              textTransform: "uppercase"
+            }}
+          >
+            Destaque
+          </span>
         )}
       </div>
 

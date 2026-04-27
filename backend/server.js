@@ -16,6 +16,7 @@ const proposalRoutes = require("./src/routes/proposal.routes");
 const propertyRequestRoutes = require("./src/routes/propertyRequest.routes");
 const leadRoutes = require("./src/routes/lead.routes");
 const chatRoutes = require("./src/routes/chat.routes");
+const portalRoutes = require("./src/routes/portal.routes");
 
 const app = express();
 const server = http.createServer(app);
@@ -67,6 +68,7 @@ app.use("/proposals", proposalRoutes);
 app.use("/property-requests", propertyRequestRoutes);
 app.use("/leads", leadRoutes);
 app.use("/chat", chatRoutes);
+app.use("/portals", portalRoutes);
 
 // ERRO GLOBAL
 app.use((err, req, res, next) => {

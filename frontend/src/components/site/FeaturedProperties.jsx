@@ -177,7 +177,26 @@ export default function FeaturedProperties() {
                   </span>
 
                   {property.featured && (
-                    <span className="featured-property-star">Destaque</span>
+                    <span
+                      className="featured-property-star"
+                      style={{
+                        position: "absolute",
+                        top: "14px",
+                        right: "14px",
+                        background: "linear-gradient(135deg, #d4af37, #9b6b12)",
+                        color: "#fff",
+                        padding: "8px 13px",
+                        borderRadius: "999px",
+                        fontSize: "12px",
+                        fontWeight: "800",
+                        letterSpacing: "0.5px",
+                        boxShadow: "0 10px 24px rgba(0,0,0,0.3)",
+                        zIndex: 3,
+                        textTransform: "uppercase"
+                      }}
+                    >
+                      Destaque
+                    </span>
                   )}
                 </div>
 

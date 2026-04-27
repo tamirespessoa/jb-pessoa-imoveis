@@ -35,6 +35,10 @@ function normalizeStatus(status) {
   return "DISPONIVEL";
 }
 
+function toBoolean(value) {
+  return value === true || value === "true" || value === "1" || value === 1;
+}
+
 function toNullableNumber(value) {
   if (value === undefined || value === null || value === "") {
     return null;
@@ -153,7 +157,7 @@ function mapProperty(property) {
   return {
     ...property,
     images,
-    featured: false,
+    featured: Boolean(property.siteHighlight),
     bedrooms: property.rooms ?? 0,
     garageSpots: property.garage ?? 0,
     cep: property.zipCode ?? "",
@@ -189,6 +193,8 @@ async function createProperty(req, res) {
       title,
       code,
       description,
+      internalDescription,
+      captorName,
       price,
       rentPrice,
       type,
@@ -208,7 +214,13 @@ async function createProperty(req, res) {
       garage,
       garageSpots,
       area,
-      ownerId
+      ownerId,
+      publishOnSite,
+      siteHighlight,
+      valueOnRequest,
+      negotiable,
+      publishOnPortals,
+      highlightOnPortals
     } = req.body;
 
     if (!title || !String(title).trim()) {
@@ -293,6 +305,10 @@ async function createProperty(req, res) {
         title: String(title).trim(),
         code: finalCode,
         description: description ? String(description).trim() : null,
+        internalDescription: internalDescription
+          ? String(internalDescription).trim()
+          : null,
+        captorName: captorName ? String(captorName).trim() : null,
         price: Number(price),
         rentPrice: toNullableNumber(rentPrice),
         type: normalizeType(type),
@@ -309,7 +325,15 @@ async function createProperty(req, res) {
         garage: toNullableInt(garage ?? garageSpots),
         area: Number(area),
         ownerId: String(ownerId).trim(),
-        images: finalImages
+        images: finalImages,
+        publishOnSite:
+          publishOnSite !== undefined ? toBoolean(publishOnSite) : true,
+        siteHighlight: toBoolean(siteHighlight),
+        valueOnRequest: toBoolean(valueOnRequest),
+        negotiable: toBoolean(negotiable),
+
+        publishOnPortals: toBoolean(publishOnPortals),
+        highlightOnPortals: toBoolean(highlightOnPortals)
       },
       include: {
         owner: {
@@ -354,9 +378,10 @@ async function createProperty(req, res) {
 async function listProperties(req, res) {
   try {
     const properties = await prisma.property.findMany({
-      orderBy: {
-        createdAt: "desc"
-      },
+      orderBy: [
+        { siteHighlight: "desc" },
+        { createdAt: "desc" }
+      ],
       include: {
         owner: {
           select: {
@@ -412,6 +437,8 @@ async function updateProperty(req, res) {
       title,
       code,
       description,
+      internalDescription,
+      captorName,
       price,
       rentPrice,
       type,
@@ -431,7 +458,13 @@ async function updateProperty(req, res) {
       garage,
       garageSpots,
       area,
-      ownerId
+      ownerId,
+      publishOnSite,
+      siteHighlight,
+      valueOnRequest,
+      negotiable,
+      publishOnPortals,
+      highlightOnPortals
     } = req.body;
 
     const existingProperty = await prisma.property.findUnique({
@@ -474,6 +507,18 @@ async function updateProperty(req, res) {
           description !== undefined
             ? description
               ? String(description).trim()
+              : null
+            : undefined,
+        internalDescription:
+          internalDescription !== undefined
+            ? internalDescription
+              ? String(internalDescription).trim()
+              : null
+            : undefined,
+        captorName:
+          captorName !== undefined
+            ? captorName
+              ? String(captorName).trim()
               : null
             : undefined,
         price: price !== undefined ? Number(price) : undefined,
@@ -536,7 +581,32 @@ async function updateProperty(req, res) {
           ownerId !== undefined && ownerId !== null && ownerId !== ""
             ? String(ownerId).trim()
             : undefined,
-        images: finalImages
+        images: finalImages,
+        publishOnSite:
+          publishOnSite !== undefined
+            ? toBoolean(publishOnSite)
+            : undefined,
+        siteHighlight:
+          siteHighlight !== undefined
+            ? toBoolean(siteHighlight)
+            : undefined,
+        valueOnRequest:
+          valueOnRequest !== undefined
+            ? toBoolean(valueOnRequest)
+            : undefined,
+        negotiable:
+          negotiable !== undefined
+            ? toBoolean(negotiable)
+            : undefined,
+
+        publishOnPortals:
+          publishOnPortals !== undefined
+            ? toBoolean(publishOnPortals)
+            : undefined,
+        highlightOnPortals:
+          highlightOnPortals !== undefined
+            ? toBoolean(highlightOnPortals)
+            : undefined
       },
       include: {
         owner: {
@@ -620,7 +690,10 @@ async function listPublicProperties(req, res) {
     const normalizedType = normalizeType(type);
     const priceFilter = getPriceRangeFilter(priceRange);
 
-    const andFilters = [{ status: "DISPONIVEL" }];
+    const andFilters = [
+      { status: "DISPONIVEL" },
+      { publishOnSite: true }
+    ];
 
     if (search) {
       andFilters.push({
@@ -660,7 +733,10 @@ async function listPublicProperties(req, res) {
       prisma.property.count({ where }),
       prisma.property.findMany({
         where,
-        orderBy: getOrderBy(sort),
+        orderBy: [
+          { siteHighlight: "desc" },
+          getOrderBy(sort)
+        ],
         skip,
         take: perPage,
         include: {
@@ -700,7 +776,8 @@ async function getPublicPropertyById(req, res) {
     const property = await prisma.property.findFirst({
       where: {
         id,
-        status: "DISPONIVEL"
+        status: "DISPONIVEL",
+        publishOnSite: true
       },
       include: {
         owner: {
