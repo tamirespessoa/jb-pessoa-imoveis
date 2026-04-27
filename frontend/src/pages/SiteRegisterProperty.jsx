@@ -123,7 +123,7 @@ export default function SiteRegisterProperty() {
 
                 <div className="site-register-property-contact-box">
                   <span>Atendimento</span>
-                  <strong>(11) 98318-5430</strong>
+                  <strong>(11) 98341-6160</strong>
                   <p>Se preferir, também podemos atender pelo WhatsApp.</p>
                 </div>
               </div>

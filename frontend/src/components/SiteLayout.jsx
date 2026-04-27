@@ -30,7 +30,7 @@ export default function SiteLayout({ children }) {
 
           <div className="footer-info">
             <h3>JB Pessoa Imóveis</h3>
-            <p>Telefone: (11) 98318-5430</p>
+            <p>Telefone: (11) 98341-6160</p>
             <p>Email: contato@jbpessoaimoveis.com.br</p>
           </div>
         </div>

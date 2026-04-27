@@ -298,7 +298,7 @@ export default function SitePropertyDetails() {
 
                   <div className="site-property-details-contact-info">
                     <span>Telefone / WhatsApp</span>
-                    <strong>(11) 98318-5430</strong>
+                    <strong>(11) 98341-6160</strong>
                   </div>
 
                   <a
