@@ -12,6 +12,7 @@ function Owners() {
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [newActivityText, setNewActivityText] = useState("");
 
   const [form, setForm] = useState({
     type: "PROPRIETARIO",
@@ -24,12 +25,7 @@ function Owners() {
     commercialPhone: "",
     residentialPhone: "",
     contactPhone: "",
-    whatsapp: false,
-    category: "PROPRIETARIO",
-    firstContact: "",
-    isActive: true,
-    notes: "",
-    createReminder: false
+    whatsapp: false
   });
 
   function parseWhatsapp(value) {
@@ -106,9 +102,7 @@ function Owners() {
     return owners.filter((owner) =>
       `${owner.fullName || ""} ${owner.cpf || ""} ${owner.email || ""} ${
         owner.phone || ""
-      } ${owner.createdBy?.name || ""} ${owner.category || ""} ${
-        owner.firstContact || ""
-      }`
+      } ${owner.createdBy?.name || ""}`
         .toLowerCase()
         .includes(search.toLowerCase())
     );
@@ -129,18 +123,7 @@ function Owners() {
       commercialPhone: owner.commercialPhone || "",
       residentialPhone: owner.residentialPhone || "",
       contactPhone: owner.contactPhone || "",
-      whatsapp: parseWhatsapp(owner.whatsapp),
-      category: owner.category || "PROPRIETARIO",
-      firstContact: owner.firstContact || "",
-      isActive:
-        owner.isActive !== undefined && owner.isActive !== null
-          ? Boolean(owner.isActive)
-          : true,
-      notes: owner.notes || "",
-      createReminder:
-        owner.createReminder !== undefined && owner.createReminder !== null
-          ? Boolean(owner.createReminder)
-          : false
+      whatsapp: parseWhatsapp(owner.whatsapp)
     });
   }
 
@@ -160,12 +143,7 @@ function Owners() {
       commercialPhone: "",
       residentialPhone: "",
       contactPhone: "",
-      whatsapp: false,
-      category: "PROPRIETARIO",
-      firstContact: "",
-      isActive: true,
-      notes: "",
-      createReminder: false
+      whatsapp: false
     });
   }
 
@@ -198,22 +176,17 @@ function Owners() {
         commercialPhone: normalizeString(form.commercialPhone),
         residentialPhone: normalizeString(form.residentialPhone),
         contactPhone: normalizeString(form.contactPhone),
-        whatsapp: Boolean(form.whatsapp),
-        category: normalizeString(form.category),
-        firstContact: normalizeString(form.firstContact),
-        isActive: Boolean(form.isActive),
-        notes: normalizeString(form.notes),
-        createReminder: Boolean(form.createReminder)
+        whatsapp: Boolean(form.whatsapp)
       };
 
       if (editingId) {
         const response = await api.put(`/persons/${editingId}`, payload);
         alert("Proprietário atualizado com sucesso.");
-        await loadOwners(response.data?.person?.id || response.data?.id || editingId);
+        await loadOwners(response.data?.id || editingId);
       } else {
         const response = await api.post("/persons", payload);
         alert("Proprietário cadastrado com sucesso.");
-        await loadOwners(response.data?.person?.id || response.data?.id || null);
+        await loadOwners(response.data?.id || null);
       }
     } catch (error) {
       console.error(
@@ -304,17 +277,8 @@ function Owners() {
           <p><strong>WhatsApp:</strong> ${
             parseWhatsapp(selectedOwner.whatsapp) ? "Sim" : "Não"
           }</p>
-          <p><strong>Categoria:</strong> ${selectedOwner.category || "-"}</p>
-          <p><strong>Primeiro contato:</strong> ${selectedOwner.firstContact || "-"}</p>
-          <p><strong>Situação:</strong> ${
-            selectedOwner.isActive ? "Ativo" : "Inativo"
-          }</p>
-          <p><strong>Notas:</strong> ${selectedOwner.notes || "-"}</p>
-          <p><strong>Criar aviso:</strong> ${
-            selectedOwner.createReminder ? "Sim" : "Não"
-          }</p>
           <p><strong>Captador:</strong> ${
-            selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "-"
+            selectedOwner.createdBy?.name || "-"
           }</p>
         </body>
       </html>
@@ -337,10 +301,7 @@ Código: ${selectedOwner.id}
 CPF: ${selectedOwner.cpf || "-"}
 Telefone: ${selectedOwner.phone || "-"}
 E-mail: ${selectedOwner.email || "-"}
-Categoria: ${selectedOwner.category || "-"}
-Primeiro contato: ${selectedOwner.firstContact || "-"}
-Situação: ${selectedOwner.isActive ? "Ativo" : "Inativo"}
-Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "-"}
+Captador: ${selectedOwner.createdBy?.name || "-"}
     `.trim();
 
     try {
@@ -374,6 +335,59 @@ Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "
   function handleOpenService() {
     setShowMenu(false);
     alert("Área de atendimentos será ligada depois.");
+  }
+
+
+  function getCaptadorName(person) {
+    return (
+      person?.createdBy?.name ||
+      person?.createdBy?.email ||
+      person?.captorName ||
+      user.name ||
+      user.fullName ||
+      user.email ||
+      "Captador não informado"
+    );
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "-";
+    try {
+      return new Date(value).toLocaleString("pt-BR");
+    } catch {
+      return "-";
+    }
+  }
+
+  function handleSelectTemperature(value) {
+    setForm((prev) => ({
+      ...prev,
+      businessTemperature: value
+    }));
+  }
+
+  function handleAddActivity() {
+    const text = newActivityText.trim();
+
+    if (!text) {
+      alert("Digite uma anotação ou atividade.");
+      return;
+    }
+
+    const activity = {
+      id: Date.now(),
+      type: "Anotação",
+      text,
+      createdAt: new Date().toISOString(),
+      createdBy: user.name || user.fullName || user.email || "Usuário"
+    };
+
+    setForm((prev) => ({
+      ...prev,
+      activities: [activity, ...(Array.isArray(prev.activities) ? prev.activities : [])]
+    }));
+
+    setNewActivityText("");
   }
 
   return (
@@ -445,6 +459,53 @@ Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "
 
       <div style={styles.layout}>
         <aside style={styles.leftPanel}>
+          <div style={styles.activitiesBox}>
+            <div style={styles.activitiesHeader}>
+              <h3 style={styles.activitiesTitle}>Anotações e atividades</h3>
+              <div style={styles.activitiesIcons}>
+                <span title="Filtrar">⏷</span>
+                <span title="Atualizar" onClick={handleRefresh} style={styles.iconClickable}>↻</span>
+                <span title="Adicionar" onClick={handleAddActivity} style={styles.iconClickable}>⊕</span>
+              </div>
+            </div>
+
+            <textarea
+              value={newActivityText}
+              onChange={(e) => setNewActivityText(e.target.value)}
+              style={styles.activityTextarea}
+              placeholder="Digite uma anotação ou atividade..."
+            />
+
+            <button
+              type="button"
+              onClick={handleAddActivity}
+              style={styles.activityButton}
+            >
+              + Adicionar anotação
+            </button>
+
+            <div style={styles.activitiesList}>
+              {Array.isArray(form.activities) && form.activities.length > 0 ? (
+                form.activities.slice(0, 5).map((activity) => (
+                  <div key={activity.id || activity.createdAt} style={styles.activityItem}>
+                    <div style={styles.activityItemTop}>
+                      <strong>{activity.type || "Anotação"}</strong>
+                      <span>{formatDateTime(activity.createdAt)}</span>
+                    </div>
+                    <p style={styles.activityItemText}>{activity.text}</p>
+                    <div style={styles.activityAuthor}>
+                      👤 {activity.createdBy || getCaptadorName(selectedOwner)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={styles.emptyActivities}>
+                  Proprietário sem anotações ou atividades
+                </div>
+              )}
+            </div>
+          </div>
+
           <div style={styles.leftPanelHeader}>
             <h3 style={styles.leftPanelTitle}>
               {user.role === "ADMIN"
@@ -496,14 +557,9 @@ Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "
                   <strong>{owner.fullName}</strong>
                   <div style={styles.listMeta}>CPF: {owner.cpf || "-"}</div>
                   <div style={styles.listMeta}>{owner.phone || "-"}</div>
-                  {owner.category && (
+                  {owner.createdBy?.name && (
                     <div style={styles.responsibleText}>
-                      Categoria: {owner.category}
-                    </div>
-                  )}
-                  {(owner.createdBy?.name || owner.createdBy?.email) && (
-                    <div style={styles.responsibleText}>
-                      Captador: {owner.createdBy?.name || owner.createdBy?.email}
+                      Captador: {owner.createdBy.name}
                     </div>
                   )}
                 </button>
@@ -513,7 +569,13 @@ Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "
         </aside>
 
         <section style={styles.mainPanel}>
-          <div style={styles.formHeader}>
+          <div style={styles.rightNav}>
+            <a href="#cadastro" style={styles.rightNavItem}>Cadastro</a>
+            <a href="#atividades" style={styles.rightNavItem}>Atividades</a>
+            <a href="#dados-pessoais" style={styles.rightNavItem}>D. pessoais</a>
+            <a href="#endereco" style={styles.rightNavItem}>Endereço</a>
+          </div>
+          <div style={styles.formHeader} id="cadastro">
             <div style={styles.dot}></div>
             <h2 style={styles.formTitle}>Cadastro</h2>
           </div>
@@ -649,15 +711,7 @@ Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "
                 <label style={styles.label}>Captador</label>
                 <input
                   style={styles.lineInput}
-                  value={
-                    selectedOwner?.createdBy?.name ||
-                    selectedOwner?.createdBy?.email ||
-                    selectedOwner?.captorName ||
-                    user.name ||
-                    user.fullName ||
-                    user.email ||
-                    "Captador não informado"
-                  }
+                  value={getCaptadorName(selectedOwner)}
                   disabled
                 />
               </div>
@@ -699,63 +753,26 @@ Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "
               </div>
             </div>
 
-            <div style={styles.rowDouble}>
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>Situação</label>
-                <div style={styles.statusRow}>
-                  <span style={styles.statusTextLeft}>Inativo</span>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setForm((prev) => ({
-                        ...prev,
-                        isActive: !prev.isActive
-                      }))
-                    }
-                    style={{
-                      width: "54px",
-                      height: "30px",
-                      borderRadius: "30px",
-                      border: "none",
-                      backgroundColor: form.isActive ? "#b9dcbc" : "#d9d9d9",
-                      position: "relative",
-                      cursor: "pointer"
-                    }}
-                  >
-                    <span
+            <div style={styles.rowSingle}>
+              <label style={styles.label}>Termômetro de Negócios</label>
+              <div style={styles.thermometerRow}>
+                {["FRIO", "MORNO", "INTERESSADO", "QUENTE", "FECHAMENTO"].map(
+                  (item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => handleSelectTemperature(item)}
                       style={{
-                        position: "absolute",
-                        top: "4px",
-                        left: form.isActive ? "28px" : "4px",
-                        width: "22px",
-                        height: "22px",
-                        borderRadius: "50%",
-                        backgroundColor: form.isActive ? "#8cc98f" : "#ffffff",
-                        transition: "0.2s"
+                        ...styles.thermometerButton,
+                        ...(form.businessTemperature === item
+                          ? styles[`thermometer${item}`]
+                          : styles.thermometerInactive)
                       }}
-                    />
-                  </button>
-
-                  <span style={styles.statusTextRight}>Ativo</span>
-                </div>
-              </div>
-
-              <div style={styles.fieldContent}>
-                <label style={styles.label}>
-                  Criar aviso na agenda para retorno
-                </label>
-                <div style={styles.checkboxWrap}>
-                  <input
-                    type="checkbox"
-                    name="createReminder"
-                    checked={form.createReminder}
-                    onChange={handleChange}
-                  />
-                  <span style={styles.checkboxLabel}>
-                    Criar retorno automático
-                  </span>
-                </div>
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
               </div>
             </div>
 
@@ -769,6 +786,77 @@ Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "
                   style={styles.textarea}
                   placeholder="Digite observações sobre o proprietário..."
                 />
+              </div>
+            </div>
+
+            <div style={styles.crmSection} id="dados-pessoais">
+              <h2 style={styles.crmSectionTitle}>Dados pessoais</h2>
+              <div style={styles.rowTriple}>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Pessoa</label>
+                  <select style={styles.lineSelect} defaultValue="FISICA">
+                    <option value="FISICA">FÍSICA</option>
+                    <option value="JURIDICA">JURÍDICA</option>
+                  </select>
+                </div>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>CPF</label>
+                  <input style={styles.lineInput} value={form.cpf} disabled />
+                </div>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>RG</label>
+                  <input style={styles.lineInput} value={form.rg} disabled />
+                </div>
+              </div>
+
+              <div style={styles.rowDouble}>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Estado Civil</label>
+                  <select style={styles.lineSelect} defaultValue="">
+                    <option value="">Selecione...</option>
+                    <option value="SOLTEIRO">Solteiro(a)</option>
+                    <option value="CASADO">Casado(a)</option>
+                    <option value="DIVORCIADO">Divorciado(a)</option>
+                    <option value="VIUVO">Viúvo(a)</option>
+                  </select>
+                </div>
+
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Profissão</label>
+                  <input style={styles.lineInput} placeholder="Profissão" />
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.crmSection} id="endereco">
+              <h2 style={styles.crmSectionTitle}>Endereço</h2>
+              <div style={styles.rowDouble}>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Endereço Residencial</label>
+                  <input style={styles.lineInput} placeholder="Rua, avenida..." />
+                </div>
+
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Número</label>
+                  <input style={styles.lineInput} placeholder="Número" />
+                </div>
+              </div>
+
+              <div style={styles.rowTriple}>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Bairro</label>
+                  <input style={styles.lineInput} placeholder="Bairro" />
+                </div>
+
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Cidade</label>
+                  <input style={styles.lineInput} placeholder="Cidade" />
+                </div>
+
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>UF</label>
+                  <input style={styles.lineInput} placeholder="SP" />
+                </div>
               </div>
             </div>
 
@@ -795,6 +883,155 @@ Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "
 }
 
 const styles = {
+
+  activitiesBox: {
+    backgroundColor: "#fffdf8",
+    border: "1px solid #e3d6b5",
+    borderRadius: "12px",
+    padding: "14px",
+    marginBottom: "16px"
+  },
+  activitiesHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "10px"
+  },
+  activitiesTitle: {
+    margin: 0,
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#5d4a1f"
+  },
+  activitiesIcons: {
+    display: "flex",
+    gap: "12px",
+    color: "#8b7a52",
+    fontSize: "20px"
+  },
+  activityTextarea: {
+    width: "100%",
+    minHeight: "70px",
+    border: "1px solid #d8c8a2",
+    borderRadius: "8px",
+    padding: "10px",
+    resize: "vertical",
+    outline: "none",
+    boxSizing: "border-box",
+    backgroundColor: "#fff"
+  },
+  activityButton: {
+    width: "100%",
+    marginTop: "8px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#d4a62a",
+    color: "#fff",
+    padding: "10px",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
+  activitiesList: {
+    marginTop: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    maxHeight: "260px",
+    overflowY: "auto"
+  },
+  activityItem: {
+    backgroundColor: "#f0eee8",
+    borderRadius: "10px",
+    padding: "12px"
+  },
+  activityItemTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    fontSize: "13px",
+    color: "#6b5b34"
+  },
+  activityItemText: {
+    margin: "8px 0",
+    fontSize: "14px",
+    color: "#222",
+    lineHeight: 1.4
+  },
+  activityAuthor: {
+    fontSize: "12px",
+    color: "#7a6a47",
+    fontWeight: "600"
+  },
+  emptyActivities: {
+    color: "#c0b38f",
+    textAlign: "center",
+    padding: "30px 10px",
+    fontSize: "14px"
+  },
+  thermometerRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gap: "14px",
+    marginTop: "8px"
+  },
+  thermometerButton: {
+    border: "none",
+    borderRadius: "6px",
+    minHeight: "46px",
+    color: "#fff",
+    fontWeight: "800",
+    cursor: "pointer"
+  },
+  thermometerInactive: {
+    backgroundColor: "#e5dcc1",
+    color: "#8b7a52"
+  },
+  thermometerFRIO: {
+    backgroundColor: "#60a5fa"
+  },
+  thermometerMORNO: {
+    backgroundColor: "#86efac",
+    color: "#14532d"
+  },
+  thermometerINTERESSADO: {
+    backgroundColor: "#fde68a",
+    color: "#78350f"
+  },
+  thermometerQUENTE: {
+    backgroundColor: "#fdba74",
+    color: "#7c2d12"
+  },
+  thermometerFECHAMENTO: {
+    backgroundColor: "#f87171"
+  },
+  rightNav: {
+    position: "fixed",
+    right: "34px",
+    top: "230px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
+    zIndex: 5
+  },
+  rightNavItem: {
+    color: "#7a6a47",
+    textDecoration: "none",
+    fontSize: "16px",
+    borderLeft: "3px solid transparent",
+    paddingLeft: "12px",
+    fontWeight: "600"
+  },
+  crmSection: {
+    borderTop: "1px solid #eee2bf",
+    marginTop: "38px",
+    paddingTop: "30px"
+  },
+  crmSectionTitle: {
+    margin: "0 0 26px 0",
+    fontSize: "28px",
+    fontWeight: "500",
+    color: "#111"
+  },
   page: {
     backgroundColor: "#f3f0e8",
     minHeight: "100vh",
@@ -1013,26 +1250,6 @@ const styles = {
     outline: "none",
     backgroundColor: "transparent"
   },
-  lineSelect: {
-    border: "none",
-    borderBottom: "1px solid #d8c8a2",
-    padding: "8px 0 10px 0",
-    fontSize: "18px",
-    outline: "none",
-    backgroundColor: "transparent"
-  },
-  textarea: {
-    width: "100%",
-    minHeight: "90px",
-    border: "1px solid #d8c8a2",
-    borderRadius: "8px",
-    padding: "12px",
-    fontSize: "16px",
-    outline: "none",
-    backgroundColor: "#fffdf8",
-    resize: "vertical",
-    boxSizing: "border-box"
-  },
   checkboxWrap: {
     display: "flex",
     alignItems: "center",
@@ -1042,20 +1259,6 @@ const styles = {
   checkboxLabel: {
     color: "#7a6a47",
     fontSize: "16px"
-  },
-  statusRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
-    paddingTop: "10px"
-  },
-  statusTextLeft: {
-    fontSize: "16px",
-    color: "#000"
-  },
-  statusTextRight: {
-    fontSize: "16px",
-    color: "#000"
   },
   actionRow: {
     display: "flex",

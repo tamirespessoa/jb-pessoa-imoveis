@@ -111,6 +111,8 @@ model Person {
   createReminder Boolean  @default(false)
   createdById    String?
   createdBy      User?    @relation("PersonCreatedBy", fields: [createdById], references: [id])
+  businessTemperature String? @default("FRIO")
+  activities          Json?
 }
 
 model Property {

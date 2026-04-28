@@ -93,7 +93,9 @@ function buildCreatePersonData(body) {
     createReminder:
       body.createReminder !== undefined && body.createReminder !== null
         ? Boolean(body.createReminder)
-        : false
+        : false,
+    businessTemperature: normalizeString(body.businessTemperature) || "FRIO",
+    activities: Array.isArray(body.activities) ? body.activities : []
   };
 }
 
@@ -125,6 +127,10 @@ function buildUpdatePersonData(body) {
     data.isActive = Boolean(body.isActive);
   if (body.createReminder !== undefined)
     data.createReminder = Boolean(body.createReminder);
+  if (body.businessTemperature !== undefined)
+    data.businessTemperature = normalizeString(body.businessTemperature) || "FRIO";
+  if (body.activities !== undefined)
+    data.activities = Array.isArray(body.activities) ? body.activities : [];
 
   return data;
 }

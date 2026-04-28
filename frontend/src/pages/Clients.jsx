@@ -12,6 +12,7 @@ function Clients() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [newActivityText, setNewActivityText] = useState("");
 
   const [form, setForm] = useState({
     type: "CLIENTE",
@@ -29,7 +30,9 @@ function Clients() {
     firstContact: "",
     isActive: true,
     notes: "",
-    createReminder: false
+    createReminder: false,
+    businessTemperature: "FRIO",
+    activities: []
   });
 
   function parseWhatsapp(value) {
@@ -138,9 +141,11 @@ function Clients() {
           : true,
       notes: client.notes || "",
       createReminder:
-        client.createReminder !== undefined && client.createReminder !== null
-          ? Boolean(client.createReminder)
-          : false
+        selectedClient.createReminder !== undefined && selectedClient.createReminder !== null
+          ? Boolean(selectedClient.createReminder)
+          : false,
+      businessTemperature: selectedClient.businessTemperature || "FRIO",
+      activities: Array.isArray(selectedClient.activities) ? selectedClient.activities : []
     });
   }
 
@@ -165,7 +170,9 @@ function Clients() {
       firstContact: "",
       isActive: true,
       notes: "",
-      createReminder: false
+      createReminder: false,
+    businessTemperature: "FRIO",
+    activities: []
     });
   }
 
@@ -203,7 +210,9 @@ function Clients() {
         firstContact: normalizeString(form.firstContact),
         isActive: Boolean(form.isActive),
         notes: normalizeString(form.notes),
-        createReminder: Boolean(form.createReminder)
+        createReminder: Boolean(form.createReminder),
+        businessTemperature: normalizeString(form.businessTemperature) || "FRIO",
+        activities: Array.isArray(form.activities) ? form.activities : []
       };
 
       if (editingId) {
@@ -415,6 +424,59 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
     navigate("/imoveis");
   }
 
+
+  function getCaptadorName(person) {
+    return (
+      person?.createdBy?.name ||
+      person?.createdBy?.email ||
+      person?.captorName ||
+      user.name ||
+      user.fullName ||
+      user.email ||
+      "Captador não informado"
+    );
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "-";
+    try {
+      return new Date(value).toLocaleString("pt-BR");
+    } catch {
+      return "-";
+    }
+  }
+
+  function handleSelectTemperature(value) {
+    setForm((prev) => ({
+      ...prev,
+      businessTemperature: value
+    }));
+  }
+
+  function handleAddActivity() {
+    const text = newActivityText.trim();
+
+    if (!text) {
+      alert("Digite uma anotação ou atividade.");
+      return;
+    }
+
+    const activity = {
+      id: Date.now(),
+      type: "Anotação",
+      text,
+      createdAt: new Date().toISOString(),
+      createdBy: user.name || user.fullName || user.email || "Usuário"
+    };
+
+    setForm((prev) => ({
+      ...prev,
+      activities: [activity, ...(Array.isArray(prev.activities) ? prev.activities : [])]
+    }));
+
+    setNewActivityText("");
+  }
+
   return (
     <div style={styles.page}>
       <div style={styles.blueBar}>
@@ -512,6 +574,53 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
       <div style={styles.layout}>
         <aside style={styles.leftPanel}>
+          <div style={styles.activitiesBox}>
+            <div style={styles.activitiesHeader}>
+              <h3 style={styles.activitiesTitle}>Anotações e atividades</h3>
+              <div style={styles.activitiesIcons}>
+                <span title="Filtrar">⏷</span>
+                <span title="Atualizar" onClick={handleRefresh} style={styles.iconClickable}>↻</span>
+                <span title="Adicionar" onClick={handleAddActivity} style={styles.iconClickable}>⊕</span>
+              </div>
+            </div>
+
+            <textarea
+              value={newActivityText}
+              onChange={(e) => setNewActivityText(e.target.value)}
+              style={styles.activityTextarea}
+              placeholder="Digite uma anotação ou atividade..."
+            />
+
+            <button
+              type="button"
+              onClick={handleAddActivity}
+              style={styles.activityButton}
+            >
+              + Adicionar anotação
+            </button>
+
+            <div style={styles.activitiesList}>
+              {Array.isArray(form.activities) && form.activities.length > 0 ? (
+                form.activities.slice(0, 5).map((activity) => (
+                  <div key={activity.id || activity.createdAt} style={styles.activityItem}>
+                    <div style={styles.activityItemTop}>
+                      <strong>{activity.type || "Anotação"}</strong>
+                      <span>{formatDateTime(activity.createdAt)}</span>
+                    </div>
+                    <p style={styles.activityItemText}>{activity.text}</p>
+                    <div style={styles.activityAuthor}>
+                      👤 {activity.createdBy || getCaptadorName(selectedClient)}
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={styles.emptyActivities}>
+                  Cliente sem anotações ou atividades
+                </div>
+              )}
+            </div>
+          </div>
+
           <div style={styles.leftPanelHeader}>
             <h3 style={styles.leftPanelTitle}>
               {user.role === "ADMIN"
@@ -584,7 +693,13 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
         </aside>
 
         <section style={styles.mainPanel}>
-          <div style={styles.formHeader}>
+          <div style={styles.rightNav}>
+            <a href="#cadastro" style={styles.rightNavItem}>Cadastro</a>
+            <a href="#atividades" style={styles.rightNavItem}>Atividades</a>
+            <a href="#dados-pessoais" style={styles.rightNavItem}>D. pessoais</a>
+            <a href="#endereco" style={styles.rightNavItem}>Endereço</a>
+          </div>
+          <div style={styles.formHeader} id="cadastro">
             <div style={styles.greenDot}></div>
             <h2 style={styles.formTitle}>Cadastro</h2>
           </div>
@@ -720,15 +835,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
                 <label style={styles.label}>Captador</label>
                 <input
                   style={styles.lineInput}
-                  value={
-                    selectedClient?.createdBy?.name ||
-                    selectedClient?.createdBy?.email ||
-                    selectedClient?.captorName ||
-                    user.name ||
-                    user.fullName ||
-                    user.email ||
-                    "Captador não informado"
-                  }
+                  value={getCaptadorName(selectedClient)}
                   disabled
                 />
               </div>
@@ -832,6 +939,29 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             </div>
 
             <div style={styles.rowSingle}>
+              <label style={styles.label}>Termômetro de Negócios</label>
+              <div style={styles.thermometerRow}>
+                {["FRIO", "MORNO", "INTERESSADO", "QUENTE", "FECHAMENTO"].map(
+                  (item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => handleSelectTemperature(item)}
+                      style={{
+                        ...styles.thermometerButton,
+                        ...(form.businessTemperature === item
+                          ? styles[`thermometer${item}`]
+                          : styles.thermometerInactive)
+                      }}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+              </div>
+            </div>
+
+            <div style={styles.rowSingle}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Notas sobre o cliente</label>
                 <textarea
@@ -841,6 +971,77 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
                   style={styles.textarea}
                   placeholder="Digite observações sobre o cliente..."
                 />
+              </div>
+            </div>
+
+            <div style={styles.crmSection} id="dados-pessoais">
+              <h2 style={styles.crmSectionTitle}>Dados pessoais</h2>
+              <div style={styles.rowTriple}>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Pessoa</label>
+                  <select style={styles.lineSelect} defaultValue="FISICA">
+                    <option value="FISICA">FÍSICA</option>
+                    <option value="JURIDICA">JURÍDICA</option>
+                  </select>
+                </div>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>CPF</label>
+                  <input style={styles.lineInput} value={form.cpf} disabled />
+                </div>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>RG</label>
+                  <input style={styles.lineInput} value={form.rg} disabled />
+                </div>
+              </div>
+
+              <div style={styles.rowDouble}>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Estado Civil</label>
+                  <select style={styles.lineSelect} defaultValue="">
+                    <option value="">Selecione...</option>
+                    <option value="SOLTEIRO">Solteiro(a)</option>
+                    <option value="CASADO">Casado(a)</option>
+                    <option value="DIVORCIADO">Divorciado(a)</option>
+                    <option value="VIUVO">Viúvo(a)</option>
+                  </select>
+                </div>
+
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Profissão</label>
+                  <input style={styles.lineInput} placeholder="Profissão" />
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.crmSection} id="endereco">
+              <h2 style={styles.crmSectionTitle}>Endereço</h2>
+              <div style={styles.rowDouble}>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Endereço Residencial</label>
+                  <input style={styles.lineInput} placeholder="Rua, avenida..." />
+                </div>
+
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Número</label>
+                  <input style={styles.lineInput} placeholder="Número" />
+                </div>
+              </div>
+
+              <div style={styles.rowTriple}>
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Bairro</label>
+                  <input style={styles.lineInput} placeholder="Bairro" />
+                </div>
+
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>Cidade</label>
+                  <input style={styles.lineInput} placeholder="Cidade" />
+                </div>
+
+                <div style={styles.fieldContent}>
+                  <label style={styles.label}>UF</label>
+                  <input style={styles.lineInput} placeholder="SP" />
+                </div>
               </div>
             </div>
 
@@ -877,6 +1078,155 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 }
 
 const styles = {
+
+  activitiesBox: {
+    backgroundColor: "#fffdf8",
+    border: "1px solid #e3d6b5",
+    borderRadius: "12px",
+    padding: "14px",
+    marginBottom: "16px"
+  },
+  activitiesHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "10px"
+  },
+  activitiesTitle: {
+    margin: 0,
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#5d4a1f"
+  },
+  activitiesIcons: {
+    display: "flex",
+    gap: "12px",
+    color: "#8b7a52",
+    fontSize: "20px"
+  },
+  activityTextarea: {
+    width: "100%",
+    minHeight: "70px",
+    border: "1px solid #d8c8a2",
+    borderRadius: "8px",
+    padding: "10px",
+    resize: "vertical",
+    outline: "none",
+    boxSizing: "border-box",
+    backgroundColor: "#fff"
+  },
+  activityButton: {
+    width: "100%",
+    marginTop: "8px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#d4a62a",
+    color: "#fff",
+    padding: "10px",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
+  activitiesList: {
+    marginTop: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    maxHeight: "260px",
+    overflowY: "auto"
+  },
+  activityItem: {
+    backgroundColor: "#f0eee8",
+    borderRadius: "10px",
+    padding: "12px"
+  },
+  activityItemTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    fontSize: "13px",
+    color: "#6b5b34"
+  },
+  activityItemText: {
+    margin: "8px 0",
+    fontSize: "14px",
+    color: "#222",
+    lineHeight: 1.4
+  },
+  activityAuthor: {
+    fontSize: "12px",
+    color: "#7a6a47",
+    fontWeight: "600"
+  },
+  emptyActivities: {
+    color: "#c0b38f",
+    textAlign: "center",
+    padding: "30px 10px",
+    fontSize: "14px"
+  },
+  thermometerRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gap: "14px",
+    marginTop: "8px"
+  },
+  thermometerButton: {
+    border: "none",
+    borderRadius: "6px",
+    minHeight: "46px",
+    color: "#fff",
+    fontWeight: "800",
+    cursor: "pointer"
+  },
+  thermometerInactive: {
+    backgroundColor: "#e5dcc1",
+    color: "#8b7a52"
+  },
+  thermometerFRIO: {
+    backgroundColor: "#60a5fa"
+  },
+  thermometerMORNO: {
+    backgroundColor: "#86efac",
+    color: "#14532d"
+  },
+  thermometerINTERESSADO: {
+    backgroundColor: "#fde68a",
+    color: "#78350f"
+  },
+  thermometerQUENTE: {
+    backgroundColor: "#fdba74",
+    color: "#7c2d12"
+  },
+  thermometerFECHAMENTO: {
+    backgroundColor: "#f87171"
+  },
+  rightNav: {
+    position: "fixed",
+    right: "34px",
+    top: "230px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
+    zIndex: 5
+  },
+  rightNavItem: {
+    color: "#7a6a47",
+    textDecoration: "none",
+    fontSize: "16px",
+    borderLeft: "3px solid transparent",
+    paddingLeft: "12px",
+    fontWeight: "600"
+  },
+  crmSection: {
+    borderTop: "1px solid #eee2bf",
+    marginTop: "38px",
+    paddingTop: "30px"
+  },
+  crmSectionTitle: {
+    margin: "0 0 26px 0",
+    fontSize: "28px",
+    fontWeight: "500",
+    color: "#111"
+  },
   page: {
     backgroundColor: "#f3f0e8",
     minHeight: "100vh",
