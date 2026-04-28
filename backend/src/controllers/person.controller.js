@@ -138,9 +138,11 @@ function buildUpdatePersonData(body) {
 
 function getAuthUser(req) {
   const user = req.user || {};
+  const role = String(user.role || "USER").toUpperCase();
+
   return {
     id: user.id || user.userId || null,
-    role: user.role || "USER",
+    role,
     name: user.name || user.fullName || user.email || ""
   };
 }
@@ -233,11 +235,15 @@ async function listPersons(req, res) {
 
     const authUser = getAuthUser(req);
 
+    if (!authUser.id) {
+      return res.status(401).json({
+        error: "Usuário não identificado no token."
+      });
+    }
+
     const secureWhere = {
       ...where,
-      ...(authUser.role === "ADMIN" || !authUser.id
-        ? {}
-        : { createdById: authUser.id })
+      ...(authUser.role === "ADMIN" ? {} : { createdById: authUser.id })
     };
 
     const persons = await prisma.person.findMany({

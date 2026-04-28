@@ -25,7 +25,14 @@ function Owners() {
     commercialPhone: "",
     residentialPhone: "",
     contactPhone: "",
-    whatsapp: false
+    whatsapp: false,
+    category: "PROPRIETARIO",
+    firstContact: "",
+    isActive: true,
+    notes: "",
+    createReminder: false,
+    businessTemperature: "FRIO",
+    activities: []
   });
 
   function parseWhatsapp(value) {
@@ -65,16 +72,25 @@ function Owners() {
           return;
         }
       }
-
-      if (!selectedOwner && filtered.length > 0) {
-        handleSelectOwner(filtered[0]);
-      }
+      // Não seleciona proprietário automaticamente. O usuário escolhe na lista.
     } catch (error) {
       console.error(
         "Erro ao carregar proprietários:",
         error.response?.data || error.message
       );
-      alert("Erro ao carregar proprietários.");
+
+      const apiMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.response?.data?.details ||
+        error.message ||
+        "Não foi possível carregar os proprietários.";
+
+      alert(`Erro ao carregar proprietários:
+${apiMessage}`);
+      setOwners([]);
+      setSelectedOwner(null);
+      setEditingId(null);
     }
   }
 
@@ -102,7 +118,7 @@ function Owners() {
     return owners.filter((owner) =>
       `${owner.fullName || ""} ${owner.cpf || ""} ${owner.email || ""} ${
         owner.phone || ""
-      } ${owner.createdBy?.name || ""}`
+      } ${owner.createdBy?.name || ""} ${owner.category || ""} ${owner.firstContact || ""}`
         .toLowerCase()
         .includes(search.toLowerCase())
     );
@@ -123,7 +139,20 @@ function Owners() {
       commercialPhone: owner.commercialPhone || "",
       residentialPhone: owner.residentialPhone || "",
       contactPhone: owner.contactPhone || "",
-      whatsapp: parseWhatsapp(owner.whatsapp)
+      whatsapp: parseWhatsapp(owner.whatsapp),
+      category: owner.category || "PROPRIETARIO",
+      firstContact: owner.firstContact || "",
+      isActive:
+        owner.isActive !== undefined && owner.isActive !== null
+          ? Boolean(owner.isActive)
+          : true,
+      notes: owner.notes || "",
+      createReminder:
+        owner.createReminder !== undefined && owner.createReminder !== null
+          ? Boolean(owner.createReminder)
+          : false,
+      businessTemperature: owner.businessTemperature || "FRIO",
+      activities: Array.isArray(owner.activities) ? owner.activities : []
     });
   }
 
@@ -143,7 +172,14 @@ function Owners() {
       commercialPhone: "",
       residentialPhone: "",
       contactPhone: "",
-      whatsapp: false
+      whatsapp: false,
+      category: "PROPRIETARIO",
+      firstContact: "",
+      isActive: true,
+      notes: "",
+      createReminder: false,
+      businessTemperature: "FRIO",
+      activities: []
     });
   }
 
@@ -176,17 +212,24 @@ function Owners() {
         commercialPhone: normalizeString(form.commercialPhone),
         residentialPhone: normalizeString(form.residentialPhone),
         contactPhone: normalizeString(form.contactPhone),
-        whatsapp: Boolean(form.whatsapp)
+        whatsapp: Boolean(form.whatsapp),
+        category: normalizeString(form.category),
+        firstContact: normalizeString(form.firstContact),
+        isActive: Boolean(form.isActive),
+        notes: normalizeString(form.notes),
+        createReminder: Boolean(form.createReminder),
+        businessTemperature: normalizeString(form.businessTemperature) || "FRIO",
+        activities: Array.isArray(form.activities) ? form.activities : []
       };
 
       if (editingId) {
         const response = await api.put(`/persons/${editingId}`, payload);
         alert("Proprietário atualizado com sucesso.");
-        await loadOwners(response.data?.id || editingId);
+        await loadOwners(response.data?.person?.id || response.data?.id || editingId);
       } else {
         const response = await api.post("/persons", payload);
         alert("Proprietário cadastrado com sucesso.");
-        await loadOwners(response.data?.id || null);
+        await loadOwners(response.data?.person?.id || response.data?.id || null);
       }
     } catch (error) {
       console.error(
@@ -459,7 +502,7 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
 
       <div style={styles.layout}>
         <aside style={styles.leftPanel}>
-          <div style={styles.activitiesBox}>
+          <div style={styles.activitiesBox} id="atividades">
             <div style={styles.activitiesHeader}>
               <h3 style={styles.activitiesTitle}>Anotações e atividades</h3>
               <div style={styles.activitiesIcons}>
@@ -1005,9 +1048,10 @@ const styles = {
     backgroundColor: "#f87171"
   },
   rightNav: {
-    position: "fixed",
-    right: "34px",
-    top: "230px",
+    position: "sticky",
+    float: "right",
+    right: "10px",
+    top: "90px",
     display: "flex",
     flexDirection: "column",
     gap: "20px",
@@ -1185,8 +1229,9 @@ const styles = {
   },
   mainPanel: {
     backgroundColor: "#fffdf8",
-    padding: "26px 34px",
-    position: "relative"
+    padding: "26px 150px 26px 34px",
+    position: "relative",
+    overflowX: "hidden"
   },
   formHeader: {
     display: "flex",

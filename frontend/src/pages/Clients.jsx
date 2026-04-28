@@ -72,16 +72,25 @@ function Clients() {
           return;
         }
       }
-
-      if (!selectedClient && filtered.length > 0) {
-        handleSelectClient(filtered[0]);
-      }
+      // Não seleciona cliente automaticamente. O usuário escolhe na lista.
     } catch (error) {
       console.error(
         "Erro ao carregar clientes:",
         error.response?.data || error.message
       );
-      alert("Erro ao carregar clientes.");
+
+      const apiMessage =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.response?.data?.details ||
+        error.message ||
+        "Não foi possível carregar os clientes.";
+
+      alert(`Erro ao carregar clientes:
+${apiMessage}`);
+      setClients([]);
+      setSelectedClient(null);
+      setEditingId(null);
     }
   }
 
@@ -141,11 +150,11 @@ function Clients() {
           : true,
       notes: client.notes || "",
       createReminder:
-        selectedClient.createReminder !== undefined && selectedClient.createReminder !== null
-          ? Boolean(selectedClient.createReminder)
+        client.createReminder !== undefined && client.createReminder !== null
+          ? Boolean(client.createReminder)
           : false,
-      businessTemperature: selectedClient.businessTemperature || "FRIO",
-      activities: Array.isArray(selectedClient.activities) ? selectedClient.activities : []
+      businessTemperature: client.businessTemperature || "FRIO",
+      activities: Array.isArray(client.activities) ? client.activities : []
     });
   }
 
@@ -171,8 +180,8 @@ function Clients() {
       isActive: true,
       notes: "",
       createReminder: false,
-    businessTemperature: "FRIO",
-    activities: []
+      businessTemperature: "FRIO",
+      activities: []
     });
   }
 
@@ -574,7 +583,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
       <div style={styles.layout}>
         <aside style={styles.leftPanel}>
-          <div style={styles.activitiesBox}>
+          <div style={styles.activitiesBox} id="atividades">
             <div style={styles.activitiesHeader}>
               <h3 style={styles.activitiesTitle}>Anotações e atividades</h3>
               <div style={styles.activitiesIcons}>
@@ -1200,9 +1209,10 @@ const styles = {
     backgroundColor: "#f87171"
   },
   rightNav: {
-    position: "fixed",
-    right: "34px",
-    top: "230px",
+    position: "sticky",
+    float: "right",
+    right: "10px",
+    top: "90px",
     display: "flex",
     flexDirection: "column",
     gap: "20px",
@@ -1380,8 +1390,9 @@ const styles = {
   },
   mainPanel: {
     backgroundColor: "#fffdf8",
-    padding: "26px 34px",
-    position: "relative"
+    padding: "26px 150px 26px 34px",
+    position: "relative",
+    overflowX: "hidden"
   },
   formHeader: {
     display: "flex",
