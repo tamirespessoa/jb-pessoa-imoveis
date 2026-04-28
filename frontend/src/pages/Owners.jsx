@@ -24,7 +24,12 @@ function Owners() {
     commercialPhone: "",
     residentialPhone: "",
     contactPhone: "",
-    whatsapp: false
+    whatsapp: false,
+    category: "PROPRIETARIO",
+    firstContact: "",
+    isActive: true,
+    notes: "",
+    createReminder: false
   });
 
   function parseWhatsapp(value) {
@@ -101,7 +106,9 @@ function Owners() {
     return owners.filter((owner) =>
       `${owner.fullName || ""} ${owner.cpf || ""} ${owner.email || ""} ${
         owner.phone || ""
-      } ${owner.assignedTo?.name || ""}`
+      } ${owner.createdBy?.name || ""} ${owner.category || ""} ${
+        owner.firstContact || ""
+      }`
         .toLowerCase()
         .includes(search.toLowerCase())
     );
@@ -122,7 +129,18 @@ function Owners() {
       commercialPhone: owner.commercialPhone || "",
       residentialPhone: owner.residentialPhone || "",
       contactPhone: owner.contactPhone || "",
-      whatsapp: parseWhatsapp(owner.whatsapp)
+      whatsapp: parseWhatsapp(owner.whatsapp),
+      category: owner.category || "PROPRIETARIO",
+      firstContact: owner.firstContact || "",
+      isActive:
+        owner.isActive !== undefined && owner.isActive !== null
+          ? Boolean(owner.isActive)
+          : true,
+      notes: owner.notes || "",
+      createReminder:
+        owner.createReminder !== undefined && owner.createReminder !== null
+          ? Boolean(owner.createReminder)
+          : false
     });
   }
 
@@ -142,7 +160,12 @@ function Owners() {
       commercialPhone: "",
       residentialPhone: "",
       contactPhone: "",
-      whatsapp: false
+      whatsapp: false,
+      category: "PROPRIETARIO",
+      firstContact: "",
+      isActive: true,
+      notes: "",
+      createReminder: false
     });
   }
 
@@ -175,17 +198,22 @@ function Owners() {
         commercialPhone: normalizeString(form.commercialPhone),
         residentialPhone: normalizeString(form.residentialPhone),
         contactPhone: normalizeString(form.contactPhone),
-        whatsapp: Boolean(form.whatsapp)
+        whatsapp: Boolean(form.whatsapp),
+        category: normalizeString(form.category),
+        firstContact: normalizeString(form.firstContact),
+        isActive: Boolean(form.isActive),
+        notes: normalizeString(form.notes),
+        createReminder: Boolean(form.createReminder)
       };
 
       if (editingId) {
         const response = await api.put(`/persons/${editingId}`, payload);
         alert("Proprietário atualizado com sucesso.");
-        await loadOwners(response.data?.id || editingId);
+        await loadOwners(response.data?.person?.id || response.data?.id || editingId);
       } else {
         const response = await api.post("/persons", payload);
         alert("Proprietário cadastrado com sucesso.");
-        await loadOwners(response.data?.id || null);
+        await loadOwners(response.data?.person?.id || response.data?.id || null);
       }
     } catch (error) {
       console.error(
@@ -276,8 +304,17 @@ function Owners() {
           <p><strong>WhatsApp:</strong> ${
             parseWhatsapp(selectedOwner.whatsapp) ? "Sim" : "Não"
           }</p>
-          <p><strong>Responsável:</strong> ${
-            selectedOwner.assignedTo?.name || "-"
+          <p><strong>Categoria:</strong> ${selectedOwner.category || "-"}</p>
+          <p><strong>Primeiro contato:</strong> ${selectedOwner.firstContact || "-"}</p>
+          <p><strong>Situação:</strong> ${
+            selectedOwner.isActive ? "Ativo" : "Inativo"
+          }</p>
+          <p><strong>Notas:</strong> ${selectedOwner.notes || "-"}</p>
+          <p><strong>Criar aviso:</strong> ${
+            selectedOwner.createReminder ? "Sim" : "Não"
+          }</p>
+          <p><strong>Captador:</strong> ${
+            selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "-"
           }</p>
         </body>
       </html>
@@ -300,7 +337,10 @@ Código: ${selectedOwner.id}
 CPF: ${selectedOwner.cpf || "-"}
 Telefone: ${selectedOwner.phone || "-"}
 E-mail: ${selectedOwner.email || "-"}
-Responsável: ${selectedOwner.assignedTo?.name || "-"}
+Categoria: ${selectedOwner.category || "-"}
+Primeiro contato: ${selectedOwner.firstContact || "-"}
+Situação: ${selectedOwner.isActive ? "Ativo" : "Inativo"}
+Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "-"}
     `.trim();
 
     try {
@@ -424,7 +464,7 @@ Responsável: ${selectedOwner.assignedTo?.name || "-"}
 
           <input
             style={styles.searchInput}
-            placeholder="Buscar proprietário por nome, CPF, e-mail ou responsável"
+            placeholder="Buscar proprietário por nome, CPF, e-mail ou captador"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -456,9 +496,14 @@ Responsável: ${selectedOwner.assignedTo?.name || "-"}
                   <strong>{owner.fullName}</strong>
                   <div style={styles.listMeta}>CPF: {owner.cpf || "-"}</div>
                   <div style={styles.listMeta}>{owner.phone || "-"}</div>
-                  {owner.assignedTo?.name && (
+                  {owner.category && (
                     <div style={styles.responsibleText}>
-                      Responsável: {owner.assignedTo.name}
+                      Categoria: {owner.category}
+                    </div>
+                  )}
+                  {(owner.createdBy?.name || owner.createdBy?.email) && (
+                    <div style={styles.responsibleText}>
+                      Captador: {owner.createdBy?.name || owner.createdBy?.email}
                     </div>
                   )}
                 </button>
@@ -601,14 +646,128 @@ Responsável: ${selectedOwner.assignedTo?.name || "-"}
               </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Responsável</label>
+                <label style={styles.label}>Captador</label>
                 <input
                   style={styles.lineInput}
                   value={
-                    selectedOwner?.assignedTo?.name ||
-                    (user.role === "CORRETOR" ? user.name || "" : "")
+                    selectedOwner?.createdBy?.name ||
+                    selectedOwner?.createdBy?.email ||
+                    selectedOwner?.captorName ||
+                    user.name ||
+                    user.fullName ||
+                    user.email ||
+                    "Captador não informado"
                   }
                   disabled
+                />
+              </div>
+            </div>
+
+            <div style={styles.rowDouble}>
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>*Categoria</label>
+                <select
+                  name="category"
+                  value={form.category}
+                  onChange={handleChange}
+                  style={styles.lineSelect}
+                >
+                  <option value="PROPRIETARIO">PROPRIETÁRIO(A)</option>
+                  <option value="INTERESSADO">INTERESSADO(A)</option>
+                  <option value="PROSPECCAO">PROSPECÇÃO</option>
+                </select>
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>*Primeiro Contato (Mídia)</label>
+                <select
+                  name="firstContact"
+                  value={form.firstContact}
+                  onChange={handleChange}
+                  style={styles.lineSelect}
+                >
+                  <option value="">Selecione...</option>
+                  <option value="WHATSAPP">WhatsApp</option>
+                  <option value="LIGACAO">Ligação</option>
+                  <option value="SITE">Site</option>
+                  <option value="INSTAGRAM">Instagram</option>
+                  <option value="FACEBOOK">Facebook</option>
+                  <option value="INDICACAO">Indicação</option>
+                  <option value="PORTAL">Portal</option>
+                  <option value="OUTRO">Outro</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={styles.rowDouble}>
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Situação</label>
+                <div style={styles.statusRow}>
+                  <span style={styles.statusTextLeft}>Inativo</span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        isActive: !prev.isActive
+                      }))
+                    }
+                    style={{
+                      width: "54px",
+                      height: "30px",
+                      borderRadius: "30px",
+                      border: "none",
+                      backgroundColor: form.isActive ? "#b9dcbc" : "#d9d9d9",
+                      position: "relative",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "4px",
+                        left: form.isActive ? "28px" : "4px",
+                        width: "22px",
+                        height: "22px",
+                        borderRadius: "50%",
+                        backgroundColor: form.isActive ? "#8cc98f" : "#ffffff",
+                        transition: "0.2s"
+                      }}
+                    />
+                  </button>
+
+                  <span style={styles.statusTextRight}>Ativo</span>
+                </div>
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>
+                  Criar aviso na agenda para retorno
+                </label>
+                <div style={styles.checkboxWrap}>
+                  <input
+                    type="checkbox"
+                    name="createReminder"
+                    checked={form.createReminder}
+                    onChange={handleChange}
+                  />
+                  <span style={styles.checkboxLabel}>
+                    Criar retorno automático
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div style={styles.rowSingle}>
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Notas sobre o proprietário</label>
+                <textarea
+                  name="notes"
+                  value={form.notes}
+                  onChange={handleChange}
+                  style={styles.textarea}
+                  placeholder="Digite observações sobre o proprietário..."
                 />
               </div>
             </div>
@@ -854,6 +1013,26 @@ const styles = {
     outline: "none",
     backgroundColor: "transparent"
   },
+  lineSelect: {
+    border: "none",
+    borderBottom: "1px solid #d8c8a2",
+    padding: "8px 0 10px 0",
+    fontSize: "18px",
+    outline: "none",
+    backgroundColor: "transparent"
+  },
+  textarea: {
+    width: "100%",
+    minHeight: "90px",
+    border: "1px solid #d8c8a2",
+    borderRadius: "8px",
+    padding: "12px",
+    fontSize: "16px",
+    outline: "none",
+    backgroundColor: "#fffdf8",
+    resize: "vertical",
+    boxSizing: "border-box"
+  },
   checkboxWrap: {
     display: "flex",
     alignItems: "center",
@@ -863,6 +1042,20 @@ const styles = {
   checkboxLabel: {
     color: "#7a6a47",
     fontSize: "16px"
+  },
+  statusRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    paddingTop: "10px"
+  },
+  statusTextLeft: {
+    fontSize: "16px",
+    color: "#000"
+  },
+  statusTextRight: {
+    fontSize: "16px",
+    color: "#000"
   },
   actionRow: {
     display: "flex",

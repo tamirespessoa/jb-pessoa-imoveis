@@ -337,7 +337,7 @@ function Clients() {
           <p><strong>Criar aviso:</strong> ${
             selectedClient.createReminder ? "Sim" : "Não"
           }</p>
-          <p><strong>Responsável:</strong> ${
+          <p><strong>Captador:</strong> ${
             selectedClient.createdBy?.name || selectedClient.createdBy?.email || "-"
           }</p>
         </body>
@@ -364,7 +364,7 @@ E-mail: ${selectedClient.email || "-"}
 Categoria: ${selectedClient.category || "-"}
 Primeiro contato: ${selectedClient.firstContact || "-"}
 Situação: ${selectedClient.isActive ? "Ativo" : "Inativo"}
-Responsável: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email || "-"}
+Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email || "-"}
     `.trim();
 
     try {
@@ -531,7 +531,7 @@ Responsável: ${selectedClient.createdBy?.name || selectedClient.createdBy?.emai
 
           <input
             style={styles.searchInput}
-            placeholder="Buscar cliente por nome, CPF, e-mail ou responsável"
+            placeholder="Buscar cliente por nome, CPF, e-mail ou captador"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -574,7 +574,7 @@ Responsável: ${selectedClient.createdBy?.name || selectedClient.createdBy?.emai
                   )}
                   {client.createdBy?.name && (
                     <div style={styles.clientResponsible}>
-                      Responsável: {client.createdBy.name}
+                      Captador: {client.createdBy.name}
                     </div>
                   )}
                 </button>
