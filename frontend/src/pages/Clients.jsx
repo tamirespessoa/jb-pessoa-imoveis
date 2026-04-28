@@ -276,7 +276,7 @@ function Clients() {
           cpf: selectedClient.cpf || "",
           phone: selectedClient.phone || "",
           email: selectedClient.email || "",
-          createdByName: selectedClient.createdBy?.name || "",
+          createdByName: selectedClient.createdBy?.name || selectedClient.createdBy?.email || "",
           createdById: selectedClient.createdBy?.id || null
         }
       }
@@ -338,7 +338,7 @@ function Clients() {
             selectedClient.createReminder ? "Sim" : "Não"
           }</p>
           <p><strong>Responsável:</strong> ${
-            selectedClient.createdBy?.name || "-"
+            selectedClient.createdBy?.name || selectedClient.createdBy?.email || "-"
           }</p>
         </body>
       </html>
@@ -364,7 +364,7 @@ E-mail: ${selectedClient.email || "-"}
 Categoria: ${selectedClient.category || "-"}
 Primeiro contato: ${selectedClient.firstContact || "-"}
 Situação: ${selectedClient.isActive ? "Ativo" : "Inativo"}
-Responsável: ${selectedClient.createdBy?.name || "-"}
+Responsável: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email || "-"}
     `.trim();
 
     try {
@@ -717,12 +717,17 @@ Responsável: ${selectedClient.createdBy?.name || "-"}
               </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Responsável</label>
+                <label style={styles.label}>Captador</label>
                 <input
                   style={styles.lineInput}
                   value={
                     selectedClient?.createdBy?.name ||
-                    (user.role === "CORRETOR" ? user.name || "" : "")
+                    selectedClient?.createdBy?.email ||
+                    selectedClient?.captorName ||
+                    user.name ||
+                    user.fullName ||
+                    user.email ||
+                    "Captador não informado"
                   }
                   disabled
                 />
