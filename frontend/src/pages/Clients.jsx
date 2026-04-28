@@ -12,6 +12,7 @@ function Clients() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [viewClient, setViewClient] = useState(null);
   const [newActivityText, setNewActivityText] = useState("");
 
   const [form, setForm] = useState({
@@ -180,8 +181,8 @@ ${apiMessage}`);
       isActive: true,
       notes: "",
       createReminder: false,
-      businessTemperature: "FRIO",
-      activities: []
+    businessTemperature: "FRIO",
+    activities: []
     });
   }
 
@@ -435,7 +436,53 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
 
   function getCaptadorName(person) {
-    return (
+  
+  function getInitials(name) {
+    const value = String(name || "").trim();
+
+    if (!value) return "?";
+
+    const parts = value.split(" ").filter(Boolean);
+
+    if (parts.length === 1) {
+      return parts[0].slice(0, 1).toUpperCase();
+    }
+
+    return `${parts[0].slice(0, 1)}${parts[parts.length - 1].slice(0, 1)}`.toUpperCase();
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+
+    try {
+      return new Date(value).toLocaleDateString("pt-BR");
+    } catch {
+      return "-";
+    }
+  }
+
+  function getWhatsAppLink(phone) {
+    const numbers = String(phone || "").replace(/\D/g, "");
+
+    if (!numbers) return "";
+
+    const finalNumber = numbers.startsWith("55") ? numbers : `55${numbers}`;
+
+    return `https://wa.me/${finalNumber}`;
+  }
+
+  function handleOpenQuickView(client) {
+    setViewClient(client);
+  }
+
+  function handleEditFromQuickView() {
+    if (!viewClient) return;
+
+    handleSelectClient(viewClient);
+    setViewClient(null);
+  }
+
+  return (
       person?.createdBy?.name ||
       person?.createdBy?.email ||
       person?.captorName ||
@@ -583,7 +630,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
       <div style={styles.layout}>
         <aside style={styles.leftPanel}>
-          <div style={styles.activitiesBox} id="atividades">
+          <div style={styles.activitiesBox}>
             <div style={styles.activitiesHeader}>
               <h3 style={styles.activitiesTitle}>Anotações e atividades</h3>
               <div style={styles.activitiesIcons}>
@@ -662,40 +709,69 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             + Novo cliente
           </button>
 
-          <div style={styles.clientList}>
+          <div style={styles.clientListCard}>
+            <div style={styles.clientTableHeader}>
+              <div style={styles.checkboxFake}></div>
+              <div>Nome / Empresa</div>
+              <div>Captador</div>
+              <div>Data Cadastro</div>
+              <div>Data Atualização</div>
+            </div>
+
             {filteredClients.length === 0 ? (
               <div style={styles.emptyNotes}>Nenhum cliente encontrado</div>
             ) : (
               filteredClients.map((client) => (
-                <button
+                <div
                   key={client.id}
-                  type="button"
                   onClick={() => handleSelectClient(client)}
                   style={{
-                    ...styles.clientItem,
+                    ...styles.clientTableRow,
                     ...(selectedClient?.id === client.id
-                      ? styles.clientItemActive
+                      ? styles.clientTableRowActive
                       : {})
                   }}
                 >
-                  <strong>{client.fullName}</strong>
-                  <div style={styles.clientItemMeta}>
-                    CPF: {client.cpf || "-"}
+                  <div
+                    style={styles.avatar}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenQuickView(client);
+                    }}
+                    title="Ver informações básicas"
+                  >
+                    {getInitials(client.fullName)}
                   </div>
-                  <div style={styles.clientItemMeta}>
-                    {client.phone || "-"}
+
+                  <div style={styles.clientNameCell}>
+                    <strong>{client.fullName}</strong>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleOpenQuickView(client);
+                      }}
+                      style={styles.homeMiniButton}
+                      title="Informações rápidas"
+                    >
+                      ⌂
+                    </button>
                   </div>
-                  {client.category && (
-                    <div style={styles.clientResponsible}>
-                      Categoria: {client.category}
+
+                  <div style={styles.captorCell}>
+                    <div style={styles.captorAvatar}>
+                      {getInitials(client.createdBy?.name || client.createdBy?.email)}
                     </div>
-                  )}
-                  {client.createdBy?.name && (
-                    <div style={styles.clientResponsible}>
-                      Captador: {client.createdBy.name}
-                    </div>
-                  )}
-                </button>
+                    <span>
+                      {client.createdBy?.name ||
+                        client.createdBy?.email ||
+                        "Captador não informado"}
+                    </span>
+                  </div>
+
+                  <div style={styles.dateCell}>◷ {formatDate(client.createdAt)}</div>
+                  <div style={styles.dateCell}>↻ {formatDate(client.updatedAt)}</div>
+                </div>
               ))
             )}
           </div>
@@ -1082,11 +1158,313 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
           </form>
         </section>
       </div>
+
+      {viewClient && (
+        <div style={styles.quickOverlay} onClick={() => setViewClient(null)}>
+          <div
+            style={styles.quickModal}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div style={styles.quickModalTop}>
+              <button
+                type="button"
+                style={styles.quickBack}
+                onClick={() => setViewClient(null)}
+              >
+                ←
+              </button>
+
+              <div style={styles.quickAvatar}>
+                {getInitials(viewClient.fullName)}
+              </div>
+
+              <h2 style={styles.quickTitle}>{viewClient.fullName}</h2>
+
+              <button
+                type="button"
+                style={styles.quickEdit}
+                onClick={handleEditFromQuickView}
+                title="Editar cliente"
+              >
+                ✎
+              </button>
+            </div>
+
+            <div style={styles.quickContent}>
+              <section style={styles.quickSection}>
+                <h3 style={styles.quickSectionTitle}>Contato</h3>
+
+                <div style={styles.quickLine}>
+                  <span style={styles.quickIcon}>⌕</span>
+                  <span>{viewClient.phone || "Telefone não informado"}</span>
+
+                  {viewClient.phone && parseWhatsapp(viewClient.whatsapp) && (
+                    <a
+                      href={getWhatsAppLink(viewClient.phone)}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={styles.quickWhatsapp}
+                    >
+                      🟢
+                    </a>
+                  )}
+                </div>
+
+                {viewClient.email && (
+                  <div style={styles.quickLine}>
+                    <span style={styles.quickIcon}>✉</span>
+                    <span>{viewClient.email}</span>
+                  </div>
+                )}
+              </section>
+
+              <section style={styles.quickSection}>
+                <h3 style={styles.quickSectionTitle}>Categoria</h3>
+                <div style={styles.quickValue}>
+                  {viewClient.category || "Sem categoria"}
+                </div>
+              </section>
+
+              <section style={styles.quickSection}>
+                <h3 style={styles.quickSectionTitle}>Captador</h3>
+
+                <div style={styles.quickCaptor}>
+                  <div style={styles.quickCaptorAvatar}>
+                    {getInitials(viewClient.createdBy?.name || viewClient.createdBy?.email)}
+                  </div>
+
+                  <div>
+                    <strong>
+                      {viewClient.createdBy?.name ||
+                        viewClient.createdBy?.email ||
+                        "Captador não informado"}
+                    </strong>
+                    <p style={styles.quickCaptorCompany}>JB Pessoa Imóveis</p>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 const styles = {
+
+  clientListCard: {
+    backgroundColor: "#fff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "14px",
+    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.08)",
+    overflow: "hidden"
+  },
+  clientTableHeader: {
+    display: "grid",
+    gridTemplateColumns: "70px 2fr 1.7fr 1fr 1fr",
+    alignItems: "center",
+    gap: "18px",
+    padding: "18px 24px",
+    borderBottom: "1px solid #e5e7eb",
+    color: "#111827",
+    fontWeight: "800",
+    fontSize: "14px"
+  },
+  checkboxFake: {
+    width: "22px",
+    height: "22px",
+    border: "2px solid #555",
+    borderRadius: "2px"
+  },
+  clientTableRow: {
+    display: "grid",
+    gridTemplateColumns: "70px 2fr 1.7fr 1fr 1fr",
+    alignItems: "center",
+    gap: "18px",
+    padding: "15px 24px",
+    minHeight: "62px",
+    cursor: "pointer",
+    borderLeft: "4px solid transparent",
+    transition: "0.2s ease"
+  },
+  clientTableRowActive: {
+    borderLeft: "4px solid #1e88e5",
+    backgroundColor: "#f8fafc"
+  },
+  avatar: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "50%",
+    backgroundColor: "#d1d5db",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "700",
+    fontSize: "16px",
+    cursor: "pointer"
+  },
+  clientNameCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    color: "#111827",
+    fontSize: "15px"
+  },
+  homeMiniButton: {
+    width: "28px",
+    height: "28px",
+    borderRadius: "50%",
+    border: "2px solid #d1d5db",
+    backgroundColor: "#fff",
+    color: "#9ca3af",
+    cursor: "pointer",
+    fontSize: "15px",
+    lineHeight: "20px"
+  },
+  captorCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    color: "#111827",
+    fontSize: "14px"
+  },
+  captorAvatar: {
+    width: "38px",
+    height: "38px",
+    borderRadius: "50%",
+    backgroundColor: "#c9a227",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "800",
+    fontSize: "13px"
+  },
+  dateCell: {
+    color: "#374151",
+    fontSize: "14px",
+    whiteSpace: "nowrap"
+  },
+  quickOverlay: {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "rgba(15, 23, 42, 0.55)",
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    paddingTop: "70px",
+    zIndex: 9999
+  },
+  quickModal: {
+    width: "760px",
+    maxWidth: "calc(100vw - 40px)",
+    backgroundColor: "#fff",
+    borderRadius: "10px",
+    boxShadow: "0 25px 70px rgba(15, 23, 42, 0.35)",
+    overflow: "hidden"
+  },
+  quickModalTop: {
+    height: "86px",
+    display: "grid",
+    gridTemplateColumns: "42px 70px 1fr 42px",
+    alignItems: "center",
+    gap: "14px",
+    padding: "0 24px",
+    borderBottom: "1px solid #e5e7eb"
+  },
+  quickBack: {
+    border: "none",
+    backgroundColor: "transparent",
+    fontSize: "28px",
+    cursor: "pointer",
+    color: "#555"
+  },
+  quickAvatar: {
+    width: "58px",
+    height: "58px",
+    borderRadius: "50%",
+    backgroundColor: "#d1d5db",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px",
+    fontWeight: "700"
+  },
+  quickTitle: {
+    margin: 0,
+    fontSize: "22px",
+    color: "#333"
+  },
+  quickEdit: {
+    border: "none",
+    backgroundColor: "transparent",
+    fontSize: "28px",
+    cursor: "pointer",
+    color: "#666"
+  },
+  quickContent: {
+    padding: "22px 30px 34px"
+  },
+  quickSection: {
+    borderBottom: "1px solid #e5e7eb",
+    padding: "0 0 20px",
+    marginBottom: "22px"
+  },
+  quickSectionTitle: {
+    fontSize: "17px",
+    margin: "0 0 16px",
+    color: "#111",
+    fontWeight: "800"
+  },
+  quickLine: {
+    display: "flex",
+    alignItems: "center",
+    gap: "20px",
+    minHeight: "36px",
+    color: "#111",
+    fontSize: "15px",
+    paddingLeft: "26px"
+  },
+  quickIcon: {
+    width: "24px",
+    color: "#777",
+    fontSize: "22px"
+  },
+  quickWhatsapp: {
+    textDecoration: "none",
+    fontSize: "24px"
+  },
+  quickValue: {
+    paddingLeft: "30px",
+    fontSize: "15px",
+    color: "#111",
+    minHeight: "26px"
+  },
+  quickCaptor: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    paddingLeft: "12px"
+  },
+  quickCaptorAvatar: {
+    width: "58px",
+    height: "58px",
+    borderRadius: "50%",
+    backgroundColor: "#d1d5db",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "18px",
+    fontWeight: "800"
+  },
+  quickCaptorCompany: {
+    margin: "4px 0 0",
+    color: "#888"
+  },
 
   activitiesBox: {
     backgroundColor: "#fffdf8",
@@ -1209,10 +1587,9 @@ const styles = {
     backgroundColor: "#f87171"
   },
   rightNav: {
-    position: "sticky",
-    float: "right",
-    right: "10px",
-    top: "90px",
+    position: "fixed",
+    right: "34px",
+    top: "230px",
     display: "flex",
     flexDirection: "column",
     gap: "20px",
@@ -1390,9 +1767,8 @@ const styles = {
   },
   mainPanel: {
     backgroundColor: "#fffdf8",
-    padding: "26px 150px 26px 34px",
-    position: "relative",
-    overflowX: "hidden"
+    padding: "26px 34px",
+    position: "relative"
   },
   formHeader: {
     display: "flex",
