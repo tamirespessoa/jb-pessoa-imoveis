@@ -82,7 +82,18 @@ function buildCreatePersonData(body) {
     commercialPhone: normalizePhone(body.commercialPhone),
     residentialPhone: normalizePhone(body.residentialPhone),
     contactPhone: normalizePhone(body.contactPhone),
-    whatsapp: normalizeWhatsapp(body.whatsapp)
+    whatsapp: normalizeWhatsapp(body.whatsapp),
+    category: normalizeString(body.category),
+    firstContact: normalizeString(body.firstContact),
+    notes: normalizeString(body.notes),
+    isActive:
+      body.isActive !== undefined && body.isActive !== null
+        ? Boolean(body.isActive)
+        : true,
+    createReminder:
+      body.createReminder !== undefined && body.createReminder !== null
+        ? Boolean(body.createReminder)
+        : false
   };
 }
 
@@ -104,8 +115,28 @@ function buildUpdatePersonData(body) {
     data.contactPhone = normalizePhone(body.contactPhone);
   if (body.whatsapp !== undefined)
     data.whatsapp = normalizeWhatsapp(body.whatsapp);
+  if (body.category !== undefined)
+    data.category = normalizeString(body.category);
+  if (body.firstContact !== undefined)
+    data.firstContact = normalizeString(body.firstContact);
+  if (body.notes !== undefined)
+    data.notes = normalizeString(body.notes);
+  if (body.isActive !== undefined)
+    data.isActive = Boolean(body.isActive);
+  if (body.createReminder !== undefined)
+    data.createReminder = Boolean(body.createReminder);
 
   return data;
+}
+
+
+function getAuthUser(req) {
+  const user = req.user || {};
+  return {
+    id: user.id || user.userId || null,
+    role: user.role || "USER",
+    name: user.name || user.fullName || user.email || ""
+  };
 }
 
 function handlePrismaError(error, res, defaultMessage) {
@@ -142,8 +173,25 @@ async function createPerson(req, res) {
       });
     }
 
+    const authUser = getAuthUser(req);
+    const createData = buildCreatePersonData(req.body);
+
+    if (authUser.id) {
+      createData.createdById = authUser.id;
+    }
+
     const person = await prisma.person.create({
-      data: buildCreatePersonData(req.body)
+      data: createData,
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
     });
 
     return res.status(201).json({
@@ -177,8 +225,27 @@ async function listPersons(req, res) {
       ];
     }
 
+    const authUser = getAuthUser(req);
+
+    const secureWhere = {
+      ...where,
+      ...(authUser.role === "ADMIN" || !authUser.id
+        ? {}
+        : { createdById: authUser.id })
+    };
+
     const persons = await prisma.person.findMany({
-      where,
+      where: secureWhere,
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+      },
       orderBy: { createdAt: "desc" }
     });
 
@@ -198,13 +265,34 @@ async function getPersonById(req, res) {
         properties: true,
         documents: true,
         appointments: true,
-        proposals: true
+        proposals: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
       }
     });
 
     if (!person) {
       return res.status(404).json({
         error: "Pessoa não encontrada."
+      });
+    }
+
+    const authUser = getAuthUser(req);
+
+    if (
+      authUser.id &&
+      authUser.role !== "ADMIN" &&
+      person.createdById &&
+      person.createdById !== authUser.id
+    ) {
+      return res.status(403).json({
+        error: "Você não tem permissão para visualizar este cliente."
       });
     }
 
@@ -228,6 +316,19 @@ async function updatePerson(req, res) {
       });
     }
 
+    const authUser = getAuthUser(req);
+
+    if (
+      authUser.id &&
+      authUser.role !== "ADMIN" &&
+      existing.createdById &&
+      existing.createdById !== authUser.id
+    ) {
+      return res.status(403).json({
+        error: "Você não tem permissão para editar este cliente."
+      });
+    }
+
     const errors = validatePersonPayload(
       {
         ...existing,
@@ -245,7 +346,17 @@ async function updatePerson(req, res) {
 
     const person = await prisma.person.update({
       where: { id },
-      data: buildUpdatePersonData(req.body)
+      data: buildUpdatePersonData(req.body),
+      include: {
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
     });
 
     return res.json({
@@ -267,13 +378,34 @@ async function deletePerson(req, res) {
         properties: true,
         documents: true,
         appointments: true,
-        proposals: true
+        proposals: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
       }
     });
 
     if (!existing) {
       return res.status(404).json({
         error: "Pessoa não encontrada."
+      });
+    }
+
+    const authUser = getAuthUser(req);
+
+    if (
+      authUser.id &&
+      authUser.role !== "ADMIN" &&
+      existing.createdById &&
+      existing.createdById !== authUser.id
+    ) {
+      return res.status(403).json({
+        error: "Você não tem permissão para excluir este cliente."
       });
     }
 

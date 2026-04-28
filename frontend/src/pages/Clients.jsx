@@ -106,7 +106,7 @@ function Clients() {
     return clients.filter((client) =>
       `${client.fullName || ""} ${client.cpf || ""} ${client.email || ""} ${
         client.phone || ""
-      } ${client.assignedTo?.name || ""} ${client.category || ""} ${
+      } ${client.createdBy?.name || ""} ${client.category || ""} ${
         client.firstContact || ""
       }`
         .toLowerCase()
@@ -276,8 +276,8 @@ function Clients() {
           cpf: selectedClient.cpf || "",
           phone: selectedClient.phone || "",
           email: selectedClient.email || "",
-          assignedToName: selectedClient.assignedTo?.name || "",
-          assignedToId: selectedClient.assignedTo?.id || null
+          createdByName: selectedClient.createdBy?.name || "",
+          createdById: selectedClient.createdBy?.id || null
         }
       }
     });
@@ -338,7 +338,7 @@ function Clients() {
             selectedClient.createReminder ? "Sim" : "Não"
           }</p>
           <p><strong>Responsável:</strong> ${
-            selectedClient.assignedTo?.name || "-"
+            selectedClient.createdBy?.name || "-"
           }</p>
         </body>
       </html>
@@ -364,7 +364,7 @@ E-mail: ${selectedClient.email || "-"}
 Categoria: ${selectedClient.category || "-"}
 Primeiro contato: ${selectedClient.firstContact || "-"}
 Situação: ${selectedClient.isActive ? "Ativo" : "Inativo"}
-Responsável: ${selectedClient.assignedTo?.name || "-"}
+Responsável: ${selectedClient.createdBy?.name || "-"}
     `.trim();
 
     try {
@@ -572,9 +572,9 @@ Responsável: ${selectedClient.assignedTo?.name || "-"}
                       Categoria: {client.category}
                     </div>
                   )}
-                  {client.assignedTo?.name && (
+                  {client.createdBy?.name && (
                     <div style={styles.clientResponsible}>
-                      Responsável: {client.assignedTo.name}
+                      Responsável: {client.createdBy.name}
                     </div>
                   )}
                 </button>
@@ -721,7 +721,7 @@ Responsável: ${selectedClient.assignedTo?.name || "-"}
                 <input
                   style={styles.lineInput}
                   value={
-                    selectedClient?.assignedTo?.name ||
+                    selectedClient?.createdBy?.name ||
                     (user.role === "CORRETOR" ? user.name || "" : "")
                   }
                   disabled

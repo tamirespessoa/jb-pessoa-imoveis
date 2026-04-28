@@ -77,6 +77,7 @@ model User {
   @@index([role])
   @@index([online])
   @@map("users")
+  personsCreated Person[] @relation("PersonCreatedBy")
 }
 
 model Person {
@@ -103,6 +104,13 @@ model Person {
   @@index([type])
   @@index([fullName])
   @@map("persons")
+  category       String?
+  firstContact   String?
+  notes          String?
+  isActive       Boolean  @default(true)
+  createReminder Boolean  @default(false)
+  createdById    String?
+  createdBy      User?    @relation("PersonCreatedBy", fields: [createdById], references: [id])
 }
 
 model Property {
