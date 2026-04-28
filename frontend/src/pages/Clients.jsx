@@ -10,10 +10,13 @@ function Clients() {
   const [clients, setClients] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
+  const [viewClient, setViewClient] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
-  const [viewClient, setViewClient] = useState(null);
   const [newActivityText, setNewActivityText] = useState("");
+  const [showOnlyActive, setShowOnlyActive] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
+  const [screenMode, setScreenMode] = useState("list");
 
   const [form, setForm] = useState({
     type: "CLIENTE",
@@ -57,6 +60,62 @@ function Clients() {
     return text === "" ? null : text;
   }
 
+  function getInitials(name) {
+    const value = String(name || "").trim();
+
+    if (!value) return "?";
+
+    const parts = value.split(" ").filter(Boolean);
+
+    if (parts.length === 1) {
+      return parts[0].slice(0, 1).toUpperCase();
+    }
+
+    return `${parts[0].slice(0, 1)}${parts[parts.length - 1].slice(0, 1)}`.toUpperCase();
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+
+    try {
+      return new Date(value).toLocaleDateString("pt-BR");
+    } catch {
+      return "-";
+    }
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "-";
+
+    try {
+      return new Date(value).toLocaleString("pt-BR");
+    } catch {
+      return "-";
+    }
+  }
+
+  function getWhatsAppLink(phone) {
+    const numbers = String(phone || "").replace(/\D/g, "");
+
+    if (!numbers) return "";
+
+    const finalNumber = numbers.startsWith("55") ? numbers : `55${numbers}`;
+
+    return `https://wa.me/${finalNumber}`;
+  }
+
+  function getCaptadorName(person) {
+    return (
+      person?.createdBy?.name ||
+      person?.createdBy?.email ||
+      person?.captorName ||
+      user.name ||
+      user.fullName ||
+      user.email ||
+      "Captador não informado"
+    );
+  }
+
   async function loadClients(selectId = null) {
     try {
       const response = await api.get("/persons");
@@ -70,10 +129,8 @@ function Clients() {
         const found = filtered.find((item) => item.id === selectId);
         if (found) {
           handleSelectClient(found);
-          return;
         }
       }
-      // Não seleciona cliente automaticamente. O usuário escolhe na lista.
     } catch (error) {
       console.error(
         "Erro ao carregar clientes:",
@@ -87,8 +144,7 @@ function Clients() {
         error.message ||
         "Não foi possível carregar os clientes.";
 
-      alert(`Erro ao carregar clientes:
-${apiMessage}`);
+      alert(`Erro ao carregar clientes:\n${apiMessage}`);
       setClients([]);
       setSelectedClient(null);
       setEditingId(null);
@@ -116,21 +172,24 @@ ${apiMessage}`);
   }, [showMenu]);
 
   const filteredClients = useMemo(() => {
-    return clients.filter((client) =>
-      `${client.fullName || ""} ${client.cpf || ""} ${client.email || ""} ${
-        client.phone || ""
-      } ${client.createdBy?.name || ""} ${client.category || ""} ${
-        client.firstContact || ""
-      }`
-        .toLowerCase()
-        .includes(search.toLowerCase())
-    );
-  }, [clients, search]);
+    return clients
+      .filter((client) => {
+        if (showOnlyActive && client.isActive === false) return false;
+        if (!showArchived && client.archived === true) return false;
+        return true;
+      })
+      .filter((client) =>
+        `${client.fullName || ""} ${client.cpf || ""} ${client.email || ""} ${
+          client.phone || ""
+        } ${client.createdBy?.name || ""} ${client.category || ""} ${
+          client.firstContact || ""
+        }`
+          .toLowerCase()
+          .includes(search.toLowerCase())
+      );
+  }, [clients, search, showOnlyActive, showArchived]);
 
-  function handleSelectClient(client) {
-    setSelectedClient(client);
-    setEditingId(client.id);
-
+  function fillFormFromClient(client) {
     setForm({
       type: "CLIENTE",
       fullName: client.fullName || "",
@@ -159,10 +218,34 @@ ${apiMessage}`);
     });
   }
 
+  function handleSelectClient(client) {
+    setSelectedClient(client);
+    setEditingId(client.id);
+    fillFormFromClient(client);
+    setScreenMode("form");
+  }
+
+  function handleOpenQuickView(client) {
+    setViewClient(client);
+  }
+
+  function handleEditFromQuickView() {
+    if (!viewClient) return;
+
+    handleSelectClient(viewClient);
+    setViewClient(null);
+  }
+
+  function handleBackToList() {
+    setScreenMode("list");
+    setShowMenu(false);
+  }
+
   function handleNewClient() {
     setSelectedClient(null);
     setEditingId(null);
     setShowMenu(false);
+    setScreenMode("form");
 
     setForm({
       type: "CLIENTE",
@@ -181,8 +264,8 @@ ${apiMessage}`);
       isActive: true,
       notes: "",
       createReminder: false,
-    businessTemperature: "FRIO",
-    activities: []
+      businessTemperature: "FRIO",
+      activities: []
     });
   }
 
@@ -226,9 +309,10 @@ ${apiMessage}`);
       };
 
       if (editingId) {
-        await api.put(`/persons/${editingId}`, payload);
+        const response = await api.put(`/persons/${editingId}`, payload);
+        const updatedClient = response.data?.person || response.data || null;
         alert("Cliente atualizado com sucesso.");
-        await loadClients(editingId);
+        await loadClients(updatedClient?.id || editingId);
       } else {
         const response = await api.post("/persons", payload);
         const createdId = response.data?.person?.id || response.data?.id || null;
@@ -264,17 +348,21 @@ ${apiMessage}`);
     try {
       await api.delete(`/persons/${editingId}`);
       alert("Cliente excluído com sucesso.");
-      handleNewClient();
+      setSelectedClient(null);
+      setEditingId(null);
+      setScreenMode("list");
       await loadClients();
     } catch (error) {
       console.error(
         "Erro ao excluir cliente:",
         error.response?.data || error.message
       );
+
       const apiMessage =
         error.response?.data?.error ||
         error.response?.data?.message ||
         "Erro ao excluir cliente.";
+
       alert(apiMessage);
     }
   }
@@ -295,7 +383,8 @@ ${apiMessage}`);
           cpf: selectedClient.cpf || "",
           phone: selectedClient.phone || "",
           email: selectedClient.email || "",
-          createdByName: selectedClient.createdBy?.name || selectedClient.createdBy?.email || "",
+          createdByName:
+            selectedClient.createdBy?.name || selectedClient.createdBy?.email || "",
           createdById: selectedClient.createdBy?.id || null
         }
       }
@@ -303,21 +392,26 @@ ${apiMessage}`);
   }
 
   function handleBack() {
+    if (screenMode === "form") {
+      handleBackToList();
+      return;
+    }
+
     navigate("/dashboard");
   }
 
   async function handleRefresh() {
     await loadClients(editingId || null);
-    alert("Lista atualizada.");
   }
 
   function handlePrint() {
     if (!selectedClient) {
-      alert("Selecione um cliente para imprimir.");
+      window.print();
       return;
     }
 
     const printWindow = window.open("", "_blank");
+
     if (!printWindow) {
       alert("Não foi possível abrir a janela de impressão.");
       return;
@@ -352,10 +446,10 @@ ${apiMessage}`);
           <p><strong>Situação:</strong> ${
             selectedClient.isActive ? "Ativo" : "Inativo"
           }</p>
-          <p><strong>Notas:</strong> ${selectedClient.notes || "-"}</p>
-          <p><strong>Criar aviso:</strong> ${
-            selectedClient.createReminder ? "Sim" : "Não"
+          <p><strong>Termômetro:</strong> ${
+            selectedClient.businessTemperature || "-"
           }</p>
+          <p><strong>Notas:</strong> ${selectedClient.notes || "-"}</p>
           <p><strong>Captador:</strong> ${
             selectedClient.createdBy?.name || selectedClient.createdBy?.email || "-"
           }</p>
@@ -383,6 +477,7 @@ E-mail: ${selectedClient.email || "-"}
 Categoria: ${selectedClient.category || "-"}
 Primeiro contato: ${selectedClient.firstContact || "-"}
 Situação: ${selectedClient.isActive ? "Ativo" : "Inativo"}
+Termômetro: ${selectedClient.businessTemperature || "-"}
 Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email || "-"}
     `.trim();
 
@@ -397,10 +492,12 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
   function handleOpenHistory() {
     setShowMenu(false);
+
     if (!selectedClient) {
       alert("Selecione um cliente primeiro.");
       return;
     }
+
     alert(`Histórico de atendimentos do cliente: ${selectedClient.fullName}`);
   }
 
@@ -434,74 +531,6 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
     navigate("/imoveis");
   }
 
-
-  function getCaptadorName(person) {
-  
-  function getInitials(name) {
-    const value = String(name || "").trim();
-
-    if (!value) return "?";
-
-    const parts = value.split(" ").filter(Boolean);
-
-    if (parts.length === 1) {
-      return parts[0].slice(0, 1).toUpperCase();
-    }
-
-    return `${parts[0].slice(0, 1)}${parts[parts.length - 1].slice(0, 1)}`.toUpperCase();
-  }
-
-  function formatDate(value) {
-    if (!value) return "-";
-
-    try {
-      return new Date(value).toLocaleDateString("pt-BR");
-    } catch {
-      return "-";
-    }
-  }
-
-  function getWhatsAppLink(phone) {
-    const numbers = String(phone || "").replace(/\D/g, "");
-
-    if (!numbers) return "";
-
-    const finalNumber = numbers.startsWith("55") ? numbers : `55${numbers}`;
-
-    return `https://wa.me/${finalNumber}`;
-  }
-
-  function handleOpenQuickView(client) {
-    setViewClient(client);
-  }
-
-  function handleEditFromQuickView() {
-    if (!viewClient) return;
-
-    handleSelectClient(viewClient);
-    setViewClient(null);
-  }
-
-  return (
-      person?.createdBy?.name ||
-      person?.createdBy?.email ||
-      person?.captorName ||
-      user.name ||
-      user.fullName ||
-      user.email ||
-      "Captador não informado"
-    );
-  }
-
-  function formatDateTime(value) {
-    if (!value) return "-";
-    try {
-      return new Date(value).toLocaleString("pt-BR");
-    } catch {
-      return "-";
-    }
-  }
-
   function handleSelectTemperature(value) {
     setForm((prev) => ({
       ...prev,
@@ -527,43 +556,62 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
     setForm((prev) => ({
       ...prev,
-      activities: [activity, ...(Array.isArray(prev.activities) ? prev.activities : [])]
+      activities: [
+        activity,
+        ...(Array.isArray(prev.activities) ? prev.activities : [])
+      ]
     }));
 
     setNewActivityText("");
   }
 
-  return (
-    <div style={styles.page}>
-      <div style={styles.blueBar}>
-        <div style={styles.blueBarLeft}>
+  function renderTopBar() {
+    return (
+      <div style={styles.topBar}>
+        <div style={styles.topBarLeft}>
           <button type="button" style={styles.backButton} onClick={handleBack}>
             ←
           </button>
-          <span style={styles.blueBarTitle}>
-            {selectedClient
+
+          <span style={styles.topBarTitle}>
+            {screenMode === "list"
+              ? "Clientes"
+              : selectedClient
               ? `${selectedClient.fullName} (Código: ${selectedClient.id})`
               : "Novo cliente"}
           </span>
         </div>
 
-        <div style={styles.blueBarRight} ref={menuRef}>
-          <button type="button" style={styles.topIcon} onClick={handleShare}>
-            ⤴
-          </button>
+        <div style={styles.topBarRight} ref={menuRef}>
+          {screenMode === "list" && (
+            <button type="button" style={styles.topIcon} onClick={handleNewClient}>
+              +
+            </button>
+          )}
+
           <button type="button" style={styles.topIcon} onClick={handlePrint}>
             🖨
           </button>
+
           <button type="button" style={styles.topIcon} onClick={handleRefresh}>
             ↻
           </button>
-          <button
-            type="button"
-            style={styles.topIcon}
-            onClick={() => setShowMenu(!showMenu)}
-          >
-            ⋮
-          </button>
+
+          {screenMode === "form" && (
+            <>
+              <button type="button" style={styles.topIcon} onClick={handleShare}>
+                ⤴
+              </button>
+
+              <button
+                type="button"
+                style={styles.topIcon}
+                onClick={() => setShowMenu(!showMenu)}
+              >
+                ⋮
+              </button>
+            </>
+          )}
 
           {showMenu && (
             <div style={styles.dropdownMenu}>
@@ -574,6 +622,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
               >
                 Criar financiamento
               </button>
+
               <button
                 type="button"
                 style={styles.dropdownItem}
@@ -581,6 +630,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
               >
                 Histórico de atendimentos
               </button>
+
               <button
                 type="button"
                 style={styles.dropdownItem}
@@ -588,6 +638,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
               >
                 Perfis de imóveis
               </button>
+
               <button
                 type="button"
                 style={styles.dropdownItem}
@@ -595,6 +646,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
               >
                 Visitas/Negociações
               </button>
+
               <button
                 type="button"
                 style={styles.dropdownItem}
@@ -602,6 +654,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
               >
                 Avisos/Retornos/Follow up
               </button>
+
               <button
                 type="button"
                 style={styles.dropdownItem}
@@ -609,6 +662,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
               >
                 E-mails/WhatsApp enviados
               </button>
+
               <button
                 type="button"
                 style={styles.dropdownItem}
@@ -616,6 +670,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
               >
                 Documentos do cliente
               </button>
+
               <button
                 type="button"
                 style={styles.dropdownItem}
@@ -627,67 +682,195 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
           )}
         </div>
       </div>
+    );
+  }
 
-      <div style={styles.layout}>
-        <aside style={styles.leftPanel}>
-          <div style={styles.activitiesBox}>
-            <div style={styles.activitiesHeader}>
-              <h3 style={styles.activitiesTitle}>Anotações e atividades</h3>
-              <div style={styles.activitiesIcons}>
-                <span title="Filtrar">⏷</span>
-                <span title="Atualizar" onClick={handleRefresh} style={styles.iconClickable}>↻</span>
-                <span title="Adicionar" onClick={handleAddActivity} style={styles.iconClickable}>⊕</span>
-              </div>
-            </div>
+  function renderListScreen() {
+    return (
+      <div style={styles.listScreen}>
+        <div style={styles.listHeaderArea}>
+          <h1 style={styles.listTitle}>Últimos clientes cadastrados</h1>
 
-            <textarea
-              value={newActivityText}
-              onChange={(e) => setNewActivityText(e.target.value)}
-              style={styles.activityTextarea}
-              placeholder="Digite uma anotação ou atividade..."
-            />
+          <div style={styles.listOptions}>
+            <strong>Opções:</strong>
 
-            <button
-              type="button"
-              onClick={handleAddActivity}
-              style={styles.activityButton}
-            >
-              + Adicionar anotação
-            </button>
+            <label style={styles.optionLabel}>
+              <input
+                type="checkbox"
+                checked={showOnlyActive}
+                onChange={(event) => setShowOnlyActive(event.target.checked)}
+              />
+              <span>Somente Ativos</span>
+            </label>
 
-            <div style={styles.activitiesList}>
-              {Array.isArray(form.activities) && form.activities.length > 0 ? (
-                form.activities.slice(0, 5).map((activity) => (
-                  <div key={activity.id || activity.createdAt} style={styles.activityItem}>
-                    <div style={styles.activityItemTop}>
-                      <strong>{activity.type || "Anotação"}</strong>
-                      <span>{formatDateTime(activity.createdAt)}</span>
-                    </div>
-                    <p style={styles.activityItemText}>{activity.text}</p>
-                    <div style={styles.activityAuthor}>
-                      👤 {activity.createdBy || getCaptadorName(selectedClient)}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={styles.emptyActivities}>
-                  Cliente sem anotações ou atividades
-                </div>
-              )}
-            </div>
+            <label style={styles.optionLabelMuted}>
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(event) => setShowArchived(event.target.checked)}
+              />
+              <span>Arquivados</span>
+            </label>
           </div>
+        </div>
+
+        <div style={styles.listSearchRow}>
+          <input
+            style={styles.listSearch}
+            placeholder="Pesquise por nome, e-mail, telefone, CPF ou CNPJ"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+
+          <button type="button" style={styles.newClientButtonList} onClick={handleNewClient}>
+            + Novo cliente
+          </button>
+        </div>
+
+        <div style={styles.clientListCard}>
+          <div style={styles.clientTableHeader}>
+            <div style={styles.checkboxFake}></div>
+            <div>Nome / Empresa</div>
+            <div>Captador</div>
+            <div>Data Cadastro</div>
+            <div>Data Atualização</div>
+          </div>
+
+          {filteredClients.length === 0 ? (
+            <div style={styles.emptyListMessage}>Nenhum cliente encontrado</div>
+          ) : (
+            filteredClients.map((client) => (
+              <div
+                key={client.id}
+                onClick={() => handleSelectClient(client)}
+                style={{
+                  ...styles.clientTableRow,
+                  ...(selectedClient?.id === client.id
+                    ? styles.clientTableRowActive
+                    : {})
+                }}
+              >
+                <div
+                  style={styles.avatar}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleOpenQuickView(client);
+                  }}
+                  title="Ver informações básicas"
+                >
+                  {getInitials(client.fullName)}
+                </div>
+
+                <div style={styles.clientNameCell}>
+                  <strong>{client.fullName}</strong>
+
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenQuickView(client);
+                    }}
+                    style={styles.homeMiniButton}
+                    title="Informações rápidas"
+                  >
+                    ⌂
+                  </button>
+                </div>
+
+                <div style={styles.captorCell}>
+                  <div style={styles.captorAvatar}>
+                    {getInitials(getCaptadorName(client))}
+                  </div>
+
+                  <span>{getCaptadorName(client)}</span>
+                </div>
+
+                <div style={styles.dateCell}>◷ {formatDate(client.createdAt)}</div>
+                <div style={styles.dateCell}>↻ {formatDate(client.updatedAt)}</div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div style={styles.listFooter}>
+          <strong>{filteredClients.length}</strong> clientes encontrados
+        </div>
+      </div>
+    );
+  }
+
+  function renderActivityPanel() {
+    return (
+      <div style={styles.activitiesBox} id="atividades">
+        <div style={styles.activitiesHeader}>
+          <h3 style={styles.activitiesTitle}>Anotações e atividades</h3>
+
+          <div style={styles.activitiesIcons}>
+            <span title="Filtrar">⏷</span>
+
+            <span title="Atualizar" onClick={handleRefresh} style={styles.iconClickable}>
+              ↻
+            </span>
+
+            <span title="Adicionar" onClick={handleAddActivity} style={styles.iconClickable}>
+              ⊕
+            </span>
+          </div>
+        </div>
+
+        <textarea
+          value={newActivityText}
+          onChange={(event) => setNewActivityText(event.target.value)}
+          style={styles.activityTextarea}
+          placeholder="Digite uma anotação ou atividade..."
+        />
+
+        <button type="button" onClick={handleAddActivity} style={styles.activityButton}>
+          + Adicionar anotação
+        </button>
+
+        <div style={styles.activitiesList}>
+          {Array.isArray(form.activities) && form.activities.length > 0 ? (
+            form.activities.slice(0, 5).map((activity) => (
+              <div key={activity.id || activity.createdAt} style={styles.activityItem}>
+                <div style={styles.activityItemTop}>
+                  <strong>{activity.type || "Anotação"}</strong>
+                  <span>{formatDateTime(activity.createdAt)}</span>
+                </div>
+
+                <p style={styles.activityItemText}>{activity.text}</p>
+
+                <div style={styles.activityAuthor}>
+                  👤 {activity.createdBy || getCaptadorName(selectedClient)}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div style={styles.emptyActivities}>Cliente sem anotações ou atividades</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function renderFormScreen() {
+    return (
+      <div style={styles.formLayout}>
+        <aside style={styles.formLeftPanel}>
+          {renderActivityPanel()}
 
           <div style={styles.leftPanelHeader}>
             <h3 style={styles.leftPanelTitle}>
-              {user.role === "ADMIN"
-                ? "Clientes cadastrados"
-                : "Meus clientes"}
+              {user.role === "ADMIN" ? "Clientes cadastrados" : "Meus clientes"}
             </h3>
+
             <div style={styles.leftIcons}>
               <span>⏷</span>
+
               <span onClick={handleRefresh} style={styles.iconClickable}>
                 ↻
               </span>
+
               <span onClick={handleNewClient} style={styles.iconClickable}>
                 ⊕
               </span>
@@ -698,80 +881,41 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             style={styles.searchInput}
             placeholder="Buscar cliente por nome, CPF, e-mail ou captador"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
           />
 
-          <button
-            type="button"
-            style={styles.newClientButton}
-            onClick={handleNewClient}
-          >
+          <button type="button" style={styles.newClientButton} onClick={handleNewClient}>
             + Novo cliente
           </button>
 
-          <div style={styles.clientListCard}>
-            <div style={styles.clientTableHeader}>
-              <div style={styles.checkboxFake}></div>
-              <div>Nome / Empresa</div>
-              <div>Captador</div>
-              <div>Data Cadastro</div>
-              <div>Data Atualização</div>
-            </div>
+          <button type="button" style={styles.backToListButton} onClick={handleBackToList}>
+            Ver lista completa
+          </button>
 
+          <div style={styles.sideList}>
             {filteredClients.length === 0 ? (
               <div style={styles.emptyNotes}>Nenhum cliente encontrado</div>
             ) : (
-              filteredClients.map((client) => (
-                <div
+              filteredClients.slice(0, 20).map((client) => (
+                <button
                   key={client.id}
+                  type="button"
                   onClick={() => handleSelectClient(client)}
                   style={{
-                    ...styles.clientTableRow,
-                    ...(selectedClient?.id === client.id
-                      ? styles.clientTableRowActive
-                      : {})
+                    ...styles.sideItem,
+                    ...(selectedClient?.id === client.id ? styles.sideItemActive : {})
                   }}
                 >
-                  <div
-                    style={styles.avatar}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      handleOpenQuickView(client);
-                    }}
-                    title="Ver informações básicas"
-                  >
-                    {getInitials(client.fullName)}
-                  </div>
+                  <strong>{client.fullName}</strong>
 
-                  <div style={styles.clientNameCell}>
-                    <strong>{client.fullName}</strong>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        handleOpenQuickView(client);
-                      }}
-                      style={styles.homeMiniButton}
-                      title="Informações rápidas"
-                    >
-                      ⌂
-                    </button>
-                  </div>
+                  <div style={styles.sideItemMeta}>CPF: {client.cpf || "-"}</div>
 
-                  <div style={styles.captorCell}>
-                    <div style={styles.captorAvatar}>
-                      {getInitials(client.createdBy?.name || client.createdBy?.email)}
-                    </div>
-                    <span>
-                      {client.createdBy?.name ||
-                        client.createdBy?.email ||
-                        "Captador não informado"}
-                    </span>
-                  </div>
+                  <div style={styles.sideItemMeta}>{client.phone || "-"}</div>
 
-                  <div style={styles.dateCell}>◷ {formatDate(client.createdAt)}</div>
-                  <div style={styles.dateCell}>↻ {formatDate(client.updatedAt)}</div>
-                </div>
+                  <div style={styles.sideResponsible}>
+                    Captador: {getCaptadorName(client)}
+                  </div>
+                </button>
               ))
             )}
           </div>
@@ -779,11 +923,20 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
         <section style={styles.mainPanel}>
           <div style={styles.rightNav}>
-            <a href="#cadastro" style={styles.rightNavItem}>Cadastro</a>
-            <a href="#atividades" style={styles.rightNavItem}>Atividades</a>
-            <a href="#dados-pessoais" style={styles.rightNavItem}>D. pessoais</a>
-            <a href="#endereco" style={styles.rightNavItem}>Endereço</a>
+            <a href="#cadastro" style={styles.rightNavItem}>
+              Cadastro
+            </a>
+            <a href="#atividades" style={styles.rightNavItem}>
+              Atividades
+            </a>
+            <a href="#dados-pessoais" style={styles.rightNavItem}>
+              D. pessoais
+            </a>
+            <a href="#endereco" style={styles.rightNavItem}>
+              Endereço
+            </a>
           </div>
+
           <div style={styles.formHeader} id="cadastro">
             <div style={styles.greenDot}></div>
             <h2 style={styles.formTitle}>Cadastro</h2>
@@ -793,6 +946,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             <div style={styles.rowSingle}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>👤</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>*Nome</label>
                   <input
@@ -808,6 +962,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             <div style={styles.rowSingle}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>🏢</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Empresa</label>
                   <input
@@ -823,6 +978,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             <div style={styles.rowSingle}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>✉</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>E-mail</label>
                   <input
@@ -838,6 +994,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             <div style={styles.rowTriple}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>📱</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Celular</label>
                   <input
@@ -873,6 +1030,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             <div style={styles.rowTriple}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>☎</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Telefone Comercial</label>
                   <input
@@ -966,6 +1124,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             <div style={styles.rowDouble}>
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Situação</label>
+
                 <div style={styles.statusRow}>
                   <span style={styles.statusTextLeft}>Inativo</span>
 
@@ -1006,9 +1165,8 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
               </div>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>
-                  Criar aviso na agenda para retorno
-                </label>
+                <label style={styles.label}>Criar aviso na agenda para retorno</label>
+
                 <div style={styles.checkboxWrap}>
                   <input
                     type="checkbox"
@@ -1016,15 +1174,14 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
                     checked={form.createReminder}
                     onChange={handleChange}
                   />
-                  <span style={styles.checkboxLabel}>
-                    Criar retorno automático
-                  </span>
+                  <span style={styles.checkboxLabel}>Criar retorno automático</span>
                 </div>
               </div>
             </div>
 
             <div style={styles.rowSingle}>
               <label style={styles.label}>Termômetro de Negócios</label>
+
               <div style={styles.thermometerRow}>
                 {["FRIO", "MORNO", "INTERESSADO", "QUENTE", "FECHAMENTO"].map(
                   (item) => (
@@ -1061,6 +1218,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
             <div style={styles.crmSection} id="dados-pessoais">
               <h2 style={styles.crmSectionTitle}>Dados pessoais</h2>
+
               <div style={styles.rowTriple}>
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Pessoa</label>
@@ -1069,10 +1227,12 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
                     <option value="JURIDICA">JURÍDICA</option>
                   </select>
                 </div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>CPF</label>
                   <input style={styles.lineInput} value={form.cpf} disabled />
                 </div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>RG</label>
                   <input style={styles.lineInput} value={form.rg} disabled />
@@ -1100,6 +1260,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
             <div style={styles.crmSection} id="endereco">
               <h2 style={styles.crmSectionTitle}>Endereço</h2>
+
               <div style={styles.rowDouble}>
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Endereço Residencial</label>
@@ -1141,11 +1302,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
                     Criar financiamento
                   </button>
 
-                  <button
-                    type="button"
-                    style={styles.deleteButton}
-                    onClick={handleDelete}
-                  >
+                  <button type="button" style={styles.deleteButton} onClick={handleDelete}>
                     Excluir
                   </button>
                 </>
@@ -1158,158 +1315,290 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
           </form>
         </section>
       </div>
+    );
+  }
 
-      {viewClient && (
-        <div style={styles.quickOverlay} onClick={() => setViewClient(null)}>
-          <div
-            style={styles.quickModal}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div style={styles.quickModalTop}>
-              <button
-                type="button"
-                style={styles.quickBack}
-                onClick={() => setViewClient(null)}
-              >
-                ←
-              </button>
+  function renderQuickModal() {
+    if (!viewClient) return null;
 
-              <div style={styles.quickAvatar}>
-                {getInitials(viewClient.fullName)}
+    return (
+      <div style={styles.quickOverlay} onClick={() => setViewClient(null)}>
+        <div style={styles.quickModal} onClick={(event) => event.stopPropagation()}>
+          <div style={styles.quickModalTop}>
+            <button type="button" style={styles.quickBack} onClick={() => setViewClient(null)}>
+              ←
+            </button>
+
+            <div style={styles.quickAvatar}>{getInitials(viewClient.fullName)}</div>
+
+            <h2 style={styles.quickTitle}>{viewClient.fullName}</h2>
+
+            <button
+              type="button"
+              style={styles.quickEdit}
+              onClick={handleEditFromQuickView}
+              title="Editar cliente"
+            >
+              ✎
+            </button>
+          </div>
+
+          <div style={styles.quickContent}>
+            <section style={styles.quickSection}>
+              <h3 style={styles.quickSectionTitle}>Contato</h3>
+
+              <div style={styles.quickLine}>
+                <span style={styles.quickIcon}>☎</span>
+                <span>{viewClient.phone || "Telefone não informado"}</span>
+
+                {viewClient.phone && parseWhatsapp(viewClient.whatsapp) && (
+                  <a
+                    href={getWhatsAppLink(viewClient.phone)}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={styles.quickWhatsapp}
+                  >
+                    🟢
+                  </a>
+                )}
               </div>
 
-              <h2 style={styles.quickTitle}>{viewClient.fullName}</h2>
-
-              <button
-                type="button"
-                style={styles.quickEdit}
-                onClick={handleEditFromQuickView}
-                title="Editar cliente"
-              >
-                ✎
-              </button>
-            </div>
-
-            <div style={styles.quickContent}>
-              <section style={styles.quickSection}>
-                <h3 style={styles.quickSectionTitle}>Contato</h3>
-
+              {viewClient.email && (
                 <div style={styles.quickLine}>
-                  <span style={styles.quickIcon}>⌕</span>
-                  <span>{viewClient.phone || "Telefone não informado"}</span>
+                  <span style={styles.quickIcon}>✉</span>
+                  <span>{viewClient.email}</span>
+                </div>
+              )}
+            </section>
 
-                  {viewClient.phone && parseWhatsapp(viewClient.whatsapp) && (
-                    <a
-                      href={getWhatsAppLink(viewClient.phone)}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={styles.quickWhatsapp}
-                    >
-                      🟢
-                    </a>
-                  )}
+            <section style={styles.quickSection}>
+              <h3 style={styles.quickSectionTitle}>Categoria</h3>
+              <div style={styles.quickValue}>{viewClient.category || "Sem categoria"}</div>
+            </section>
+
+            <section style={styles.quickSection}>
+              <h3 style={styles.quickSectionTitle}>Captador</h3>
+
+              <div style={styles.quickCaptor}>
+                <div style={styles.quickCaptorAvatar}>
+                  {getInitials(viewClient.createdBy?.name || viewClient.createdBy?.email)}
                 </div>
 
-                {viewClient.email && (
-                  <div style={styles.quickLine}>
-                    <span style={styles.quickIcon}>✉</span>
-                    <span>{viewClient.email}</span>
-                  </div>
-                )}
-              </section>
-
-              <section style={styles.quickSection}>
-                <h3 style={styles.quickSectionTitle}>Categoria</h3>
-                <div style={styles.quickValue}>
-                  {viewClient.category || "Sem categoria"}
+                <div>
+                  <strong>
+                    {viewClient.createdBy?.name ||
+                      viewClient.createdBy?.email ||
+                      "Captador não informado"}
+                  </strong>
+                  <p style={styles.quickCaptorCompany}>JB Pessoa Imóveis</p>
                 </div>
-              </section>
-
-              <section style={styles.quickSection}>
-                <h3 style={styles.quickSectionTitle}>Captador</h3>
-
-                <div style={styles.quickCaptor}>
-                  <div style={styles.quickCaptorAvatar}>
-                    {getInitials(viewClient.createdBy?.name || viewClient.createdBy?.email)}
-                  </div>
-
-                  <div>
-                    <strong>
-                      {viewClient.createdBy?.name ||
-                        viewClient.createdBy?.email ||
-                        "Captador não informado"}
-                    </strong>
-                    <p style={styles.quickCaptorCompany}>JB Pessoa Imóveis</p>
-                  </div>
-                </div>
-              </section>
-            </div>
+              </div>
+            </section>
           </div>
         </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.page}>
+      {renderTopBar()}
+      {screenMode === "list" ? renderListScreen() : renderFormScreen()}
+      {renderQuickModal()}
     </div>
   );
 }
 
 const styles = {
-
+  page: {
+    backgroundColor: "#eeeeee",
+    minHeight: "100vh",
+    position: "relative",
+    margin: 0
+  },
+  topBar: {
+    height: "54px",
+    backgroundColor: "#1e88e5",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "0 16px",
+    color: "#fff",
+    position: "relative",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.22)"
+  },
+  topBarLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px"
+  },
+  backButton: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#fff",
+    fontSize: "26px",
+    cursor: "pointer"
+  },
+  topBarTitle: {
+    fontSize: "20px",
+    fontWeight: "600"
+  },
+  topBarRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    position: "relative"
+  },
+  topIcon: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#fff",
+    fontSize: "22px",
+    cursor: "pointer"
+  },
+  dropdownMenu: {
+    position: "absolute",
+    top: "46px",
+    right: 0,
+    width: "310px",
+    backgroundColor: "#fff",
+    border: "1px solid #ddd",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.12)",
+    zIndex: 20
+  },
+  dropdownItem: {
+    width: "100%",
+    textAlign: "left",
+    border: "none",
+    backgroundColor: "#fff",
+    padding: "14px 16px",
+    fontSize: "15px",
+    cursor: "pointer",
+    borderBottom: "1px solid #eee"
+  },
+  listScreen: {
+    width: "100%",
+    maxWidth: "1320px",
+    margin: "0 auto",
+    padding: "26px 20px 70px",
+    boxSizing: "border-box"
+  },
+  listHeaderArea: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "20px",
+    marginBottom: "30px"
+  },
+  listTitle: {
+    fontSize: "34px",
+    fontWeight: "400",
+    color: "#111",
+    margin: 0
+  },
+  listOptions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "22px",
+    fontSize: "15px"
+  },
+  optionLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
+  optionLabelMuted: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    color: "#999",
+    cursor: "pointer"
+  },
+  listSearchRow: {
+    display: "flex",
+    gap: "14px",
+    marginBottom: "18px"
+  },
+  listSearch: {
+    flex: 1,
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+    backgroundColor: "#fff",
+    padding: "12px 16px",
+    fontSize: "15px",
+    outline: "none"
+  },
+  newClientButtonList: {
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#d4a62a",
+    color: "#fff",
+    padding: "0 22px",
+    fontWeight: "800",
+    cursor: "pointer"
+  },
   clientListCard: {
     backgroundColor: "#fff",
-    border: "1px solid #e5e7eb",
-    borderRadius: "14px",
-    boxShadow: "0 12px 30px rgba(15, 23, 42, 0.08)",
+    border: "1px solid #ddd",
+    borderRadius: "10px",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.12)",
     overflow: "hidden"
   },
   clientTableHeader: {
     display: "grid",
-    gridTemplateColumns: "70px 2fr 1.7fr 1fr 1fr",
+    gridTemplateColumns: "72px 2fr 1.7fr 1fr 1fr",
     alignItems: "center",
     gap: "18px",
-    padding: "18px 24px",
-    borderBottom: "1px solid #e5e7eb",
-    color: "#111827",
+    padding: "24px 24px",
+    borderBottom: "1px solid #ddd",
+    color: "#000",
     fontWeight: "800",
-    fontSize: "14px"
+    fontSize: "15px"
   },
   checkboxFake: {
     width: "22px",
     height: "22px",
     border: "2px solid #555",
-    borderRadius: "2px"
+    borderRadius: "2px",
+    marginLeft: "12px"
   },
   clientTableRow: {
     display: "grid",
-    gridTemplateColumns: "70px 2fr 1.7fr 1fr 1fr",
+    gridTemplateColumns: "72px 2fr 1.7fr 1fr 1fr",
     alignItems: "center",
     gap: "18px",
-    padding: "15px 24px",
-    minHeight: "62px",
+    padding: "17px 24px",
+    minHeight: "66px",
     cursor: "pointer",
     borderLeft: "4px solid transparent",
-    transition: "0.2s ease"
+    transition: "0.2s ease",
+    backgroundColor: "#fff"
   },
   clientTableRowActive: {
     borderLeft: "4px solid #1e88e5",
-    backgroundColor: "#f8fafc"
+    backgroundColor: "#fbfbfb"
   },
   avatar: {
-    width: "40px",
-    height: "40px",
+    width: "42px",
+    height: "42px",
     borderRadius: "50%",
     backgroundColor: "#d1d5db",
     color: "#fff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontWeight: "700",
-    fontSize: "16px",
-    cursor: "pointer"
+    fontWeight: "500",
+    fontSize: "17px",
+    cursor: "pointer",
+    marginLeft: "8px"
   },
   clientNameCell: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
-    color: "#111827",
+    color: "#111",
     fontSize: "15px"
   },
   homeMiniButton: {
@@ -1327,12 +1616,12 @@ const styles = {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    color: "#111827",
-    fontSize: "14px"
+    color: "#111",
+    fontSize: "15px"
   },
   captorAvatar: {
-    width: "38px",
-    height: "38px",
+    width: "40px",
+    height: "40px",
     borderRadius: "50%",
     backgroundColor: "#c9a227",
     color: "#fff",
@@ -1343,9 +1632,418 @@ const styles = {
     fontSize: "13px"
   },
   dateCell: {
-    color: "#374151",
-    fontSize: "14px",
+    color: "#111",
+    fontSize: "15px",
     whiteSpace: "nowrap"
+  },
+  emptyListMessage: {
+    padding: "50px",
+    textAlign: "center",
+    color: "#777"
+  },
+  listFooter: {
+    height: "42px",
+    display: "flex",
+    alignItems: "center",
+    gap: "5px",
+    fontSize: "16px",
+    color: "#333"
+  },
+  formLayout: {
+    display: "grid",
+    gridTemplateColumns: "420px 1fr",
+    minHeight: "calc(100vh - 54px)"
+  },
+  formLeftPanel: {
+    backgroundColor: "#fbf7ef",
+    borderRight: "1px solid #e2d6bb",
+    padding: "18px 14px",
+    boxSizing: "border-box"
+  },
+  activitiesBox: {
+    backgroundColor: "#fffdf8",
+    border: "1px solid #e3d6b5",
+    borderRadius: "12px",
+    padding: "14px",
+    marginBottom: "16px"
+  },
+  activitiesHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "10px"
+  },
+  activitiesTitle: {
+    margin: 0,
+    fontSize: "18px",
+    fontWeight: "600",
+    color: "#5d4a1f"
+  },
+  activitiesIcons: {
+    display: "flex",
+    gap: "12px",
+    color: "#8b7a52",
+    fontSize: "20px"
+  },
+  iconClickable: {
+    cursor: "pointer"
+  },
+  activityTextarea: {
+    width: "100%",
+    minHeight: "70px",
+    border: "1px solid #d8c8a2",
+    borderRadius: "8px",
+    padding: "10px",
+    resize: "vertical",
+    outline: "none",
+    boxSizing: "border-box",
+    backgroundColor: "#fff"
+  },
+  activityButton: {
+    width: "100%",
+    marginTop: "8px",
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#d4a62a",
+    color: "#fff",
+    padding: "10px",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
+  activitiesList: {
+    marginTop: "12px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    maxHeight: "260px",
+    overflowY: "auto"
+  },
+  activityItem: {
+    backgroundColor: "#f0eee8",
+    borderRadius: "10px",
+    padding: "12px"
+  },
+  activityItemTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    gap: "10px",
+    fontSize: "13px",
+    color: "#6b5b34"
+  },
+  activityItemText: {
+    margin: "8px 0",
+    fontSize: "14px",
+    color: "#222",
+    lineHeight: 1.4
+  },
+  activityAuthor: {
+    fontSize: "12px",
+    color: "#7a6a47",
+    fontWeight: "600"
+  },
+  emptyActivities: {
+    color: "#c0b38f",
+    textAlign: "center",
+    padding: "30px 10px",
+    fontSize: "14px"
+  },
+  leftPanelHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "18px"
+  },
+  leftPanelTitle: {
+    margin: 0,
+    fontSize: "20px",
+    fontWeight: "500",
+    color: "#5d4a1f"
+  },
+  leftIcons: {
+    display: "flex",
+    gap: "14px",
+    fontSize: "22px",
+    color: "#8b7a52"
+  },
+  searchInput: {
+    width: "100%",
+    padding: "12px",
+    border: "1px solid #ddd1af",
+    borderRadius: "8px",
+    boxSizing: "border-box",
+    marginBottom: "12px",
+    backgroundColor: "#fffdf8"
+  },
+  newClientButton: {
+    width: "100%",
+    border: "1px solid #d4a62a",
+    backgroundColor: "#fffdf8",
+    color: "#b58712",
+    borderRadius: "8px",
+    padding: "10px 12px",
+    cursor: "pointer",
+    marginBottom: "10px",
+    fontWeight: "bold"
+  },
+  backToListButton: {
+    width: "100%",
+    border: "none",
+    backgroundColor: "#111827",
+    color: "#fff",
+    borderRadius: "8px",
+    padding: "10px 12px",
+    cursor: "pointer",
+    marginBottom: "14px",
+    fontWeight: "bold"
+  },
+  sideList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    maxHeight: "calc(100vh - 390px)",
+    overflowY: "auto"
+  },
+  sideItem: {
+    border: "1px solid #e3d6b5",
+    backgroundColor: "#fffdf8",
+    borderRadius: "10px",
+    padding: "12px",
+    textAlign: "left",
+    cursor: "pointer"
+  },
+  sideItemActive: {
+    border: "2px solid #d4a62a",
+    backgroundColor: "#fff7df"
+  },
+  sideItemMeta: {
+    color: "#7a6a47",
+    fontSize: "14px",
+    marginTop: "4px"
+  },
+  sideResponsible: {
+    color: "#a16207",
+    fontSize: "13px",
+    marginTop: "6px",
+    fontWeight: "600"
+  },
+  emptyNotes: {
+    color: "#c0b38f",
+    textAlign: "center",
+    padding: "40px 20px"
+  },
+  mainPanel: {
+    backgroundColor: "#fffdf8",
+    padding: "26px 150px 26px 34px",
+    position: "relative",
+    overflowX: "hidden"
+  },
+  rightNav: {
+    position: "sticky",
+    float: "right",
+    right: "10px",
+    top: "90px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
+    zIndex: 5
+  },
+  rightNavItem: {
+    color: "#7a6a47",
+    textDecoration: "none",
+    fontSize: "16px",
+    borderLeft: "3px solid transparent",
+    paddingLeft: "12px",
+    fontWeight: "600"
+  },
+  formHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    marginBottom: "26px"
+  },
+  greenDot: {
+    width: "22px",
+    height: "22px",
+    borderRadius: "50%",
+    backgroundColor: "#cdbb7b"
+  },
+  formTitle: {
+    margin: 0,
+    fontSize: "28px",
+    fontWeight: "500"
+  },
+  rowSingle: {
+    marginBottom: "26px"
+  },
+  rowDouble: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "40px",
+    marginBottom: "26px"
+  },
+  rowTriple: {
+    display: "grid",
+    gridTemplateColumns: "1.2fr 1fr 0.8fr",
+    gap: "40px",
+    marginBottom: "26px",
+    alignItems: "end"
+  },
+  fieldWithIcon: {
+    display: "grid",
+    gridTemplateColumns: "52px 1fr",
+    gap: "16px",
+    alignItems: "end"
+  },
+  fieldIcon: {
+    fontSize: "30px",
+    color: "#9a8a60",
+    textAlign: "center",
+    paddingBottom: "10px"
+  },
+  fieldContent: {
+    display: "flex",
+    flexDirection: "column"
+  },
+  label: {
+    color: "#9a8a60",
+    fontSize: "15px",
+    marginBottom: "6px"
+  },
+  lineInput: {
+    border: "none",
+    borderBottom: "1px solid #d8c8a2",
+    padding: "8px 0 10px 0",
+    fontSize: "18px",
+    outline: "none",
+    backgroundColor: "transparent"
+  },
+  lineSelect: {
+    border: "none",
+    borderBottom: "1px solid #d8c8a2",
+    padding: "8px 0 10px 0",
+    fontSize: "18px",
+    outline: "none",
+    backgroundColor: "transparent"
+  },
+  textarea: {
+    width: "100%",
+    minHeight: "90px",
+    border: "1px solid #d8c8a2",
+    borderRadius: "8px",
+    padding: "12px",
+    fontSize: "16px",
+    outline: "none",
+    backgroundColor: "#fffdf8",
+    resize: "vertical",
+    boxSizing: "border-box"
+  },
+  checkboxWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    paddingBottom: "10px"
+  },
+  checkboxLabel: {
+    color: "#7a6a47",
+    fontSize: "16px"
+  },
+  statusRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    paddingTop: "10px"
+  },
+  statusTextLeft: {
+    fontSize: "16px",
+    color: "#000"
+  },
+  statusTextRight: {
+    fontSize: "16px",
+    color: "#000"
+  },
+  thermometerRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gap: "14px",
+    marginTop: "8px"
+  },
+  thermometerButton: {
+    border: "none",
+    borderRadius: "6px",
+    minHeight: "46px",
+    color: "#fff",
+    fontWeight: "800",
+    cursor: "pointer"
+  },
+  thermometerInactive: {
+    backgroundColor: "#e5dcc1",
+    color: "#8b7a52"
+  },
+  thermometerFRIO: {
+    backgroundColor: "#60a5fa"
+  },
+  thermometerMORNO: {
+    backgroundColor: "#86efac",
+    color: "#14532d"
+  },
+  thermometerINTERESSADO: {
+    backgroundColor: "#fde68a",
+    color: "#78350f"
+  },
+  thermometerQUENTE: {
+    backgroundColor: "#fdba74",
+    color: "#7c2d12"
+  },
+  thermometerFECHAMENTO: {
+    backgroundColor: "#f87171"
+  },
+  crmSection: {
+    borderTop: "1px solid #eee2bf",
+    marginTop: "38px",
+    paddingTop: "30px"
+  },
+  crmSectionTitle: {
+    margin: "0 0 26px 0",
+    fontSize: "28px",
+    fontWeight: "500",
+    color: "#111"
+  },
+  actionRow: {
+    display: "flex",
+    justifyContent: "flex-start",
+    gap: "12px",
+    marginTop: "10px"
+  },
+  createFinancingButton: {
+    backgroundColor: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "10px 16px",
+    cursor: "pointer",
+    fontWeight: "700"
+  },
+  deleteButton: {
+    backgroundColor: "#d6453d",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "10px 16px",
+    cursor: "pointer"
+  },
+  floatingSaveButton: {
+    position: "fixed",
+    right: "28px",
+    bottom: "24px",
+    width: "66px",
+    height: "66px",
+    borderRadius: "50%",
+    border: "none",
+    backgroundColor: "#ff4a3d",
+    color: "#fff",
+    fontSize: "28px",
+    cursor: "pointer",
+    boxShadow: "0 8px 20px rgba(0,0,0,0.2)"
   },
   quickOverlay: {
     position: "fixed",
@@ -1464,454 +2162,6 @@ const styles = {
   quickCaptorCompany: {
     margin: "4px 0 0",
     color: "#888"
-  },
-
-  activitiesBox: {
-    backgroundColor: "#fffdf8",
-    border: "1px solid #e3d6b5",
-    borderRadius: "12px",
-    padding: "14px",
-    marginBottom: "16px"
-  },
-  activitiesHeader: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: "10px"
-  },
-  activitiesTitle: {
-    margin: 0,
-    fontSize: "18px",
-    fontWeight: "600",
-    color: "#5d4a1f"
-  },
-  activitiesIcons: {
-    display: "flex",
-    gap: "12px",
-    color: "#8b7a52",
-    fontSize: "20px"
-  },
-  activityTextarea: {
-    width: "100%",
-    minHeight: "70px",
-    border: "1px solid #d8c8a2",
-    borderRadius: "8px",
-    padding: "10px",
-    resize: "vertical",
-    outline: "none",
-    boxSizing: "border-box",
-    backgroundColor: "#fff"
-  },
-  activityButton: {
-    width: "100%",
-    marginTop: "8px",
-    border: "none",
-    borderRadius: "8px",
-    backgroundColor: "#d4a62a",
-    color: "#fff",
-    padding: "10px",
-    fontWeight: "700",
-    cursor: "pointer"
-  },
-  activitiesList: {
-    marginTop: "12px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    maxHeight: "260px",
-    overflowY: "auto"
-  },
-  activityItem: {
-    backgroundColor: "#f0eee8",
-    borderRadius: "10px",
-    padding: "12px"
-  },
-  activityItemTop: {
-    display: "flex",
-    justifyContent: "space-between",
-    gap: "10px",
-    fontSize: "13px",
-    color: "#6b5b34"
-  },
-  activityItemText: {
-    margin: "8px 0",
-    fontSize: "14px",
-    color: "#222",
-    lineHeight: 1.4
-  },
-  activityAuthor: {
-    fontSize: "12px",
-    color: "#7a6a47",
-    fontWeight: "600"
-  },
-  emptyActivities: {
-    color: "#c0b38f",
-    textAlign: "center",
-    padding: "30px 10px",
-    fontSize: "14px"
-  },
-  thermometerRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(5, 1fr)",
-    gap: "14px",
-    marginTop: "8px"
-  },
-  thermometerButton: {
-    border: "none",
-    borderRadius: "6px",
-    minHeight: "46px",
-    color: "#fff",
-    fontWeight: "800",
-    cursor: "pointer"
-  },
-  thermometerInactive: {
-    backgroundColor: "#e5dcc1",
-    color: "#8b7a52"
-  },
-  thermometerFRIO: {
-    backgroundColor: "#60a5fa"
-  },
-  thermometerMORNO: {
-    backgroundColor: "#86efac",
-    color: "#14532d"
-  },
-  thermometerINTERESSADO: {
-    backgroundColor: "#fde68a",
-    color: "#78350f"
-  },
-  thermometerQUENTE: {
-    backgroundColor: "#fdba74",
-    color: "#7c2d12"
-  },
-  thermometerFECHAMENTO: {
-    backgroundColor: "#f87171"
-  },
-  rightNav: {
-    position: "fixed",
-    right: "34px",
-    top: "230px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-    zIndex: 5
-  },
-  rightNavItem: {
-    color: "#7a6a47",
-    textDecoration: "none",
-    fontSize: "16px",
-    borderLeft: "3px solid transparent",
-    paddingLeft: "12px",
-    fontWeight: "600"
-  },
-  crmSection: {
-    borderTop: "1px solid #eee2bf",
-    marginTop: "38px",
-    paddingTop: "30px"
-  },
-  crmSectionTitle: {
-    margin: "0 0 26px 0",
-    fontSize: "28px",
-    fontWeight: "500",
-    color: "#111"
-  },
-  page: {
-    backgroundColor: "#f3f0e8",
-    minHeight: "100vh",
-    position: "relative",
-    margin: 0
-  },
-  blueBar: {
-    height: "54px",
-    backgroundColor: "#d4a62a",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "0 16px",
-    color: "#fff",
-    position: "relative"
-  },
-  blueBarLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px"
-  },
-  backButton: {
-    border: "none",
-    backgroundColor: "transparent",
-    color: "#fff",
-    fontSize: "26px",
-    cursor: "pointer"
-  },
-  blueBarTitle: {
-    fontSize: "18px",
-    fontWeight: "500"
-  },
-  blueBarRight: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
-    position: "relative"
-  },
-  topIcon: {
-    border: "none",
-    backgroundColor: "transparent",
-    color: "#fff",
-    fontSize: "22px",
-    cursor: "pointer"
-  },
-  dropdownMenu: {
-    position: "absolute",
-    top: "46px",
-    right: 0,
-    width: "310px",
-    backgroundColor: "#fffdf8",
-    border: "1px solid #e4d2a0",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.12)",
-    zIndex: 20
-  },
-  dropdownItem: {
-    width: "100%",
-    textAlign: "left",
-    border: "none",
-    backgroundColor: "#fffdf8",
-    padding: "14px 16px",
-    fontSize: "15px",
-    cursor: "pointer",
-    borderBottom: "1px solid #eee2bf"
-  },
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "420px 1fr",
-    minHeight: "calc(100vh - 54px)"
-  },
-  leftPanel: {
-    backgroundColor: "#fbf7ef",
-    borderRight: "1px solid #e2d6bb",
-    padding: "18px 14px"
-  },
-  leftPanelHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "18px"
-  },
-  leftPanelTitle: {
-    margin: 0,
-    fontSize: "20px",
-    fontWeight: "500",
-    color: "#5d4a1f"
-  },
-  leftIcons: {
-    display: "flex",
-    gap: "14px",
-    fontSize: "22px",
-    color: "#8b7a52"
-  },
-  iconClickable: {
-    cursor: "pointer"
-  },
-  searchInput: {
-    width: "100%",
-    padding: "12px",
-    border: "1px solid #ddd1af",
-    borderRadius: "8px",
-    boxSizing: "border-box",
-    marginBottom: "12px",
-    backgroundColor: "#fffdf8"
-  },
-  newClientButton: {
-    width: "100%",
-    border: "1px solid #d4a62a",
-    backgroundColor: "#fffdf8",
-    color: "#b58712",
-    borderRadius: "8px",
-    padding: "10px 12px",
-    cursor: "pointer",
-    marginBottom: "14px",
-    fontWeight: "bold"
-  },
-  clientList: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    maxHeight: "calc(100vh - 220px)",
-    overflowY: "auto"
-  },
-  emptyNotes: {
-    color: "#c0b38f",
-    textAlign: "center",
-    padding: "60px 20px"
-  },
-  clientItem: {
-    border: "1px solid #e3d6b5",
-    backgroundColor: "#fffdf8",
-    borderRadius: "10px",
-    padding: "12px",
-    textAlign: "left",
-    cursor: "pointer"
-  },
-  clientItemActive: {
-    border: "2px solid #d4a62a",
-    backgroundColor: "#fff7df"
-  },
-  clientItemMeta: {
-    color: "#7a6a47",
-    fontSize: "14px",
-    marginTop: "4px"
-  },
-  clientResponsible: {
-    color: "#a16207",
-    fontSize: "13px",
-    marginTop: "6px",
-    fontWeight: "600"
-  },
-  mainPanel: {
-    backgroundColor: "#fffdf8",
-    padding: "26px 34px",
-    position: "relative"
-  },
-  formHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
-    marginBottom: "26px"
-  },
-  greenDot: {
-    width: "22px",
-    height: "22px",
-    borderRadius: "50%",
-    backgroundColor: "#cdbb7b"
-  },
-  formTitle: {
-    margin: 0,
-    fontSize: "28px",
-    fontWeight: "500"
-  },
-  rowSingle: {
-    marginBottom: "26px"
-  },
-  rowDouble: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "40px",
-    marginBottom: "26px"
-  },
-  rowTriple: {
-    display: "grid",
-    gridTemplateColumns: "1.2fr 1fr 0.8fr",
-    gap: "40px",
-    marginBottom: "26px",
-    alignItems: "end"
-  },
-  fieldWithIcon: {
-    display: "grid",
-    gridTemplateColumns: "52px 1fr",
-    gap: "16px",
-    alignItems: "end"
-  },
-  fieldIcon: {
-    fontSize: "30px",
-    color: "#9a8a60",
-    textAlign: "center",
-    paddingBottom: "10px"
-  },
-  fieldContent: {
-    display: "flex",
-    flexDirection: "column"
-  },
-  label: {
-    color: "#9a8a60",
-    fontSize: "15px",
-    marginBottom: "6px"
-  },
-  lineInput: {
-    border: "none",
-    borderBottom: "1px solid #d8c8a2",
-    padding: "8px 0 10px 0",
-    fontSize: "18px",
-    outline: "none",
-    backgroundColor: "transparent"
-  },
-  lineSelect: {
-    border: "none",
-    borderBottom: "1px solid #d8c8a2",
-    padding: "8px 0 10px 0",
-    fontSize: "18px",
-    outline: "none",
-    backgroundColor: "transparent"
-  },
-  textarea: {
-    width: "100%",
-    minHeight: "90px",
-    border: "1px solid #d8c8a2",
-    borderRadius: "8px",
-    padding: "12px",
-    fontSize: "16px",
-    outline: "none",
-    backgroundColor: "#fffdf8",
-    resize: "vertical",
-    boxSizing: "border-box"
-  },
-  checkboxWrap: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    paddingBottom: "10px"
-  },
-  checkboxLabel: {
-    color: "#7a6a47",
-    fontSize: "16px"
-  },
-  statusRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
-    paddingTop: "10px"
-  },
-  statusTextLeft: {
-    fontSize: "16px",
-    color: "#000"
-  },
-  statusTextRight: {
-    fontSize: "16px",
-    color: "#000"
-  },
-  actionRow: {
-    display: "flex",
-    justifyContent: "flex-start",
-    gap: "12px",
-    marginTop: "10px"
-  },
-  createFinancingButton: {
-    backgroundColor: "#2563eb",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    padding: "10px 16px",
-    cursor: "pointer",
-    fontWeight: "700"
-  },
-  deleteButton: {
-    backgroundColor: "#d6453d",
-    color: "#fff",
-    border: "none",
-    borderRadius: "8px",
-    padding: "10px 16px",
-    cursor: "pointer"
-  },
-  floatingSaveButton: {
-    position: "fixed",
-    right: "28px",
-    bottom: "24px",
-    width: "66px",
-    height: "66px",
-    borderRadius: "50%",
-    border: "none",
-    backgroundColor: "#ff4a3d",
-    color: "#fff",
-    fontSize: "28px",
-    cursor: "pointer",
-    boxShadow: "0 8px 20px rgba(0,0,0,0.2)"
   }
 };
 
