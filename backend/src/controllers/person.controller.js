@@ -95,7 +95,8 @@ function buildCreatePersonData(body) {
         ? Boolean(body.createReminder)
         : false,
     businessTemperature: normalizeString(body.businessTemperature) || "FRIO",
-    activities: Array.isArray(body.activities) ? body.activities : []
+    activities: Array.isArray(body.activities) ? body.activities : [],
+    createdById: normalizeString(body.createdById)
   };
 }
 
@@ -131,6 +132,8 @@ function buildUpdatePersonData(body) {
     data.businessTemperature = normalizeString(body.businessTemperature) || "FRIO";
   if (body.activities !== undefined)
     data.activities = Array.isArray(body.activities) ? body.activities : [];
+  if (body.createdById !== undefined)
+    data.createdById = normalizeString(body.createdById);
 
   return data;
 }
@@ -138,11 +141,9 @@ function buildUpdatePersonData(body) {
 
 function getAuthUser(req) {
   const user = req.user || {};
-  const role = String(user.role || "USER").toUpperCase();
-
   return {
     id: user.id || user.userId || null,
-    role,
+    role: user.role || "USER",
     name: user.name || user.fullName || user.email || ""
   };
 }
@@ -184,7 +185,7 @@ async function createPerson(req, res) {
     const authUser = getAuthUser(req);
     const createData = buildCreatePersonData(req.body);
 
-    if (authUser.id) {
+    if (!createData.createdById && authUser.id) {
       createData.createdById = authUser.id;
     }
 
@@ -235,15 +236,11 @@ async function listPersons(req, res) {
 
     const authUser = getAuthUser(req);
 
-    if (!authUser.id) {
-      return res.status(401).json({
-        error: "Usuário não identificado no token."
-      });
-    }
-
     const secureWhere = {
       ...where,
-      ...(authUser.role === "ADMIN" ? {} : { createdById: authUser.id })
+      ...(authUser.role === "ADMIN" || !authUser.id
+        ? {}
+        : { createdById: authUser.id })
     };
 
     const persons = await prisma.person.findMany({
@@ -356,9 +353,16 @@ async function updatePerson(req, res) {
       });
     }
 
+    const updateData = buildUpdatePersonData(req.body);
+
+    // Somente ADMIN pode alterar o captador de um cliente/proprietário.
+    if (authUser.role !== "ADMIN") {
+      delete updateData.createdById;
+    }
+
     const person = await prisma.person.update({
       where: { id },
-      data: buildUpdatePersonData(req.body),
+      data: updateData,
       include: {
         createdBy: {
           select: {

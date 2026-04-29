@@ -8,6 +8,7 @@ function Owners() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [owners, setOwners] = useState([]);
+  const [users, setUsers] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedOwner, setSelectedOwner] = useState(null);
   const [viewOwner, setViewOwner] = useState(null);
@@ -36,7 +37,8 @@ function Owners() {
     notes: "",
     createReminder: false,
     businessTemperature: "FRIO",
-    activities: []
+    activities: [],
+    createdById: user.id || user.userId || ""
   });
 
   function parseWhatsapp(value) {
@@ -105,15 +107,53 @@ function Owners() {
   }
 
   function getCaptadorName(person) {
+    const captadorId =
+      person?.createdById ||
+      person?.createdBy?.id ||
+      person?.captorId ||
+      "";
+
+    const captadorFromUsers = users.find((item) => item.id === captadorId);
+
     return (
       person?.createdBy?.name ||
+      captadorFromUsers?.name ||
+      captadorFromUsers?.email ||
       person?.createdBy?.email ||
       person?.captorName ||
+      "Captador não informado"
+    );
+  }
+
+  function getSelectedCaptadorName() {
+    const selected = users.find((item) => item.id === form.createdById);
+
+    return (
+      selected?.name ||
+      selected?.email ||
+      getCaptadorName(selectedOwner) ||
       user.name ||
       user.fullName ||
       user.email ||
       "Captador não informado"
     );
+  }
+
+  async function loadUsers() {
+    try {
+      const response = await api.get("/users");
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data?.users || [];
+
+      setUsers(data);
+    } catch (error) {
+      console.error(
+        "Erro ao carregar usuários/captadores:",
+        error.response?.data || error.message
+      );
+      setUsers([]);
+    }
   }
 
   async function loadOwners(selectId = null) {
@@ -152,6 +192,7 @@ function Owners() {
   }
 
   useEffect(() => {
+    loadUsers();
     loadOwners();
   }, []);
 
@@ -214,7 +255,8 @@ function Owners() {
           ? Boolean(owner.createReminder)
           : false,
       businessTemperature: owner.businessTemperature || "FRIO",
-      activities: Array.isArray(owner.activities) ? owner.activities : []
+      activities: Array.isArray(owner.activities) ? owner.activities : [],
+      createdById: owner.createdById || owner.createdBy?.id || user.id || user.userId || ""
     });
   }
 
@@ -265,7 +307,8 @@ function Owners() {
       notes: "",
       createReminder: false,
       businessTemperature: "FRIO",
-      activities: []
+      activities: [],
+      createdById: user.id || user.userId || ""
     });
   }
 
@@ -305,7 +348,8 @@ function Owners() {
         notes: normalizeString(form.notes),
         createReminder: Boolean(form.createReminder),
         businessTemperature: normalizeString(form.businessTemperature) || "FRIO",
-        activities: Array.isArray(form.activities) ? form.activities : []
+        activities: Array.isArray(form.activities) ? form.activities : [],
+        createdById: normalizeString(form.createdById)
       };
 
       if (editingId) {
@@ -1061,11 +1105,22 @@ Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "
 
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Captador</label>
-                <input
-                  style={styles.lineInput}
-                  value={getCaptadorName(selectedOwner)}
-                  disabled
-                />
+                <select
+                  name="createdById"
+                  value={form.createdById || ""}
+                  onChange={handleChange}
+                  style={styles.lineSelect}
+                >
+                  <option value="">
+                    {getSelectedCaptadorName()}
+                  </option>
+
+                  {users.map((captador) => (
+                    <option key={captador.id} value={captador.id}>
+                      {captador.name || captador.email}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
