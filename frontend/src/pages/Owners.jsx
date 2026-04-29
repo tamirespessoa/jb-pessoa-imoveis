@@ -10,9 +10,13 @@ function Owners() {
   const [owners, setOwners] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedOwner, setSelectedOwner] = useState(null);
+  const [viewOwner, setViewOwner] = useState(null);
   const [showMenu, setShowMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [newActivityText, setNewActivityText] = useState("");
+  const [showOnlyActive, setShowOnlyActive] = useState(true);
+  const [showArchived, setShowArchived] = useState(false);
+  const [screenMode, setScreenMode] = useState("list");
 
   const [form, setForm] = useState({
     type: "PROPRIETARIO",
@@ -56,6 +60,62 @@ function Owners() {
     return text === "" ? null : text;
   }
 
+  function getInitials(name) {
+    const value = String(name || "").trim();
+
+    if (!value) return "?";
+
+    const parts = value.split(" ").filter(Boolean);
+
+    if (parts.length === 1) {
+      return parts[0].slice(0, 1).toUpperCase();
+    }
+
+    return `${parts[0].slice(0, 1)}${parts[parts.length - 1].slice(0, 1)}`.toUpperCase();
+  }
+
+  function formatDate(value) {
+    if (!value) return "-";
+
+    try {
+      return new Date(value).toLocaleDateString("pt-BR");
+    } catch {
+      return "-";
+    }
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "-";
+
+    try {
+      return new Date(value).toLocaleString("pt-BR");
+    } catch {
+      return "-";
+    }
+  }
+
+  function getWhatsAppLink(phone) {
+    const numbers = String(phone || "").replace(/\D/g, "");
+
+    if (!numbers) return "";
+
+    const finalNumber = numbers.startsWith("55") ? numbers : `55${numbers}`;
+
+    return `https://wa.me/${finalNumber}`;
+  }
+
+  function getCaptadorName(person) {
+    return (
+      person?.createdBy?.name ||
+      person?.createdBy?.email ||
+      person?.captorName ||
+      user.name ||
+      user.fullName ||
+      user.email ||
+      "Captador não informado"
+    );
+  }
+
   async function loadOwners(selectId = null) {
     try {
       const response = await api.get("/persons");
@@ -69,10 +129,8 @@ function Owners() {
         const found = filtered.find((item) => item.id === selectId);
         if (found) {
           handleSelectOwner(found);
-          return;
         }
       }
-      // Não seleciona proprietário automaticamente. O usuário escolhe na lista.
     } catch (error) {
       console.error(
         "Erro ao carregar proprietários:",
@@ -86,8 +144,7 @@ function Owners() {
         error.message ||
         "Não foi possível carregar os proprietários.";
 
-      alert(`Erro ao carregar proprietários:
-${apiMessage}`);
+      alert(`Erro ao carregar proprietários:\n${apiMessage}`);
       setOwners([]);
       setSelectedOwner(null);
       setEditingId(null);
@@ -115,19 +172,24 @@ ${apiMessage}`);
   }, [showMenu]);
 
   const filteredOwners = useMemo(() => {
-    return owners.filter((owner) =>
-      `${owner.fullName || ""} ${owner.cpf || ""} ${owner.email || ""} ${
-        owner.phone || ""
-      } ${owner.createdBy?.name || ""} ${owner.category || ""} ${owner.firstContact || ""}`
-        .toLowerCase()
-        .includes(search.toLowerCase())
-    );
-  }, [owners, search]);
+    return owners
+      .filter((owner) => {
+        if (showOnlyActive && owner.isActive === false) return false;
+        if (!showArchived && owner.archived === true) return false;
+        return true;
+      })
+      .filter((owner) =>
+        `${owner.fullName || ""} ${owner.cpf || ""} ${owner.email || ""} ${
+          owner.phone || ""
+        } ${owner.createdBy?.name || ""} ${owner.category || ""} ${
+          owner.firstContact || ""
+        }`
+          .toLowerCase()
+          .includes(search.toLowerCase())
+      );
+  }, [owners, search, showOnlyActive, showArchived]);
 
-  function handleSelectOwner(owner) {
-    setSelectedOwner(owner);
-    setEditingId(owner.id);
-
+  function fillFormFromOwner(owner) {
     setForm({
       type: "PROPRIETARIO",
       fullName: owner.fullName || "",
@@ -140,7 +202,7 @@ ${apiMessage}`);
       residentialPhone: owner.residentialPhone || "",
       contactPhone: owner.contactPhone || "",
       whatsapp: parseWhatsapp(owner.whatsapp),
-      category: owner.category || "PROPRIETARIO",
+      category: owner.category || "",
       firstContact: owner.firstContact || "",
       isActive:
         owner.isActive !== undefined && owner.isActive !== null
@@ -156,10 +218,34 @@ ${apiMessage}`);
     });
   }
 
+  function handleSelectOwner(owner) {
+    setSelectedOwner(owner);
+    setEditingId(owner.id);
+    fillFormFromOwner(owner);
+    setScreenMode("form");
+  }
+
+  function handleOpenQuickView(owner) {
+    setViewOwner(owner);
+  }
+
+  function handleEditFromQuickView() {
+    if (!viewOwner) return;
+
+    handleSelectOwner(viewOwner);
+    setViewOwner(null);
+  }
+
+  function handleBackToList() {
+    setScreenMode("list");
+    setShowMenu(false);
+  }
+
   function handleNewOwner() {
     setSelectedOwner(null);
     setEditingId(null);
     setShowMenu(false);
+    setScreenMode("form");
 
     setForm({
       type: "PROPRIETARIO",
@@ -224,12 +310,14 @@ ${apiMessage}`);
 
       if (editingId) {
         const response = await api.put(`/persons/${editingId}`, payload);
-        alert("Proprietário atualizado com sucesso.");
-        await loadOwners(response.data?.person?.id || response.data?.id || editingId);
+        const updatedOwner = response.data?.person || response.data || null;
+        alert("Ownere atualizado com sucesso.");
+        await loadOwners(updatedOwner?.id || editingId);
       } else {
         const response = await api.post("/persons", payload);
-        alert("Proprietário cadastrado com sucesso.");
-        await loadOwners(response.data?.person?.id || response.data?.id || null);
+        const createdId = response.data?.person?.id || response.data?.id || null;
+        alert("Ownere cadastrado com sucesso.");
+        await loadOwners(createdId);
       }
     } catch (error) {
       console.error(
@@ -259,38 +347,52 @@ ${apiMessage}`);
 
     try {
       await api.delete(`/persons/${editingId}`);
-      alert("Proprietário excluído com sucesso.");
-      handleNewOwner();
+      alert("Ownere excluído com sucesso.");
+      setSelectedOwner(null);
+      setEditingId(null);
+      setScreenMode("list");
       await loadOwners();
     } catch (error) {
       console.error(
         "Erro ao excluir proprietário:",
         error.response?.data || error.message
       );
+
       const apiMessage =
         error.response?.data?.error ||
         error.response?.data?.message ||
         "Erro ao excluir proprietário.";
+
       alert(apiMessage);
     }
   }
 
+  function handleOpenLinkedProperties() {
+    setShowMenu(false);
+    navigate("/imoveis");
+  }
+
   function handleBack() {
+    if (screenMode === "form") {
+      handleBackToList();
+      return;
+    }
+
     navigate("/dashboard");
   }
 
   async function handleRefresh() {
     await loadOwners(editingId || null);
-    alert("Lista atualizada.");
   }
 
   function handlePrint() {
     if (!selectedOwner) {
-      alert("Selecione um proprietário para imprimir.");
+      window.print();
       return;
     }
 
     const printWindow = window.open("", "_blank");
+
     if (!printWindow) {
       alert("Não foi possível abrir a janela de impressão.");
       return;
@@ -299,7 +401,7 @@ ${apiMessage}`);
     printWindow.document.write(`
       <html>
         <head>
-          <title>Proprietário - ${selectedOwner.fullName}</title>
+          <title>Ownere - ${selectedOwner.fullName}</title>
           <style>
             body { font-family: Arial, sans-serif; padding: 24px; }
             h1 { margin-bottom: 24px; }
@@ -320,8 +422,17 @@ ${apiMessage}`);
           <p><strong>WhatsApp:</strong> ${
             parseWhatsapp(selectedOwner.whatsapp) ? "Sim" : "Não"
           }</p>
+          <p><strong>Categoria:</strong> ${selectedOwner.category || "-"}</p>
+          <p><strong>Primeiro contato:</strong> ${selectedOwner.firstContact || "-"}</p>
+          <p><strong>Situação:</strong> ${
+            selectedOwner.isActive ? "Ativo" : "Inativo"
+          }</p>
+          <p><strong>Termômetro:</strong> ${
+            selectedOwner.businessTemperature || "-"
+          }</p>
+          <p><strong>Notas:</strong> ${selectedOwner.notes || "-"}</p>
           <p><strong>Captador:</strong> ${
-            selectedOwner.createdBy?.name || "-"
+            selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "-"
           }</p>
         </body>
       </html>
@@ -339,35 +450,56 @@ ${apiMessage}`);
     }
 
     const text = `
-Proprietário: ${selectedOwner.fullName}
+Ownere: ${selectedOwner.fullName}
 Código: ${selectedOwner.id}
 CPF: ${selectedOwner.cpf || "-"}
 Telefone: ${selectedOwner.phone || "-"}
 E-mail: ${selectedOwner.email || "-"}
-Captador: ${selectedOwner.createdBy?.name || "-"}
+Categoria: ${selectedOwner.category || "-"}
+Primeiro contato: ${selectedOwner.firstContact || "-"}
+Situação: ${selectedOwner.isActive ? "Ativo" : "Inativo"}
+Termômetro: ${selectedOwner.businessTemperature || "-"}
+Captador: ${selectedOwner.createdBy?.name || selectedOwner.createdBy?.email || "-"}
     `.trim();
 
     try {
       await navigator.clipboard.writeText(text);
       alert("Resumo do proprietário copiado.");
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao copiar resumo:", error);
       alert("Não foi possível copiar o resumo.");
     }
   }
 
   function handleOpenHistory() {
     setShowMenu(false);
+
     if (!selectedOwner) {
       alert("Selecione um proprietário primeiro.");
       return;
     }
-    alert(`Histórico do proprietário: ${selectedOwner.fullName}`);
+
+    alert(`Histórico de atendimentos do proprietário: ${selectedOwner.fullName}`);
   }
 
-  function handleOpenLinkedProperties() {
+  function handleOpenProfiles() {
     setShowMenu(false);
     navigate("/imoveis");
+  }
+
+  function handleOpenVisits() {
+    setShowMenu(false);
+    alert("Área de visitas/negociações será ligada depois.");
+  }
+
+  function handleOpenFollowUp() {
+    setShowMenu(false);
+    alert("Área de avisos/retornos/follow up será ligada depois.");
+  }
+
+  function handleOpenMessages() {
+    setShowMenu(false);
+    alert("Área de e-mails/WhatsApp enviados será ligada depois.");
   }
 
   function handleOpenDocuments() {
@@ -375,31 +507,9 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
     navigate("/documentos");
   }
 
-  function handleOpenService() {
+  function handleOpenOwnerProperties() {
     setShowMenu(false);
-    alert("Área de atendimentos será ligada depois.");
-  }
-
-
-  function getCaptadorName(person) {
-    return (
-      person?.createdBy?.name ||
-      person?.createdBy?.email ||
-      person?.captorName ||
-      user.name ||
-      user.fullName ||
-      user.email ||
-      "Captador não informado"
-    );
-  }
-
-  function formatDateTime(value) {
-    if (!value) return "-";
-    try {
-      return new Date(value).toLocaleString("pt-BR");
-    } catch {
-      return "-";
-    }
+    navigate("/imoveis");
   }
 
   function handleSelectTemperature(value) {
@@ -427,53 +537,65 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
 
     setForm((prev) => ({
       ...prev,
-      activities: [activity, ...(Array.isArray(prev.activities) ? prev.activities : [])]
+      activities: [
+        activity,
+        ...(Array.isArray(prev.activities) ? prev.activities : [])
+      ]
     }));
 
     setNewActivityText("");
   }
 
-  return (
-    <div style={styles.page}>
+  function renderTopBar() {
+    return (
       <div style={styles.topBar}>
         <div style={styles.topBarLeft}>
           <button type="button" style={styles.backButton} onClick={handleBack}>
             ←
           </button>
+
           <span style={styles.topBarTitle}>
-            {selectedOwner
+            {screenMode === "list"
+              ? "Owneres"
+              : selectedOwner
               ? `${selectedOwner.fullName} (Código: ${selectedOwner.id})`
               : "Novo proprietário"}
           </span>
         </div>
 
         <div style={styles.topBarRight} ref={menuRef}>
-          <button type="button" style={styles.topIcon} onClick={handleShare}>
-            ⤴
-          </button>
+          {screenMode === "list" && (
+            <button type="button" style={styles.topIcon} onClick={handleNewOwner}>
+              +
+            </button>
+          )}
+
           <button type="button" style={styles.topIcon} onClick={handlePrint}>
             🖨
           </button>
+
           <button type="button" style={styles.topIcon} onClick={handleRefresh}>
             ↻
           </button>
-          <button
-            type="button"
-            style={styles.topIcon}
-            onClick={() => setShowMenu(!showMenu)}
-          >
-            ⋮
-          </button>
+
+          {screenMode === "form" && (
+            <>
+              <button type="button" style={styles.topIcon} onClick={handleShare}>
+                ⤴
+              </button>
+
+              <button
+                type="button"
+                style={styles.topIcon}
+                onClick={() => setShowMenu(!showMenu)}
+              >
+                ⋮
+              </button>
+            </>
+          )}
 
           {showMenu && (
             <div style={styles.dropdownMenu}>
-              <button
-                type="button"
-                style={styles.dropdownItem}
-                onClick={handleOpenHistory}
-              >
-                Histórico do proprietário
-              </button>
               <button
                 type="button"
                 style={styles.dropdownItem}
@@ -481,6 +603,47 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
               >
                 Imóveis vinculados
               </button>
+
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenHistory}
+              >
+                Histórico de atendimentos
+              </button>
+
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenProfiles}
+              >
+                Perfis de imóveis
+              </button>
+
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenVisits}
+              >
+                Visitas/Negociações
+              </button>
+
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenFollowUp}
+              >
+                Avisos/Retornos/Follow up
+              </button>
+
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenMessages}
+              >
+                E-mails/WhatsApp enviados
+              </button>
+
               <button
                 type="button"
                 style={styles.dropdownItem}
@@ -488,78 +651,211 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
               >
                 Documentos do proprietário
               </button>
+
               <button
                 type="button"
                 style={styles.dropdownItem}
-                onClick={handleOpenService}
+                onClick={handleOpenOwnerProperties}
               >
-                Atendimentos
+                Imóveis do proprietário
               </button>
             </div>
           )}
         </div>
       </div>
+    );
+  }
 
-      <div style={styles.layout}>
-        <aside style={styles.leftPanel}>
-          <div style={styles.activitiesBox} id="atividades">
-            <div style={styles.activitiesHeader}>
-              <h3 style={styles.activitiesTitle}>Anotações e atividades</h3>
-              <div style={styles.activitiesIcons}>
-                <span title="Filtrar">⏷</span>
-                <span title="Atualizar" onClick={handleRefresh} style={styles.iconClickable}>↻</span>
-                <span title="Adicionar" onClick={handleAddActivity} style={styles.iconClickable}>⊕</span>
-              </div>
-            </div>
+  function renderListScreen() {
+    return (
+      <div style={styles.listScreen}>
+        <div style={styles.listHeaderArea}>
+          <h1 style={styles.listTitle}>Últimos proprietários cadastrados</h1>
 
-            <textarea
-              value={newActivityText}
-              onChange={(e) => setNewActivityText(e.target.value)}
-              style={styles.activityTextarea}
-              placeholder="Digite uma anotação ou atividade..."
-            />
+          <div style={styles.listOptions}>
+            <strong>Opções:</strong>
 
-            <button
-              type="button"
-              onClick={handleAddActivity}
-              style={styles.activityButton}
-            >
-              + Adicionar anotação
-            </button>
+            <label style={styles.optionLabel}>
+              <input
+                type="checkbox"
+                checked={showOnlyActive}
+                onChange={(event) => setShowOnlyActive(event.target.checked)}
+              />
+              <span>Somente Ativos</span>
+            </label>
 
-            <div style={styles.activitiesList}>
-              {Array.isArray(form.activities) && form.activities.length > 0 ? (
-                form.activities.slice(0, 5).map((activity) => (
-                  <div key={activity.id || activity.createdAt} style={styles.activityItem}>
-                    <div style={styles.activityItemTop}>
-                      <strong>{activity.type || "Anotação"}</strong>
-                      <span>{formatDateTime(activity.createdAt)}</span>
-                    </div>
-                    <p style={styles.activityItemText}>{activity.text}</p>
-                    <div style={styles.activityAuthor}>
-                      👤 {activity.createdBy || getCaptadorName(selectedOwner)}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div style={styles.emptyActivities}>
-                  Proprietário sem anotações ou atividades
-                </div>
-              )}
-            </div>
+            <label style={styles.optionLabelMuted}>
+              <input
+                type="checkbox"
+                checked={showArchived}
+                onChange={(event) => setShowArchived(event.target.checked)}
+              />
+              <span>Arquivados</span>
+            </label>
           </div>
+        </div>
+
+        <div style={styles.listSearchRow}>
+          <input
+            style={styles.listSearch}
+            placeholder="Pesquise por nome, e-mail, telefone, CPF ou CNPJ"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
+
+          <button type="button" style={styles.newOwnerButtonList} onClick={handleNewOwner}>
+            + Novo proprietário
+          </button>
+        </div>
+
+        <div style={styles.ownerListCard}>
+          <div style={styles.ownerTableHeader}>
+            <div style={styles.checkboxFake}></div>
+            <div>Nome / Empresa</div>
+            <div>Captador</div>
+            <div>Data Cadastro</div>
+            <div>Data Atualização</div>
+          </div>
+
+          {filteredOwners.length === 0 ? (
+            <div style={styles.emptyListMessage}>Nenhum proprietário encontrado</div>
+          ) : (
+            filteredOwners.map((owner) => (
+              <div
+                key={owner.id}
+                onClick={() => handleSelectOwner(owner)}
+                style={{
+                  ...styles.ownerTableRow,
+                  ...(selectedOwner?.id === owner.id
+                    ? styles.ownerTableRowActive
+                    : {})
+                }}
+              >
+                <div
+                  style={styles.avatar}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    handleOpenQuickView(owner);
+                  }}
+                  title="Ver informações básicas"
+                >
+                  {getInitials(owner.fullName)}
+                </div>
+
+                <div style={styles.ownerNameCell}>
+                  <strong>{owner.fullName}</strong>
+
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      handleOpenQuickView(owner);
+                    }}
+                    style={styles.homeMiniButton}
+                    title="Informações rápidas"
+                  >
+                    ⌂
+                  </button>
+                </div>
+
+                <div style={styles.captorCell}>
+                  <div style={styles.captorAvatar}>
+                    {getInitials(owner.createdBy?.name || owner.createdBy?.email)}
+                  </div>
+
+                  <span>
+                    {owner.createdBy?.name ||
+                      owner.createdBy?.email ||
+                      "Captador não informado"}
+                  </span>
+                </div>
+
+                <div style={styles.dateCell}>◷ {formatDate(owner.createdAt)}</div>
+                <div style={styles.dateCell}>↻ {formatDate(owner.updatedAt)}</div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div style={styles.listFooter}>
+          <strong>{filteredOwners.length}</strong> proprietários encontrados
+        </div>
+      </div>
+    );
+  }
+
+  function renderActivityPanel() {
+    return (
+      <div style={styles.activitiesBox} id="atividades">
+        <div style={styles.activitiesHeader}>
+          <h3 style={styles.activitiesTitle}>Anotações e atividades</h3>
+
+          <div style={styles.activitiesIcons}>
+            <span title="Filtrar">⏷</span>
+
+            <span title="Atualizar" onClick={handleRefresh} style={styles.iconClickable}>
+              ↻
+            </span>
+
+            <span title="Adicionar" onClick={handleAddActivity} style={styles.iconClickable}>
+              ⊕
+            </span>
+          </div>
+        </div>
+
+        <textarea
+          value={newActivityText}
+          onChange={(event) => setNewActivityText(event.target.value)}
+          style={styles.activityTextarea}
+          placeholder="Digite uma anotação ou atividade..."
+        />
+
+        <button type="button" onClick={handleAddActivity} style={styles.activityButton}>
+          + Adicionar anotação
+        </button>
+
+        <div style={styles.activitiesList}>
+          {Array.isArray(form.activities) && form.activities.length > 0 ? (
+            form.activities.slice(0, 5).map((activity) => (
+              <div key={activity.id || activity.createdAt} style={styles.activityItem}>
+                <div style={styles.activityItemTop}>
+                  <strong>{activity.type || "Anotação"}</strong>
+                  <span>{formatDateTime(activity.createdAt)}</span>
+                </div>
+
+                <p style={styles.activityItemText}>{activity.text}</p>
+
+                <div style={styles.activityAuthor}>
+                  👤 {activity.createdBy || getCaptadorName(selectedOwner)}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div style={styles.emptyActivities}>Ownere sem anotações ou atividades</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  function renderFormScreen() {
+    return (
+      <div style={styles.formLayout}>
+        <aside style={styles.formLeftPanel}>
+          {renderActivityPanel()}
 
           <div style={styles.leftPanelHeader}>
             <h3 style={styles.leftPanelTitle}>
-              {user.role === "ADMIN"
-                ? "Lista de proprietários"
-                : "Meus proprietários"}
+              {user.role === "ADMIN" ? "Owneres cadastrados" : "Meus proprietários"}
             </h3>
+
             <div style={styles.leftIcons}>
               <span>⏷</span>
+
               <span onClick={handleRefresh} style={styles.iconClickable}>
                 ↻
               </span>
+
               <span onClick={handleNewOwner} style={styles.iconClickable}>
                 ⊕
               </span>
@@ -570,41 +866,40 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
             style={styles.searchInput}
             placeholder="Buscar proprietário por nome, CPF, e-mail ou captador"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(event) => setSearch(event.target.value)}
           />
 
-          <button
-            type="button"
-            style={styles.newButton}
-            onClick={handleNewOwner}
-          >
+          <button type="button" style={styles.newOwnerButton} onClick={handleNewOwner}>
             + Novo proprietário
           </button>
 
-          <div style={styles.list}>
+          <button type="button" style={styles.backToListButton} onClick={handleBackToList}>
+            Ver lista completa
+          </button>
+
+          <div style={styles.sideList}>
             {filteredOwners.length === 0 ? (
-              <div style={styles.emptyBox}>Nenhum proprietário encontrado.</div>
+              <div style={styles.emptyNotes}>Nenhum proprietário encontrado</div>
             ) : (
-              filteredOwners.map((owner) => (
+              filteredOwners.slice(0, 20).map((owner) => (
                 <button
                   key={owner.id}
                   type="button"
                   onClick={() => handleSelectOwner(owner)}
                   style={{
-                    ...styles.listItem,
-                    ...(selectedOwner?.id === owner.id
-                      ? styles.listItemActive
-                      : {})
+                    ...styles.sideItem,
+                    ...(selectedOwner?.id === owner.id ? styles.sideItemActive : {})
                   }}
                 >
                   <strong>{owner.fullName}</strong>
-                  <div style={styles.listMeta}>CPF: {owner.cpf || "-"}</div>
-                  <div style={styles.listMeta}>{owner.phone || "-"}</div>
-                  {owner.createdBy?.name && (
-                    <div style={styles.responsibleText}>
-                      Captador: {owner.createdBy.name}
-                    </div>
-                  )}
+
+                  <div style={styles.sideItemMeta}>CPF: {owner.cpf || "-"}</div>
+
+                  <div style={styles.sideItemMeta}>{owner.phone || "-"}</div>
+
+                  <div style={styles.sideResponsible}>
+                    Captador: {getCaptadorName(owner)}
+                  </div>
                 </button>
               ))
             )}
@@ -613,13 +908,22 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
 
         <section style={styles.mainPanel}>
           <div style={styles.rightNav}>
-            <a href="#cadastro" style={styles.rightNavItem}>Cadastro</a>
-            <a href="#atividades" style={styles.rightNavItem}>Atividades</a>
-            <a href="#dados-pessoais" style={styles.rightNavItem}>D. pessoais</a>
-            <a href="#endereco" style={styles.rightNavItem}>Endereço</a>
+            <a href="#cadastro" style={styles.rightNavItem}>
+              Cadastro
+            </a>
+            <a href="#atividades" style={styles.rightNavItem}>
+              Atividades
+            </a>
+            <a href="#dados-pessoais" style={styles.rightNavItem}>
+              D. pessoais
+            </a>
+            <a href="#endereco" style={styles.rightNavItem}>
+              Endereço
+            </a>
           </div>
+
           <div style={styles.formHeader} id="cadastro">
-            <div style={styles.dot}></div>
+            <div style={styles.greenDot}></div>
             <h2 style={styles.formTitle}>Cadastro</h2>
           </div>
 
@@ -627,6 +931,7 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
             <div style={styles.rowSingle}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>👤</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>*Nome</label>
                   <input
@@ -642,6 +947,7 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
             <div style={styles.rowSingle}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>🏢</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Empresa</label>
                   <input
@@ -657,6 +963,7 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
             <div style={styles.rowSingle}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>✉</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>E-mail</label>
                   <input
@@ -672,6 +979,7 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
             <div style={styles.rowTriple}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>📱</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Celular</label>
                   <input
@@ -707,6 +1015,7 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
             <div style={styles.rowTriple}>
               <div style={styles.fieldWithIcon}>
                 <div style={styles.fieldIcon}>☎</div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Telefone Comercial</label>
                   <input
@@ -796,8 +1105,67 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
               </div>
             </div>
 
+            <div style={styles.rowDouble}>
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Situação</label>
+
+                <div style={styles.statusRow}>
+                  <span style={styles.statusTextLeft}>Inativo</span>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        isActive: !prev.isActive
+                      }))
+                    }
+                    style={{
+                      width: "54px",
+                      height: "30px",
+                      borderRadius: "30px",
+                      border: "none",
+                      backgroundColor: form.isActive ? "#b9dcbc" : "#d9d9d9",
+                      position: "relative",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: "4px",
+                        left: form.isActive ? "28px" : "4px",
+                        width: "22px",
+                        height: "22px",
+                        borderRadius: "50%",
+                        backgroundColor: form.isActive ? "#8cc98f" : "#ffffff",
+                        transition: "0.2s"
+                      }}
+                    />
+                  </button>
+
+                  <span style={styles.statusTextRight}>Ativo</span>
+                </div>
+              </div>
+
+              <div style={styles.fieldContent}>
+                <label style={styles.label}>Criar aviso na agenda para retorno</label>
+
+                <div style={styles.checkboxWrap}>
+                  <input
+                    type="checkbox"
+                    name="createReminder"
+                    checked={form.createReminder}
+                    onChange={handleChange}
+                  />
+                  <span style={styles.checkboxLabel}>Criar retorno automático</span>
+                </div>
+              </div>
+            </div>
+
             <div style={styles.rowSingle}>
               <label style={styles.label}>Termômetro de Negócios</label>
+
               <div style={styles.thermometerRow}>
                 {["FRIO", "MORNO", "INTERESSADO", "QUENTE", "FECHAMENTO"].map(
                   (item) => (
@@ -834,6 +1202,7 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
 
             <div style={styles.crmSection} id="dados-pessoais">
               <h2 style={styles.crmSectionTitle}>Dados pessoais</h2>
+
               <div style={styles.rowTriple}>
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Pessoa</label>
@@ -842,10 +1211,12 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
                     <option value="JURIDICA">JURÍDICA</option>
                   </select>
                 </div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>CPF</label>
                   <input style={styles.lineInput} value={form.cpf} disabled />
                 </div>
+
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>RG</label>
                   <input style={styles.lineInput} value={form.rg} disabled />
@@ -873,6 +1244,7 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
 
             <div style={styles.crmSection} id="endereco">
               <h2 style={styles.crmSectionTitle}>Endereço</h2>
+
               <div style={styles.rowDouble}>
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>Endereço Residencial</label>
@@ -905,13 +1277,19 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
 
             <div style={styles.actionRow}>
               {editingId && (
-                <button
-                  type="button"
-                  style={styles.deleteButton}
-                  onClick={handleDelete}
-                >
-                  Excluir
-                </button>
+                <>
+                  <button
+                    type="button"
+                    style={styles.linkedPropertiesButton}
+                    onClick={handleOpenLinkedProperties}
+                  >
+                    Imóveis vinculados
+                  </button>
+
+                  <button type="button" style={styles.deleteButton} onClick={handleDelete}>
+                    Excluir
+                  </button>
+                </>
               )}
             </div>
 
@@ -921,12 +1299,351 @@ Captador: ${selectedOwner.createdBy?.name || "-"}
           </form>
         </section>
       </div>
+    );
+  }
+
+  function renderQuickModal() {
+    if (!viewOwner) return null;
+
+    return (
+      <div style={styles.quickOverlay} onClick={() => setViewOwner(null)}>
+        <div style={styles.quickModal} onClick={(event) => event.stopPropagation()}>
+          <div style={styles.quickModalTop}>
+            <button type="button" style={styles.quickBack} onClick={() => setViewOwner(null)}>
+              ←
+            </button>
+
+            <div style={styles.quickAvatar}>{getInitials(viewOwner.fullName)}</div>
+
+            <h2 style={styles.quickTitle}>{viewOwner.fullName}</h2>
+
+            <button
+              type="button"
+              style={styles.quickEdit}
+              onClick={handleEditFromQuickView}
+              title="Editar proprietário"
+            >
+              ✎
+            </button>
+          </div>
+
+          <div style={styles.quickContent}>
+            <section style={styles.quickSection}>
+              <h3 style={styles.quickSectionTitle}>Contato</h3>
+
+              <div style={styles.quickLine}>
+                <span style={styles.quickIcon}>☎</span>
+                <span>{viewOwner.phone || "Telefone não informado"}</span>
+
+                {viewOwner.phone && parseWhatsapp(viewOwner.whatsapp) && (
+                  <a
+                    href={getWhatsAppLink(viewOwner.phone)}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={styles.quickWhatsapp}
+                  >
+                    🟢
+                  </a>
+                )}
+              </div>
+
+              {viewOwner.email && (
+                <div style={styles.quickLine}>
+                  <span style={styles.quickIcon}>✉</span>
+                  <span>{viewOwner.email}</span>
+                </div>
+              )}
+            </section>
+
+            <section style={styles.quickSection}>
+              <h3 style={styles.quickSectionTitle}>Categoria</h3>
+              <div style={styles.quickValue}>{viewOwner.category || "Sem categoria"}</div>
+            </section>
+
+            <section style={styles.quickSection}>
+              <h3 style={styles.quickSectionTitle}>Captador</h3>
+
+              <div style={styles.quickCaptor}>
+                <div style={styles.quickCaptorAvatar}>
+                  {getInitials(viewOwner.createdBy?.name || viewOwner.createdBy?.email)}
+                </div>
+
+                <div>
+                  <strong>
+                    {viewOwner.createdBy?.name ||
+                      viewOwner.createdBy?.email ||
+                      "Captador não informado"}
+                  </strong>
+                  <p style={styles.quickCaptorCompany}>JB Pessoa Imóveis</p>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={styles.page}>
+      {renderTopBar()}
+      {screenMode === "list" ? renderListScreen() : renderFormScreen()}
+      {renderQuickModal()}
     </div>
   );
 }
 
 const styles = {
-
+  page: {
+    backgroundColor: "#eeeeee",
+    minHeight: "100vh",
+    position: "relative",
+    margin: 0
+  },
+  topBar: {
+    height: "54px",
+    backgroundColor: "#1e88e5",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "0 16px",
+    color: "#fff",
+    position: "relative",
+    boxShadow: "0 2px 6px rgba(0,0,0,0.22)"
+  },
+  topBarLeft: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px"
+  },
+  backButton: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#fff",
+    fontSize: "26px",
+    cursor: "pointer"
+  },
+  topBarTitle: {
+    fontSize: "20px",
+    fontWeight: "600"
+  },
+  topBarRight: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    position: "relative"
+  },
+  topIcon: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#fff",
+    fontSize: "22px",
+    cursor: "pointer"
+  },
+  dropdownMenu: {
+    position: "absolute",
+    top: "46px",
+    right: 0,
+    width: "310px",
+    backgroundColor: "#fff",
+    border: "1px solid #ddd",
+    boxShadow: "0 8px 18px rgba(0,0,0,0.12)",
+    zIndex: 20
+  },
+  dropdownItem: {
+    width: "100%",
+    textAlign: "left",
+    border: "none",
+    backgroundColor: "#fff",
+    padding: "14px 16px",
+    fontSize: "15px",
+    cursor: "pointer",
+    borderBottom: "1px solid #eee"
+  },
+  listScreen: {
+    width: "100%",
+    maxWidth: "1320px",
+    margin: "0 auto",
+    padding: "26px 20px 70px",
+    boxSizing: "border-box"
+  },
+  listHeaderArea: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "20px",
+    marginBottom: "30px"
+  },
+  listTitle: {
+    fontSize: "34px",
+    fontWeight: "400",
+    color: "#111",
+    margin: 0
+  },
+  listOptions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "22px",
+    fontSize: "15px"
+  },
+  optionLabel: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
+  optionLabelMuted: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    color: "#999",
+    cursor: "pointer"
+  },
+  listSearchRow: {
+    display: "flex",
+    gap: "14px",
+    marginBottom: "18px"
+  },
+  listSearch: {
+    flex: 1,
+    border: "1px solid #ddd",
+    borderRadius: "8px",
+    backgroundColor: "#fff",
+    padding: "12px 16px",
+    fontSize: "15px",
+    outline: "none"
+  },
+  newOwnerButtonList: {
+    border: "none",
+    borderRadius: "8px",
+    backgroundColor: "#d4a62a",
+    color: "#fff",
+    padding: "0 22px",
+    fontWeight: "800",
+    cursor: "pointer"
+  },
+  ownerListCard: {
+    backgroundColor: "#fff",
+    border: "1px solid #ddd",
+    borderRadius: "10px",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.12)",
+    overflow: "hidden"
+  },
+  ownerTableHeader: {
+    display: "grid",
+    gridTemplateColumns: "72px 2fr 1.7fr 1fr 1fr",
+    alignItems: "center",
+    gap: "18px",
+    padding: "24px 24px",
+    borderBottom: "1px solid #ddd",
+    color: "#000",
+    fontWeight: "800",
+    fontSize: "15px"
+  },
+  checkboxFake: {
+    width: "22px",
+    height: "22px",
+    border: "2px solid #555",
+    borderRadius: "2px",
+    marginLeft: "12px"
+  },
+  ownerTableRow: {
+    display: "grid",
+    gridTemplateColumns: "72px 2fr 1.7fr 1fr 1fr",
+    alignItems: "center",
+    gap: "18px",
+    padding: "17px 24px",
+    minHeight: "66px",
+    cursor: "pointer",
+    borderLeft: "4px solid transparent",
+    transition: "0.2s ease",
+    backgroundColor: "#fff"
+  },
+  ownerTableRowActive: {
+    borderLeft: "4px solid #1e88e5",
+    backgroundColor: "#fbfbfb"
+  },
+  avatar: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
+    backgroundColor: "#d1d5db",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "500",
+    fontSize: "17px",
+    cursor: "pointer",
+    marginLeft: "8px"
+  },
+  ownerNameCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    color: "#111",
+    fontSize: "15px"
+  },
+  homeMiniButton: {
+    width: "28px",
+    height: "28px",
+    borderRadius: "50%",
+    border: "2px solid #d1d5db",
+    backgroundColor: "#fff",
+    color: "#9ca3af",
+    cursor: "pointer",
+    fontSize: "15px",
+    lineHeight: "20px"
+  },
+  captorCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    color: "#111",
+    fontSize: "15px"
+  },
+  captorAvatar: {
+    width: "40px",
+    height: "40px",
+    borderRadius: "50%",
+    backgroundColor: "#c9a227",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: "800",
+    fontSize: "13px"
+  },
+  dateCell: {
+    color: "#111",
+    fontSize: "15px",
+    whiteSpace: "nowrap"
+  },
+  emptyListMessage: {
+    padding: "50px",
+    textAlign: "center",
+    color: "#777"
+  },
+  listFooter: {
+    height: "42px",
+    display: "flex",
+    alignItems: "center",
+    gap: "5px",
+    fontSize: "16px",
+    color: "#333"
+  },
+  formLayout: {
+    display: "grid",
+    gridTemplateColumns: "420px 1fr",
+    minHeight: "calc(100vh - 54px)"
+  },
+  formLeftPanel: {
+    backgroundColor: "#fbf7ef",
+    borderRight: "1px solid #e2d6bb",
+    padding: "18px 14px",
+    boxSizing: "border-box"
+  },
   activitiesBox: {
     backgroundColor: "#fffdf8",
     border: "1px solid #e3d6b5",
@@ -951,6 +1668,9 @@ const styles = {
     gap: "12px",
     color: "#8b7a52",
     fontSize: "20px"
+  },
+  iconClickable: {
+    cursor: "pointer"
   },
   activityTextarea: {
     width: "100%",
@@ -1011,41 +1731,95 @@ const styles = {
     padding: "30px 10px",
     fontSize: "14px"
   },
-  thermometerRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(5, 1fr)",
+  leftPanelHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "18px"
+  },
+  leftPanelTitle: {
+    margin: 0,
+    fontSize: "20px",
+    fontWeight: "500",
+    color: "#5d4a1f"
+  },
+  leftIcons: {
+    display: "flex",
     gap: "14px",
-    marginTop: "8px"
-  },
-  thermometerButton: {
-    border: "none",
-    borderRadius: "6px",
-    minHeight: "46px",
-    color: "#fff",
-    fontWeight: "800",
-    cursor: "pointer"
-  },
-  thermometerInactive: {
-    backgroundColor: "#e5dcc1",
+    fontSize: "22px",
     color: "#8b7a52"
   },
-  thermometerFRIO: {
-    backgroundColor: "#60a5fa"
+  searchInput: {
+    width: "100%",
+    padding: "12px",
+    border: "1px solid #ddd1af",
+    borderRadius: "8px",
+    boxSizing: "border-box",
+    marginBottom: "12px",
+    backgroundColor: "#fffdf8"
   },
-  thermometerMORNO: {
-    backgroundColor: "#86efac",
-    color: "#14532d"
+  newOwnerButton: {
+    width: "100%",
+    border: "1px solid #d4a62a",
+    backgroundColor: "#fffdf8",
+    color: "#b58712",
+    borderRadius: "8px",
+    padding: "10px 12px",
+    cursor: "pointer",
+    marginBottom: "10px",
+    fontWeight: "bold"
   },
-  thermometerINTERESSADO: {
-    backgroundColor: "#fde68a",
-    color: "#78350f"
+  backToListButton: {
+    width: "100%",
+    border: "none",
+    backgroundColor: "#111827",
+    color: "#fff",
+    borderRadius: "8px",
+    padding: "10px 12px",
+    cursor: "pointer",
+    marginBottom: "14px",
+    fontWeight: "bold"
   },
-  thermometerQUENTE: {
-    backgroundColor: "#fdba74",
-    color: "#7c2d12"
+  sideList: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    maxHeight: "calc(100vh - 390px)",
+    overflowY: "auto"
   },
-  thermometerFECHAMENTO: {
-    backgroundColor: "#f87171"
+  sideItem: {
+    border: "1px solid #e3d6b5",
+    backgroundColor: "#fffdf8",
+    borderRadius: "10px",
+    padding: "12px",
+    textAlign: "left",
+    cursor: "pointer"
+  },
+  sideItemActive: {
+    border: "2px solid #d4a62a",
+    backgroundColor: "#fff7df"
+  },
+  sideItemMeta: {
+    color: "#7a6a47",
+    fontSize: "14px",
+    marginTop: "4px"
+  },
+  sideResponsible: {
+    color: "#a16207",
+    fontSize: "13px",
+    marginTop: "6px",
+    fontWeight: "600"
+  },
+  emptyNotes: {
+    color: "#c0b38f",
+    textAlign: "center",
+    padding: "40px 20px"
+  },
+  mainPanel: {
+    backgroundColor: "#fffdf8",
+    padding: "26px 150px 26px 34px",
+    position: "relative",
+    overflowX: "hidden"
   },
   rightNav: {
     position: "sticky",
@@ -1065,181 +1839,13 @@ const styles = {
     paddingLeft: "12px",
     fontWeight: "600"
   },
-  crmSection: {
-    borderTop: "1px solid #eee2bf",
-    marginTop: "38px",
-    paddingTop: "30px"
-  },
-  crmSectionTitle: {
-    margin: "0 0 26px 0",
-    fontSize: "28px",
-    fontWeight: "500",
-    color: "#111"
-  },
-  page: {
-    backgroundColor: "#f3f0e8",
-    minHeight: "100vh",
-    position: "relative",
-    margin: 0
-  },
-  topBar: {
-    height: "54px",
-    backgroundColor: "#d4a62a",
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    padding: "0 16px",
-    color: "#fff",
-    position: "relative"
-  },
-  topBarLeft: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px"
-  },
-  backButton: {
-    border: "none",
-    background: "transparent",
-    color: "#fff",
-    fontSize: "26px",
-    cursor: "pointer"
-  },
-  topBarTitle: {
-    fontSize: "18px",
-    fontWeight: "500"
-  },
-  topBarRight: {
-    display: "flex",
-    alignItems: "center",
-    gap: "14px",
-    position: "relative"
-  },
-  topIcon: {
-    border: "none",
-    background: "transparent",
-    color: "#fff",
-    fontSize: "22px",
-    cursor: "pointer"
-  },
-  dropdownMenu: {
-    position: "absolute",
-    top: "46px",
-    right: 0,
-    width: "280px",
-    backgroundColor: "#fffdf8",
-    border: "1px solid #e4d2a0",
-    boxShadow: "0 8px 18px rgba(0,0,0,0.12)",
-    zIndex: 20
-  },
-  dropdownItem: {
-    width: "100%",
-    textAlign: "left",
-    border: "none",
-    background: "#fffdf8",
-    padding: "14px 16px",
-    fontSize: "15px",
-    cursor: "pointer",
-    borderBottom: "1px solid #eee2bf"
-  },
-  layout: {
-    display: "grid",
-    gridTemplateColumns: "420px 1fr",
-    minHeight: "calc(100vh - 54px)"
-  },
-  leftPanel: {
-    backgroundColor: "#fbf7ef",
-    borderRight: "1px solid #e2d6bb",
-    padding: "18px 14px"
-  },
-  leftPanelHeader: {
-    display: "flex",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: "18px"
-  },
-  leftPanelTitle: {
-    margin: 0,
-    fontSize: "20px",
-    fontWeight: "500",
-    color: "#5d4a1f"
-  },
-  leftIcons: {
-    display: "flex",
-    gap: "14px",
-    fontSize: "22px",
-    color: "#8b7a52"
-  },
-  iconClickable: {
-    cursor: "pointer"
-  },
-  searchInput: {
-    width: "100%",
-    padding: "12px",
-    border: "1px solid #ddd1af",
-    borderRadius: "8px",
-    boxSizing: "border-box",
-    marginBottom: "12px",
-    backgroundColor: "#fffdf8"
-  },
-  newButton: {
-    width: "100%",
-    border: "1px solid #d4a62a",
-    backgroundColor: "#fffdf8",
-    color: "#b58712",
-    borderRadius: "8px",
-    padding: "10px 12px",
-    cursor: "pointer",
-    marginBottom: "14px",
-    fontWeight: "bold"
-  },
-  list: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    maxHeight: "calc(100vh - 220px)",
-    overflowY: "auto"
-  },
-  emptyBox: {
-    color: "#c0b38f",
-    textAlign: "center",
-    padding: "60px 20px"
-  },
-  listItem: {
-    border: "1px solid #e3d6b5",
-    backgroundColor: "#fffdf8",
-    borderRadius: "10px",
-    padding: "12px",
-    textAlign: "left",
-    cursor: "pointer"
-  },
-  listItemActive: {
-    border: "2px solid #d4a62a",
-    backgroundColor: "#fff7df"
-  },
-  listMeta: {
-    color: "#7a6a47",
-    fontSize: "14px",
-    marginTop: "4px"
-  },
-  responsibleText: {
-    color: "#a16207",
-    fontSize: "13px",
-    marginTop: "6px",
-    fontWeight: "600"
-  },
-  mainPanel: {
-    backgroundColor: "#fffdf8",
-    padding: "26px 150px 26px 34px",
-    position: "relative",
-    overflowX: "hidden"
-  },
   formHeader: {
     display: "flex",
     alignItems: "center",
     gap: "14px",
     marginBottom: "26px"
   },
-  dot: {
+  greenDot: {
     width: "22px",
     height: "22px",
     borderRadius: "50%",
@@ -1295,6 +1901,26 @@ const styles = {
     outline: "none",
     backgroundColor: "transparent"
   },
+  lineSelect: {
+    border: "none",
+    borderBottom: "1px solid #d8c8a2",
+    padding: "8px 0 10px 0",
+    fontSize: "18px",
+    outline: "none",
+    backgroundColor: "transparent"
+  },
+  textarea: {
+    width: "100%",
+    minHeight: "90px",
+    border: "1px solid #d8c8a2",
+    borderRadius: "8px",
+    padding: "12px",
+    fontSize: "16px",
+    outline: "none",
+    backgroundColor: "#fffdf8",
+    resize: "vertical",
+    boxSizing: "border-box"
+  },
   checkboxWrap: {
     display: "flex",
     alignItems: "center",
@@ -1305,10 +1931,81 @@ const styles = {
     color: "#7a6a47",
     fontSize: "16px"
   },
+  statusRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    paddingTop: "10px"
+  },
+  statusTextLeft: {
+    fontSize: "16px",
+    color: "#000"
+  },
+  statusTextRight: {
+    fontSize: "16px",
+    color: "#000"
+  },
+  thermometerRow: {
+    display: "grid",
+    gridTemplateColumns: "repeat(5, 1fr)",
+    gap: "14px",
+    marginTop: "8px"
+  },
+  thermometerButton: {
+    border: "none",
+    borderRadius: "6px",
+    minHeight: "46px",
+    color: "#fff",
+    fontWeight: "800",
+    cursor: "pointer"
+  },
+  thermometerInactive: {
+    backgroundColor: "#e5dcc1",
+    color: "#8b7a52"
+  },
+  thermometerFRIO: {
+    backgroundColor: "#60a5fa"
+  },
+  thermometerMORNO: {
+    backgroundColor: "#86efac",
+    color: "#14532d"
+  },
+  thermometerINTERESSADO: {
+    backgroundColor: "#fde68a",
+    color: "#78350f"
+  },
+  thermometerQUENTE: {
+    backgroundColor: "#fdba74",
+    color: "#7c2d12"
+  },
+  thermometerFECHAMENTO: {
+    backgroundColor: "#f87171"
+  },
+  crmSection: {
+    borderTop: "1px solid #eee2bf",
+    marginTop: "38px",
+    paddingTop: "30px"
+  },
+  crmSectionTitle: {
+    margin: "0 0 26px 0",
+    fontSize: "28px",
+    fontWeight: "500",
+    color: "#111"
+  },
   actionRow: {
     display: "flex",
     justifyContent: "flex-start",
+    gap: "12px",
     marginTop: "10px"
+  },
+  linkedPropertiesButton: {
+    backgroundColor: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: "8px",
+    padding: "10px 16px",
+    cursor: "pointer",
+    fontWeight: "700"
   },
   deleteButton: {
     backgroundColor: "#d6453d",
@@ -1331,6 +2028,124 @@ const styles = {
     fontSize: "28px",
     cursor: "pointer",
     boxShadow: "0 8px 20px rgba(0,0,0,0.2)"
+  },
+  quickOverlay: {
+    position: "fixed",
+    inset: 0,
+    backgroundColor: "rgba(15, 23, 42, 0.55)",
+    display: "flex",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    paddingTop: "70px",
+    zIndex: 9999
+  },
+  quickModal: {
+    width: "760px",
+    maxWidth: "calc(100vw - 40px)",
+    backgroundColor: "#fff",
+    borderRadius: "10px",
+    boxShadow: "0 25px 70px rgba(15, 23, 42, 0.35)",
+    overflow: "hidden"
+  },
+  quickModalTop: {
+    height: "86px",
+    display: "grid",
+    gridTemplateColumns: "42px 70px 1fr 42px",
+    alignItems: "center",
+    gap: "14px",
+    padding: "0 24px",
+    borderBottom: "1px solid #e5e7eb"
+  },
+  quickBack: {
+    border: "none",
+    backgroundColor: "transparent",
+    fontSize: "28px",
+    cursor: "pointer",
+    color: "#555"
+  },
+  quickAvatar: {
+    width: "58px",
+    height: "58px",
+    borderRadius: "50%",
+    backgroundColor: "#d1d5db",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px",
+    fontWeight: "700"
+  },
+  quickTitle: {
+    margin: 0,
+    fontSize: "22px",
+    color: "#333"
+  },
+  quickEdit: {
+    border: "none",
+    backgroundColor: "transparent",
+    fontSize: "28px",
+    cursor: "pointer",
+    color: "#666"
+  },
+  quickContent: {
+    padding: "22px 30px 34px"
+  },
+  quickSection: {
+    borderBottom: "1px solid #e5e7eb",
+    padding: "0 0 20px",
+    marginBottom: "22px"
+  },
+  quickSectionTitle: {
+    fontSize: "17px",
+    margin: "0 0 16px",
+    color: "#111",
+    fontWeight: "800"
+  },
+  quickLine: {
+    display: "flex",
+    alignItems: "center",
+    gap: "20px",
+    minHeight: "36px",
+    color: "#111",
+    fontSize: "15px",
+    paddingLeft: "26px"
+  },
+  quickIcon: {
+    width: "24px",
+    color: "#777",
+    fontSize: "22px"
+  },
+  quickWhatsapp: {
+    textDecoration: "none",
+    fontSize: "24px"
+  },
+  quickValue: {
+    paddingLeft: "30px",
+    fontSize: "15px",
+    color: "#111",
+    minHeight: "26px"
+  },
+  quickCaptor: {
+    display: "flex",
+    alignItems: "center",
+    gap: "14px",
+    paddingLeft: "12px"
+  },
+  quickCaptorAvatar: {
+    width: "58px",
+    height: "58px",
+    borderRadius: "50%",
+    backgroundColor: "#d1d5db",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "18px",
+    fontWeight: "800"
+  },
+  quickCaptorCompany: {
+    margin: "4px 0 0",
+    color: "#888"
   }
 };
 
