@@ -155,6 +155,11 @@ model Property {
   financed  Boolean @default(false)
   exchange  Boolean @default(false)
 
+  financing        String? @default("NAO_INFORMADO")
+  condominiumValue Float?
+  iptuValue        Float?
+  iptuPayment      String?
+
   publishOnSite      Boolean @default(true)
   siteHighlight      Boolean @default(false)
   publishOnPortals   Boolean @default(false)

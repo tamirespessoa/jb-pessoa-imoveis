@@ -419,6 +419,10 @@ function Properties() {
       furnished: Boolean(property.furnished),
       financed: Boolean(property.financed),
       exchange: Boolean(property.exchange),
+      financing: property.financing || "NAO_INFORMADO",
+      condominiumValue: property.condominiumValue ?? "",
+      iptuValue: property.iptuValue ?? "",
+      iptuPayment: property.iptuPayment || "",
 
       street: property.street || "",
       number: property.number || "",
@@ -479,6 +483,10 @@ function Properties() {
       furnished: false,
       financed: false,
       exchange: false,
+      financing: "NAO_INFORMADO",
+      condominiumValue: "",
+      iptuValue: "",
+      iptuPayment: "",
 
       street: "",
       number: "",
@@ -728,6 +736,8 @@ function Properties() {
     const rooms = intOrNull(form.rooms);
     const bathrooms = intOrNull(form.bathrooms);
     const garage = intOrNull(form.garage);
+    const condominiumValue = numberOrNull(form.condominiumValue);
+    const iptuValue = numberOrNull(form.iptuValue);
 
     payload.append("title", form.title.trim());
 
@@ -770,6 +780,15 @@ function Properties() {
     payload.append("highlightOnPortals", String(Boolean(form.highlightOnPortals)));
     payload.append("valueOnRequest", String(Boolean(form.valueOnRequest)));
     payload.append("negotiable", String(Boolean(form.negotiable)));
+    payload.append("furnished", String(Boolean(form.furnished)));
+    payload.append("financed", String(Boolean(form.financed)));
+    payload.append("exchange", String(Boolean(form.exchange)));
+    payload.append("financing", form.financing || "NAO_INFORMADO");
+    if (condominiumValue !== null) payload.append("condominiumValue", String(condominiumValue));
+    if (iptuValue !== null) payload.append("iptuValue", String(iptuValue));
+    if (normalizeString(form.iptuPayment) !== null) {
+      payload.append("iptuPayment", normalizeString(form.iptuPayment));
+    }
 
     payload.append("existingImages", JSON.stringify(form.images || []));
 
@@ -857,6 +876,10 @@ Cidade: ${selectedProperty.city || "-"}
 Estado: ${selectedProperty.state || "-"}
 Proprietário: ${selectedProperty.owner?.fullName || "-"}
 Preço: ${selectedProperty.price ?? "-"}
+Financiamento: ${selectedProperty.financing || "NAO_INFORMADO"}
+Condomínio: ${selectedProperty.condominiumValue ?? "-"}
+IPTU: ${selectedProperty.iptuValue ?? "-"}
+Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
     `.trim();
 
     try {
@@ -1021,6 +1044,8 @@ Preço: ${selectedProperty.price ?? "-"}
 
       const rentPrice = numberOrNull(form.rentPrice);
       const garage = intOrNull(form.garage);
+      const condominiumValue = numberOrNull(form.condominiumValue);
+      const iptuValue = numberOrNull(form.iptuValue);
       const complement = normalizeString(form.complement);
       const description = normalizeString(form.description);
       const captorName = normalizeString(form.captorName);
@@ -1042,6 +1067,15 @@ Preço: ${selectedProperty.price ?? "-"}
       payload.append("highlightOnPortals", String(Boolean(form.highlightOnPortals)));
       payload.append("valueOnRequest", String(Boolean(form.valueOnRequest)));
       payload.append("negotiable", String(Boolean(form.negotiable)));
+      payload.append("furnished", String(Boolean(form.furnished)));
+      payload.append("financed", String(Boolean(form.financed)));
+      payload.append("exchange", String(Boolean(form.exchange)));
+      payload.append("financing", form.financing || "NAO_INFORMADO");
+      if (condominiumValue !== null) payload.append("condominiumValue", String(condominiumValue));
+      if (iptuValue !== null) payload.append("iptuValue", String(iptuValue));
+      if (normalizeString(form.iptuPayment) !== null) {
+        payload.append("iptuPayment", normalizeString(form.iptuPayment));
+      }
 
       newImages.forEach((file) => {
         payload.append("images", file);
@@ -1844,6 +1878,60 @@ Preço: ${selectedProperty.price ?? "-"}
                     />
                     Mobiliado
                   </label>
+                </div>
+
+
+
+                <div style={styles.rowFour}>
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>Financiamento</label>
+                    <select
+                      style={styles.lineSelect}
+                      name="financing"
+                      value={form.financing}
+                      onChange={handleChange}
+                    >
+                      <option value="NAO_INFORMADO">Não informado</option>
+                      <option value="ACEITA">Aceita</option>
+                      <option value="NAO_ACEITA">Não aceita</option>
+                    </select>
+                  </div>
+
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>Valor do condomínio</label>
+                    <input
+                      style={styles.lineInput}
+                      name="condominiumValue"
+                      value={form.condominiumValue}
+                      onChange={handleChange}
+                      placeholder="Ex: 350,00"
+                    />
+                  </div>
+
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>Valor do IPTU</label>
+                    <input
+                      style={styles.lineInput}
+                      name="iptuValue"
+                      value={form.iptuValue}
+                      onChange={handleChange}
+                      placeholder="Ex: 120,00"
+                    />
+                  </div>
+
+                  <div style={styles.fieldContent}>
+                    <label style={styles.label}>Pagamento do IPTU</label>
+                    <select
+                      style={styles.lineSelect}
+                      name="iptuPayment"
+                      value={form.iptuPayment}
+                      onChange={handleChange}
+                    >
+                      <option value="">Selecione...</option>
+                      <option value="MENSAL">Mensal</option>
+                      <option value="ANUAL">Anual</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div style={styles.rowDouble}>
