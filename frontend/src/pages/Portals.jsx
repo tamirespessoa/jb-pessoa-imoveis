@@ -11,13 +11,13 @@ function Portals() {
 
   const [portals, setPortals] = useState([
     {
-      id: "site",
-      name: "Site da Imobiliária",
+      id: "site-empresa",
+      name: "Site da Empresa",
       icon: "🏠",
       type: "Gratuito",
       status: "ATIVO",
       configured: true,
-      description: "Imóveis publicados diretamente no seu site oficial.",
+      description: "Publicação dos imóveis no site oficial da imobiliária.",
       url: "/imoveis"
     },
     {
@@ -27,7 +27,7 @@ function Portals() {
       type: "Gratuito",
       status: "ATIVO",
       configured: true,
-      description: "Publicação manual ou catálogo pelo Facebook Business.",
+      description: "Divulgação manual no Marketplace e catálogo do Facebook.",
       url: "https://www.facebook.com/marketplace"
     },
     {
@@ -47,7 +47,7 @@ function Portals() {
       type: "Gratuito",
       status: "ATIVO",
       configured: true,
-      description: "Divulgação em posts, reels, stories e destaques.",
+      description: "Publicação em feed, reels, stories e destaques.",
       url: "https://www.instagram.com"
     },
     {
@@ -57,8 +57,28 @@ function Portals() {
       type: "Gratuito",
       status: "ATIVO",
       configured: true,
-      description: "Divulgação rápida dos imóveis nos status do WhatsApp.",
+      description: "Publicação rápida dos imóveis no status do WhatsApp.",
       url: "https://web.whatsapp.com"
+    },
+    {
+      id: "whatsapp-comunidades",
+      name: "WhatsApp Comunidades",
+      icon: "💬",
+      type: "Gratuito",
+      status: "ATIVO",
+      configured: true,
+      description: "Divulgação em comunidades e listas de transmissão.",
+      url: "https://web.whatsapp.com"
+    },
+    {
+      id: "google-perfil",
+      name: "Google Perfil da Empresa",
+      icon: "🔎",
+      type: "Gratuito",
+      status: "ATIVO",
+      configured: true,
+      description: "Postagens gratuitas no perfil da empresa no Google.",
+      url: "https://business.google.com"
     },
     {
       id: "telegram",
@@ -67,28 +87,8 @@ function Portals() {
       type: "Gratuito",
       status: "ATIVO",
       configured: true,
-      description: "Publicação em canais e grupos do Telegram.",
+      description: "Publicação em canais e grupos de imóveis.",
       url: "https://web.telegram.org"
-    },
-    {
-      id: "olx",
-      name: "OLX",
-      icon: "🟠",
-      type: "Gratuito / Pago",
-      status: "ATIVO",
-      configured: true,
-      description: "Cadastro manual de anúncios; planos pagos aumentam alcance.",
-      url: "https://www.olx.com.br"
-    },
-    {
-      id: "google-business",
-      name: "Google Perfil da Empresa",
-      icon: "🔎",
-      type: "Gratuito",
-      status: "ATIVO",
-      configured: true,
-      description: "Publicações no Perfil da Empresa para aparecer no Google.",
-      url: "https://business.google.com"
     },
     {
       id: "tiktok",
@@ -97,7 +97,7 @@ function Portals() {
       type: "Gratuito",
       status: "ATIVO",
       configured: true,
-      description: "Vídeos curtos mostrando imóveis, bairros e oportunidades.",
+      description: "Vídeos curtos com tour dos imóveis e chamadas para contato.",
       url: "https://www.tiktok.com"
     },
     {
@@ -107,7 +107,7 @@ function Portals() {
       type: "Gratuito",
       status: "ATIVO",
       configured: true,
-      description: "Vídeos curtos com tour dos imóveis e chamada para WhatsApp.",
+      description: "Shorts com vídeos dos imóveis, bairros e oportunidades.",
       url: "https://www.youtube.com"
     },
     {
@@ -117,7 +117,7 @@ function Portals() {
       type: "Gratuito",
       status: "ATIVO",
       configured: true,
-      description: "Divulgação de imagens dos imóveis e links para o site.",
+      description: "Divulgação com imagens dos imóveis e link para o site.",
       url: "https://www.pinterest.com"
     },
     {
@@ -131,13 +131,163 @@ function Portals() {
       url: "https://www.linkedin.com"
     },
     {
+      id: "olx",
+      name: "OLX",
+      icon: "🟠",
+      type: "Gratuito / Pago",
+      status: "ATIVO",
+      configured: true,
+      description: "Cadastro manual de imóveis. Planos pagos aumentam alcance.",
+      url: "https://www.olx.com.br"
+    },
+    {
+      id: "mercado-livre",
+      name: "Mercado Livre Imóveis",
+      icon: "🟡",
+      type: "Gratuito / Pago",
+      status: "ATIVO",
+      configured: true,
+      description: "Canal de divulgação com cadastro manual de anúncios.",
+      url: "https://www.mercadolivre.com.br"
+    },
+    {
+      id: "classificados-brasil",
+      name: "Classificados Brasil",
+      icon: "📰",
+      type: "Gratuito",
+      status: "ATIVO",
+      configured: true,
+      description: "Classificados online para divulgação regional.",
+      url: "https://www.classificadosbrasil.com.br"
+    },
+    {
+      id: "brasil-classificados",
+      name: "Brasil Classificados",
+      icon: "📋",
+      type: "Gratuito",
+      status: "ATIVO",
+      configured: true,
+      description: "Canal de classificados para imóveis e serviços.",
+      url: "https://www.brasilclassificados.com.br"
+    },
+    {
+      id: "bom-negocio",
+      name: "Bom Negócio",
+      icon: "🤝",
+      type: "Gratuito / Pago",
+      status: "ATIVO",
+      configured: true,
+      description: "Canal alternativo para anúncios classificados.",
+      url: "https://www.olx.com.br"
+    },
+    {
+      id: "buskaza",
+      name: "Buskaza",
+      icon: "⚠️",
+      type: "Portal",
+      status: "ATIVO",
+      configured: true,
+      description: "Portal de imóveis com integração ativa.",
+      url: "https://www.buskaza.com.br"
+    },
+    {
+      id: "chaves-na-mao",
+      name: "Chaves na Mão",
+      icon: "🔑",
+      type: "Portal",
+      status: "ATIVO",
+      configured: true,
+      description: "Portal imobiliário com publicação de imóveis.",
+      url: "https://www.chavesnamao.com.br"
+    },
+    {
+      id: "imovelweb",
+      name: "Imovelweb",
+      icon: "🏢",
+      type: "Portal / Pago",
+      status: "ATIVO",
+      configured: true,
+      description: "Portal imobiliário profissional.",
+      url: "https://www.imovelweb.com.br"
+    },
+    {
+      id: "properstar",
+      name: "Properstar",
+      icon: "🌎",
+      type: "Internacional",
+      status: "ATIVO",
+      configured: true,
+      description: "Portal internacional para imóveis.",
+      url: "https://www.properstar.com.br"
+    },
+    {
+      id: "casamineira",
+      name: "Casa Mineira",
+      icon: "🏡",
+      type: "Portal / Pago",
+      status: "INATIVO",
+      configured: false,
+      description: "Portal imobiliário regional/profissional.",
+      url: "https://www.casamineira.com.br"
+    },
+    {
+      id: "dfimoveis",
+      name: "DF Imóveis",
+      icon: "🏙️",
+      type: "Portal / Pago",
+      status: "INATIVO",
+      configured: false,
+      description: "Portal imobiliário regional.",
+      url: "https://www.dfimoveis.com.br"
+    },
+    {
+      id: "moving",
+      name: "Moving Imóveis",
+      icon: "🚚",
+      type: "Portal / Pago",
+      status: "INATIVO",
+      configured: false,
+      description: "Portal para anúncios imobiliários.",
+      url: "https://www.movingimoveis.com.br"
+    },
+    {
+      id: "lugar-certo",
+      name: "Lugar Certo",
+      icon: "📍",
+      type: "Portal / Pago",
+      status: "INATIVO",
+      configured: false,
+      description: "Portal imobiliário para divulgação de imóveis.",
+      url: "https://www.lugarcerto.com.br"
+    },
+    {
+      id: "dreamcasa",
+      name: "DreamCasa",
+      icon: "💭",
+      type: "Portal / Pago",
+      status: "INATIVO",
+      configured: false,
+      description: "Portal de divulgação de imóveis.",
+      url: "https://www.dreamcasa.com.br"
+    },
+    {
+      id: "wimoveis",
+      name: "WImóveis",
+      icon: "🏘️",
+      type: "Portal / Pago",
+      status: "INATIVO",
+      configured: false,
+      description: "Portal imobiliário regional.",
+      url: "https://www.wimoveis.com.br"
+    },
+    {
       id: "zap",
       name: "Zap Imóveis",
       icon: "⭐",
       type: "Pago",
       status: "INATIVO",
       configured: false,
-      description: "Portal pago. Precisa de contrato/plano e integração liberada.",
+      description: "Portal pago. Precisa de plano comercial e integração.",
       url: "https://www.zapimoveis.com.br"
     },
     {
@@ -147,18 +297,8 @@ function Portals() {
       type: "Pago",
       status: "INATIVO",
       configured: false,
-      description: "Portal pago do grupo OLX/Zap. Precisa de plano comercial.",
+      description: "Portal pago do grupo OLX/Zap.",
       url: "https://www.vivareal.com.br"
-    },
-    {
-      id: "imovelweb",
-      name: "Imovelweb",
-      icon: "🏢",
-      type: "Pago",
-      status: "INATIVO",
-      configured: false,
-      description: "Portal profissional. Ative quando contratar o plano.",
-      url: "https://www.imovelweb.com.br"
     }
   ]);
 
@@ -205,9 +345,8 @@ function Portals() {
 
   const filteredPortals = useMemo(() => {
     return portals.filter((portal) => {
-      const matchesSearch = `${portal.name} ${portal.type} ${portal.status}`
-        .toLowerCase()
-        .includes(search.toLowerCase());
+      const text = `${portal.name} ${portal.type} ${portal.status}`.toLowerCase();
+      const matchesSearch = text.includes(search.toLowerCase());
 
       const matchesFree = onlyFree
         ? portal.type.toLowerCase().includes("gratuito")
@@ -220,10 +359,8 @@ function Portals() {
   function getSentCount(portal) {
     if (portal.status !== "ATIVO") return 0;
 
-    if (portal.id === "facebook-marketplace") return Math.min(activeProperties.length, 10);
-    if (portal.id === "facebook-grupos") return Math.min(activeProperties.length, 20);
-    if (["instagram", "tiktok", "youtube-shorts"].includes(portal.id)) {
-      return Math.min(activeProperties.length, 12);
+    if (portal.type.toLowerCase().includes("gratuito")) {
+      return Math.min(activeProperties.length, 20);
     }
 
     return activeProperties.length;
@@ -282,7 +419,7 @@ function Portals() {
   }
 
   function createPostText(portal) {
-    return `JB Pessoa Imóveis\n\nTemos ${activeProperties.length} imóveis disponíveis para venda e locação.\n\nEntre em contato pelo WhatsApp e agende uma visita.\n\nPortal: ${portal.name}`;
+    return `JB Pessoa Imóveis\n\nTemos ${activeProperties.length} imóveis disponíveis para venda e locação.\n\nEntre em contato pelo WhatsApp e agende uma visita.\n\nCanal: ${portal.name}`;
   }
 
   async function copyPostText(portal) {
@@ -336,24 +473,14 @@ function Portals() {
 
         <div style={styles.portalMetric}>
           <div style={styles.metricIcon}>🕒</div>
-          <strong
-            style={{
-              ...styles.lastUpdate,
-              ...(!portal.configured ? styles.notConfigured : {})
-            }}
-          >
+          <strong style={!portal.configured ? styles.notConfigured : styles.lastUpdate}>
             {getLastUpdate(portal)}
           </strong>
           <span style={styles.metricLabel}>última atualização</span>
         </div>
 
         <div style={styles.statusBox}>
-          <span
-            style={{
-              ...styles.statusText,
-              ...(isActive ? styles.activeText : styles.inactiveText)
-            }}
-          >
+          <span style={isActive ? styles.activeText : styles.inactiveText}>
             {portal.status}
           </span>
 
@@ -399,7 +526,7 @@ function Portals() {
           <div>
             <h2 style={styles.title}>Central de Portais</h2>
             <p style={styles.subtitle}>
-              Gerencie os canais de divulgação gratuitos e pagos da imobiliária.
+              Modelo visual inspirado no Univem, com canais gratuitos e portais profissionais.
             </p>
           </div>
 
@@ -425,18 +552,14 @@ function Portals() {
           </div>
 
           <div style={styles.summaryCard}>
-            <strong>
-              {portals.filter((portal) => portal.type.toLowerCase().includes("gratuito")).length}
-            </strong>
-            <span>portais gratuitos</span>
+            <strong>{portals.length}</strong>
+            <span>portais cadastrados</span>
           </div>
         </div>
 
         <div style={styles.infoBox}>
-          <strong>Importante:</strong> portais gratuitos como Facebook, Instagram,
-          WhatsApp, Telegram, TikTok, YouTube Shorts e Google Perfil da Empresa
-          exigem publicação manual ou catálogo. Portais como Zap e VivaReal
-          dependem de contrato/plano comercial.
+          <strong>Atenção:</strong> os canais gratuitos funcionam como controle de divulgação manual.
+          Portais pagos como Zap, VivaReal e Imovelweb precisam de contrato/plano para integração real.
         </div>
 
         <div style={styles.filters}>
@@ -506,7 +629,7 @@ const styles = {
     cursor: "pointer"
   },
   content: {
-    maxWidth: "1360px",
+    maxWidth: "1380px",
     margin: "0 auto",
     padding: "28px 18px 70px"
   },
@@ -534,8 +657,7 @@ const styles = {
     borderRadius: "10px",
     padding: "14px 20px",
     fontWeight: "800",
-    cursor: "pointer",
-    boxShadow: "0 10px 24px rgba(212,166,42,0.25)"
+    cursor: "pointer"
   },
   cardsGrid: {
     display: "grid",
@@ -675,7 +797,9 @@ const styles = {
     textAlign: "center"
   },
   notConfigured: {
-    color: "#1e88e5"
+    color: "#1e88e5",
+    fontSize: "16px",
+    textAlign: "center"
   },
   statusBox: {
     minHeight: "86px",
@@ -686,15 +810,15 @@ const styles = {
     justifyContent: "center",
     gap: "8px"
   },
-  statusText: {
+  activeText: {
+    color: "#00a000",
     fontSize: "18px",
     fontWeight: "500"
   },
-  activeText: {
-    color: "#00a000"
-  },
   inactiveText: {
-    color: "#e11d22"
+    color: "#e11d22",
+    fontSize: "18px",
+    fontWeight: "500"
   },
   toggleButton: {
     width: "110px",
