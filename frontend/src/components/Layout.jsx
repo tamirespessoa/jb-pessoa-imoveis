@@ -24,10 +24,9 @@ function Layout() {
   const topTabs = useMemo(
     () => [
       { label: "DASHBOARD", path: "/dashboard" },
-      { label: "GESTÃO DE LEADS", path: "/clientes" },
-      { label: "ATENDIMENTOS", path: "/clientes" },
+      { label: "PESSOAS", path: "/pessoas" },
+      { label: "ATENDIMENTOS", path: "/pessoas" },
       { label: "CENTRAL DE NEGÓCIOS", path: "/imoveis" },
-      { label: "PROPRIETÁRIOS", path: "/proprietarios" },
       { label: "AGENDAMENTOS", path: "/agendamentos" },
 
       // 🔥 CORREÇÃO AQUI
@@ -57,7 +56,7 @@ function Layout() {
               <div style={styles.searchWrapper}>
                 <input
                   style={styles.searchInput}
-                  placeholder="Pesquisar imóveis, leads ou clientes..."
+                  placeholder="Pesquisar imóveis, leads, clientes ou proprietários..."
                 />
               </div>
 

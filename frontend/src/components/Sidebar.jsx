@@ -96,21 +96,19 @@ function Sidebar({ open = true }) {
 
             <MenuGroup
               icon="👥"
-              label="Clientes e negócios"
+              label="Pessoas e negócios"
               open={openGroups.crm}
               onToggle={() => toggleGroup("crm")}
             >
               <MenuLink
-                to="/clientes"
-                label="Clientes"
-                active={isActive("/clientes")}
-                icon="👤"
-              />
-              <MenuLink
-                to="/proprietarios"
-                label="Proprietários"
-                active={isActive("/proprietarios")}
-                icon="🏢"
+                to="/pessoas"
+                label="Clientes e Proprietários"
+                active={
+                  isActive("/pessoas") ||
+                  isActive("/clientes") ||
+                  isActive("/proprietarios")
+                }
+                icon="👥"
               />
               <MenuLink
                 to="/propostas"

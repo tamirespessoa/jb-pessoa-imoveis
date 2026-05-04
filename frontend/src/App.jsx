@@ -9,6 +9,7 @@ import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Owners from "./pages/Owners";
+import Persons from "./pages/Persons";
 import Properties from "./pages/Properties";
 import Documents from "./pages/Documents";
 import Appointments from "./pages/Appointments";
@@ -80,8 +81,9 @@ function AppRoutes({ logged, setLogged }) {
         }
       >
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/clientes" element={<Clients />} />
-        <Route path="/proprietarios" element={<Owners />} />
+        <Route path="/pessoas" element={<Persons />} />
+        <Route path="/clientes" element={<Navigate to="/pessoas" replace />} />
+        <Route path="/proprietarios" element={<Navigate to="/pessoas" replace />} />
         <Route path="/imoveis" element={<Properties />} />
         <Route path="/documentos" element={<Documents />} />
         <Route path="/agendamentos" element={<Appointments />} />
