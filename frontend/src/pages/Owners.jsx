@@ -111,6 +111,7 @@ function Owners() {
     const captadorId =
       person?.createdById ||
       person?.createdBy?.id ||
+      person?.captadorId ||
       person?.captorId ||
       "";
 
@@ -120,8 +121,9 @@ function Owners() {
       person?.createdBy?.name ||
       captadorFromUsers?.name ||
       captadorFromUsers?.email ||
-      person?.createdBy?.email ||
+      person?.captadorName ||
       person?.captorName ||
+      person?.createdBy?.email ||
       "Captador não informado"
     );
   }

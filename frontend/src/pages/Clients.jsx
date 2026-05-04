@@ -8,6 +8,8 @@ function Clients() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   const [clients, setClients] = useState([]);
+  const [users, setUsers] = useState([]);
+  const [properties, setProperties] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
   const [viewClient, setViewClient] = useState(null);
@@ -36,7 +38,8 @@ function Clients() {
     notes: "",
     createReminder: false,
     businessTemperature: "FRIO",
-    activities: []
+    activities: [],
+    createdById: user.id || user.userId || ""
   });
 
   function parseWhatsapp(value) {
@@ -105,15 +108,65 @@ function Clients() {
   }
 
   function getCaptadorName(person) {
+    const captadorId =
+      person?.createdById ||
+      person?.createdBy?.id ||
+      person?.captadorId ||
+      person?.captorId ||
+      "";
+
+    const captadorFromUsers = users.find((item) => item.id === captadorId);
+
     return (
       person?.createdBy?.name ||
-      person?.createdBy?.email ||
+      captadorFromUsers?.name ||
+      captadorFromUsers?.email ||
+      person?.captadorName ||
       person?.captorName ||
+      person?.createdBy?.email ||
+      "Captador não informado"
+    );
+  }
+
+  async function loadProperties() {
+    try {
+      const response = await api.get("/properties");
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data?.properties || [];
+      setProperties(data);
+    } catch (error) {
+      console.error("Erro ao carregar imóveis do cliente:", error.response?.data || error.message);
+      setProperties([]);
+    }
+  }
+
+  function getSelectedCaptadorName() {
+    const selected = users.find((item) => item.id === form.createdById);
+
+    return (
+      selected?.name ||
+      selected?.email ||
+      getCaptadorName(selectedClient) ||
       user.name ||
       user.fullName ||
       user.email ||
       "Captador não informado"
     );
+  }
+
+  async function loadUsers() {
+    try {
+      const response = await api.get("/users");
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data?.users || [];
+
+      setUsers(data);
+    } catch (error) {
+      console.error("Erro ao carregar captadores:", error.response?.data || error.message);
+      setUsers([]);
+    }
   }
 
   async function loadClients(selectId = null) {
@@ -153,6 +206,7 @@ function Clients() {
 
   useEffect(() => {
     loadClients();
+    loadProperties();
   }, []);
 
   useEffect(() => {
@@ -214,7 +268,8 @@ function Clients() {
           ? Boolean(client.createReminder)
           : false,
       businessTemperature: client.businessTemperature || "FRIO",
-      activities: Array.isArray(client.activities) ? client.activities : []
+      activities: Array.isArray(client.activities) ? client.activities : [],
+      createdById: client.createdById || client.createdBy?.id || user.id || user.userId || ""
     });
   }
 
@@ -305,13 +360,15 @@ function Clients() {
         notes: normalizeString(form.notes),
         createReminder: Boolean(form.createReminder),
         businessTemperature: normalizeString(form.businessTemperature) || "FRIO",
-        activities: Array.isArray(form.activities) ? form.activities : []
+        activities: Array.isArray(form.activities) ? form.activities : [],
+        createdById: normalizeString(form.createdById)
       };
 
       if (editingId) {
         const response = await api.put(`/persons/${editingId}`, payload);
         const updatedClient = response.data?.person || response.data || null;
         alert("Cliente atualizado com sucesso.");
+      await loadClients();
         await loadClients(updatedClient?.id || editingId);
       } else {
         const response = await api.post("/persons", payload);
@@ -563,6 +620,36 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
     }));
 
     setNewActivityText("");
+  }
+
+  function formatCurrency(value) {
+    const number = Number(value || 0);
+    if (!number) return "Valor não informado";
+    return number.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  }
+
+  function getPropertyAddress(property) {
+    return [property.address, property.street, property.number, property.neighborhood, property.city, property.state]
+      .filter(Boolean)
+      .join(", ");
+  }
+
+  function getClientProperties() {
+    if (!selectedClient) return [];
+    return properties.filter((property) => {
+      const ids = [
+        property.clientId,
+        property.buyerId,
+        property.personId,
+        property.ownerId,
+        property.owner?.id,
+        property.client?.id,
+        property.person?.id
+      ].filter(Boolean).map(String);
+
+      const ownerName = property.ownerName || property.owner?.fullName || property.person?.fullName || "";
+      return ids.includes(String(selectedClient.id)) || ownerName.toLowerCase() === String(selectedClient.fullName || "").toLowerCase();
+    });
   }
 
   function renderTopBar() {
@@ -926,6 +1013,9 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             <a href="#cadastro" style={styles.rightNavItem}>
               Cadastro
             </a>
+            <a href="#imoveis-cliente" style={styles.rightNavItem}>
+              Imóveis
+            </a>
             <a href="#atividades" style={styles.rightNavItem}>
               Atividades
             </a>
@@ -1076,11 +1166,22 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
               <div style={styles.fieldContent}>
                 <label style={styles.label}>Captador</label>
-                <input
-                  style={styles.lineInput}
-                  value={getCaptadorName(selectedClient)}
-                  disabled
-                />
+                <select
+                  name="createdById"
+                  value={form.createdById || ""}
+                  onChange={handleChange}
+                  style={styles.lineSelect}
+                >
+                  <option value="">
+                    {getSelectedCaptadorName()}
+                  </option>
+
+                  {users.map((captador) => (
+                    <option key={captador.id} value={captador.id}>
+                      {captador.name || captador.email}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
@@ -1213,6 +1314,60 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
                   style={styles.textarea}
                   placeholder="Digite observações sobre o cliente..."
                 />
+              </div>
+            </div>
+
+            <div style={styles.cleanSection} id="imoveis-cliente">
+              <h2 style={styles.cleanSectionTitle}>Imóveis do cliente</h2>
+
+              {getClientProperties().length === 0 ? (
+                <div style={styles.emptyPropertyBox}>
+                  <div style={styles.propertyIconLarge}>⌂</div>
+                  <div>
+                    <strong>Nenhum imóvel vinculado a este cliente</strong>
+                    <p style={styles.emptyPropertyText}>
+                      Você pode cadastrar ou vincular um imóvel para este cliente.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div style={styles.propertyListClean}>
+                  {getClientProperties().map((property) => (
+                    <div key={property.id} style={styles.propertyCleanItem}>
+                      <div style={styles.propertyIconLarge}>⌂</div>
+                      <div style={styles.propertyCleanInfo}>
+                        <strong style={styles.propertyCleanTitle}>
+                          {String(property.type || "IMÓVEL").toUpperCase()} -{" "}
+                          <span style={styles.propertyPrice}>
+                            {formatCurrency(property.price || property.salePrice || property.value)}
+                          </span>
+                        </strong>
+                        <p style={styles.propertyAddress}>
+                          {getPropertyAddress(property) || "Endereço não informado"}
+                        </p>
+                        <p style={styles.propertyDetails}>
+                          {property.area ? `${property.area} m²` : ""}
+                          {property.bedrooms ? `  ${property.bedrooms} Quartos` : ""}
+                          {property.bathrooms ? `  ${property.bathrooms} Banheiros` : ""}
+                          {property.parkingSpaces || property.garage ? `  ${property.parkingSpaces || property.garage} Vaga(s)` : ""}
+                        </p>
+                      </div>
+                      <span style={styles.propertyCodeBadge}>
+                        🏠 {property.reference || property.code || property.id?.slice(0, 6)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div style={styles.propertyActionsClean}>
+                <button type="button" style={styles.propertyActionButton} onClick={() => navigate("/imoveis")}>
+                  + CADASTRAR IMÓVEL
+                </button>
+                <button type="button" style={styles.propertyActionButton} onClick={() => alert("Convite para cadastro será ligado depois.")}>
+                  ✉ ENVIAR CONVITE PARA CADASTRO
+                </button>
+                <span style={styles.newBadge}>NOVO</span>
               </div>
             </div>
 
@@ -1656,13 +1811,13 @@ const styles = {
   },
   formLeftPanel: {
     backgroundColor: "#fbf7ef",
-    borderRight: "1px solid #e2d6bb",
+    borderRight: "1px solid #eeeeee",
     padding: "18px 14px",
     boxSizing: "border-box"
   },
   activitiesBox: {
-    backgroundColor: "#fffdf8",
-    border: "1px solid #e3d6b5",
+    backgroundColor: "#ffffff",
+    border: "1px solid #eeeeee",
     borderRadius: "12px",
     padding: "14px",
     marginBottom: "16px"
@@ -1777,7 +1932,7 @@ const styles = {
   newClientButton: {
     width: "100%",
     border: "1px solid #d4a62a",
-    backgroundColor: "#fffdf8",
+    backgroundColor: "#ffffff",
     color: "#b58712",
     borderRadius: "8px",
     padding: "10px 12px",
@@ -1804,8 +1959,8 @@ const styles = {
     overflowY: "auto"
   },
   sideItem: {
-    border: "1px solid #e3d6b5",
-    backgroundColor: "#fffdf8",
+    border: "1px solid #eeeeee",
+    backgroundColor: "#ffffff",
     borderRadius: "10px",
     padding: "12px",
     textAlign: "left",
@@ -1832,7 +1987,7 @@ const styles = {
     padding: "40px 20px"
   },
   mainPanel: {
-    backgroundColor: "#fffdf8",
+    backgroundColor: "#ffffff",
     padding: "26px 150px 26px 34px",
     position: "relative",
     overflowX: "hidden"
@@ -1933,7 +2088,7 @@ const styles = {
     padding: "12px",
     fontSize: "16px",
     outline: "none",
-    backgroundColor: "#fffdf8",
+    backgroundColor: "#ffffff",
     resize: "vertical",
     boxSizing: "border-box"
   },
@@ -2162,7 +2317,113 @@ const styles = {
   quickCaptorCompany: {
     margin: "4px 0 0",
     color: "#888"
-  }
+  },
+
+  cleanSection: {
+    borderTop: "1px solid #eeeeee",
+    marginTop: "42px",
+    paddingTop: "34px",
+    paddingBottom: "34px"
+  },
+  cleanSectionTitle: {
+    margin: "0 0 28px 0",
+    fontSize: "30px",
+    fontWeight: "400",
+    color: "#111"
+  },
+  emptyPropertyBox: {
+    display: "flex",
+    alignItems: "center",
+    gap: "22px",
+    padding: "22px 18px",
+    color: "#777",
+    borderBottom: "1px solid #eeeeee"
+  },
+  emptyPropertyText: {
+    margin: "6px 0 0",
+    color: "#999"
+  },
+  propertyListClean: {
+    display: "flex",
+    flexDirection: "column"
+  },
+  propertyCleanItem: {
+    display: "grid",
+    gridTemplateColumns: "90px 1fr auto",
+    alignItems: "center",
+    gap: "24px",
+    padding: "22px 18px",
+    borderBottom: "1px solid #eeeeee"
+  },
+  propertyIconLarge: {
+    width: "76px",
+    height: "76px",
+    borderRadius: "50%",
+    backgroundColor: "#d1d1d1",
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "42px",
+    fontWeight: "700"
+  },
+  propertyCleanInfo: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px"
+  },
+  propertyCleanTitle: {
+    fontSize: "16px",
+    color: "#7a7a7a"
+  },
+  propertyPrice: {
+    color: "#1e88e5",
+    fontWeight: "800"
+  },
+  propertyAddress: {
+    margin: 0,
+    color: "#111",
+    fontWeight: "700",
+    textTransform: "uppercase"
+  },
+  propertyDetails: {
+    margin: 0,
+    color: "#111",
+    fontSize: "14px"
+  },
+  propertyCodeBadge: {
+    backgroundColor: "#90caf9",
+    color: "#ffffff",
+    borderRadius: "6px",
+    padding: "8px 10px",
+    fontWeight: "700",
+    fontSize: "13px"
+  },
+  propertyActionsClean: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "34px",
+    padding: "28px 0",
+    borderBottom: "1px solid #eeeeee"
+  },
+  propertyActionButton: {
+    border: "none",
+    backgroundColor: "transparent",
+    color: "#1e88e5",
+    fontSize: "15px",
+    cursor: "pointer",
+    letterSpacing: "0.3px"
+  },
+  newBadge: {
+    backgroundColor: "#10b981",
+    color: "#ffffff",
+    borderRadius: "6px",
+    padding: "6px 10px",
+    fontSize: "12px",
+    fontWeight: "800"
+  },
+
 };
 
 export default Clients;

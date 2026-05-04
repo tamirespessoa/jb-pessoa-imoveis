@@ -12,6 +12,7 @@ function Properties() {
     cadastro: useRef(null),
     localizacao: useRef(null),
     detalhes: useRef(null),
+    financeiro: useRef(null),
     internet: useRef(null),
     captacao: useRef(null),
     confidencial: useRef(null)
@@ -104,11 +105,12 @@ function Properties() {
 
   const visibleSections =
     formMode === "EXPRESS"
-      ? ["cadastro", "localizacao", "detalhes", "internet", "confidencial"]
+      ? ["cadastro", "localizacao", "detalhes", "financeiro", "internet", "confidencial"]
       : [
           "cadastro",
           "localizacao",
           "detalhes",
+          "financeiro",
           "internet",
           "captacao",
           "confidencial"
@@ -483,6 +485,10 @@ function Properties() {
       furnished: false,
       financed: false,
       exchange: false,
+      financing: "NAO_INFORMADO",
+      condominiumValue: "",
+      iptuValue: "",
+      iptuPayment: "",
       financing: "NAO_INFORMADO",
       condominiumValue: "",
       iptuValue: "",
@@ -1344,6 +1350,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
       { key: "cadastro", label: "Cadastro" },
       { key: "localizacao", label: "Localização" },
       { key: "detalhes", label: "Detalhes" },
+      { key: "financeiro", label: "Financeiro" },
       { key: "internet", label: "Internet e Anúncios" },
       ...(formMode === "AVANCADA" ? [{ key: "captacao", label: "Captação" }] : []),
       { key: "confidencial", label: "Confidencial" }
@@ -1402,8 +1409,14 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
           <div>
             <h1 style={styles.pageTitle}>Imóveis cadastrados</h1>
             <p style={styles.pageSubtitle}>
-              Clique em um imóvel para ver detalhes ou editar.
+              Visual estilo CRM imobiliário profissional, com lista organizada, fotos, valores e ações rápidas.
             </p>
+
+            <div style={styles.painelUnivenInfo}>
+              <span>🏠 Gestão de imóveis</span>
+              <span>•</span>
+              <span>Cadastro, fotos, portais, valores e financiamento em um só lugar</span>
+            </div>
           </div>
 
           <div style={styles.listHeaderActions}>
@@ -1433,6 +1446,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                 <th style={styles.th}>Referência</th>
                 <th style={styles.th}>Tipo</th>
                 <th style={styles.th}>Valor</th>
+                <th style={styles.th}>Financiamento</th>
                 <th style={styles.thCenter}>Dorm.</th>
                 <th style={styles.thCenter}>Gar.</th>
                 <th style={styles.thCenter}>Área</th>
@@ -1445,7 +1459,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
             <tbody>
               {filteredProperties.length === 0 ? (
                 <tr>
-                  <td colSpan="10" style={styles.emptyTableCell}>
+                  <td colSpan="11" style={styles.emptyTableCell}>
                     Nenhum imóvel encontrado.
                   </td>
                 </tr>
@@ -1476,7 +1490,18 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                       <div>{property.type || "-"}</div>
                       <div style={styles.subText}>{property.status || "-"}</div>
                     </td>
-                    <td style={styles.td}>{formatCurrency(property.price)}</td>
+                    <td style={styles.td}>
+                      <strong style={styles.priceText}>{formatCurrency(property.price)}</strong>
+                    </td>
+                    <td style={styles.td}>
+                      <span style={styles.financingBadge}>
+                        {property.financing === "ACEITA"
+                          ? "Aceita"
+                          : property.financing === "NAO_ACEITA"
+                          ? "Não aceita"
+                          : "Não informado"}
+                      </span>
+                    </td>
                     <td style={styles.tdCenter}>{property.rooms ?? "-"}</td>
                     <td style={styles.tdCenter}>{property.garage ?? "-"}</td>
                     <td style={styles.tdCenter}>
@@ -2235,6 +2260,109 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                         onChange={handleChange}
                       />
                     </div>
+                  </div>
+                </section>
+              )}
+
+
+              {visibleSections.includes("financeiro") && (
+                <section ref={sectionRefs.financeiro} style={styles.formSectionPremium}>
+                  <div style={styles.sectionHeaderRow}>
+                    <div style={styles.formHeaderBadge}></div>
+                    <div>
+                      <h2 style={styles.formSectionTitle}>Financeiro</h2>
+                      <p style={styles.sectionDescription}>
+                        Configure financiamento, condomínio, IPTU e condições comerciais do imóvel.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={styles.financeCardGrid}>
+                    <div style={styles.financeCard}>
+                      <span style={styles.financeCardIcon}>🏦</span>
+                      <label style={styles.label}>Financiamento</label>
+                      <select
+                        style={styles.lineSelect}
+                        name="financing"
+                        value={form.financing}
+                        onChange={handleChange}
+                      >
+                        <option value="NAO_INFORMADO">Não informado</option>
+                        <option value="ACEITA">Aceita financiamento</option>
+                        <option value="NAO_ACEITA">Não aceita financiamento</option>
+                      </select>
+                    </div>
+
+                    <div style={styles.financeCard}>
+                      <span style={styles.financeCardIcon}>🏢</span>
+                      <label style={styles.label}>Condomínio</label>
+                      <input
+                        style={styles.lineInput}
+                        name="condominiumValue"
+                        value={form.condominiumValue}
+                        onChange={handleChange}
+                        placeholder="Ex: 350,00"
+                      />
+                    </div>
+
+                    <div style={styles.financeCard}>
+                      <span style={styles.financeCardIcon}>📄</span>
+                      <label style={styles.label}>IPTU</label>
+                      <input
+                        style={styles.lineInput}
+                        name="iptuValue"
+                        value={form.iptuValue}
+                        onChange={handleChange}
+                        placeholder="Ex: 120,00"
+                      />
+                    </div>
+
+                    <div style={styles.financeCard}>
+                      <span style={styles.financeCardIcon}>📅</span>
+                      <label style={styles.label}>Pagamento do IPTU</label>
+                      <select
+                        style={styles.lineSelect}
+                        name="iptuPayment"
+                        value={form.iptuPayment}
+                        onChange={handleChange}
+                      >
+                        <option value="">Selecione...</option>
+                        <option value="MENSAL">Mensal</option>
+                        <option value="ANUAL">Anual</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={styles.financeOptionsBox}>
+                    <label style={styles.cleanCheckLabel}>
+                      <input
+                        type="checkbox"
+                        name="exchange"
+                        checked={form.exchange}
+                        onChange={handleChange}
+                      />
+                      <span>Permuta</span>
+                    </label>
+
+                    <label style={styles.cleanCheckLabel}>
+                      <input
+                        type="checkbox"
+                        name="financed"
+                        checked={form.financed}
+                        onChange={handleChange}
+                      />
+                      <span>Financiado</span>
+                    </label>
+
+                    <label style={styles.cleanCheckLabel}>
+                      <input
+                        type="checkbox"
+                        name="furnished"
+                        checked={form.furnished}
+                        onChange={handleChange}
+                      />
+                      <span>Mobiliado</span>
+                    </label>
                   </div>
                 </section>
               )}
@@ -3936,7 +4064,102 @@ const styles = {
     margin: 0,
     color: "#6b7280",
     fontSize: "16px"
-  }
+  },
+
+  painelUnivenInfo: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "10px",
+    marginTop: "12px",
+    padding: "10px 14px",
+    borderRadius: "999px",
+    backgroundColor: "#ffffff",
+    border: "1px solid #e5e7eb",
+    color: "#6b7280",
+    fontSize: "13px",
+    boxShadow: "0 8px 20px rgba(15, 23, 42, 0.06)"
+  },
+  priceText: {
+    color: "#0f172a",
+    fontWeight: "800"
+  },
+  financingBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "6px 10px",
+    borderRadius: "999px",
+    backgroundColor: "#eff6ff",
+    color: "#1e40af",
+    fontSize: "12px",
+    fontWeight: "800",
+    whiteSpace: "nowrap"
+  },
+  formSectionPremium: {
+    backgroundColor: "#ffffff",
+    border: "1px solid #e5e7eb",
+    borderRadius: "18px",
+    padding: "26px",
+    marginBottom: "26px",
+    boxShadow: "0 18px 40px rgba(15, 23, 42, 0.08)"
+  },
+  sectionDescription: {
+    margin: "4px 0 0",
+    color: "#6b7280",
+    fontSize: "14px"
+  },
+  financeCardGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+    gap: "18px",
+    marginTop: "22px"
+  },
+  financeCard: {
+    minHeight: "130px",
+    backgroundColor: "#f8fafc",
+    border: "1px solid #e5e7eb",
+    borderRadius: "16px",
+    padding: "18px",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    boxShadow: "0 10px 24px rgba(15, 23, 42, 0.04)"
+  },
+  financeCardIcon: {
+    width: "42px",
+    height: "42px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "12px",
+    backgroundColor: "#ffffff",
+    fontSize: "22px",
+    boxShadow: "0 8px 18px rgba(15, 23, 42, 0.08)",
+    marginBottom: "10px"
+  },
+  financeOptionsBox: {
+    marginTop: "18px",
+    padding: "18px",
+    borderRadius: "16px",
+    backgroundColor: "#fff7ed",
+    border: "1px solid #fed7aa",
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "18px"
+  },
+  cleanCheckLabel: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "10px",
+    padding: "10px 14px",
+    backgroundColor: "#ffffff",
+    borderRadius: "999px",
+    border: "1px solid #e5e7eb",
+    color: "#374151",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
+
 };
 
 export default Properties;

@@ -272,6 +272,7 @@ async function getPersonById(req, res) {
       where: { id },
       include: {
         properties: true,
+    createdBy: true,
         documents: true,
         appointments: true,
         proposals: true,
