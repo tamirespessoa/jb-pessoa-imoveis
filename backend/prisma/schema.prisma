@@ -108,6 +108,7 @@ model Person {
   firstContact   String?
   notes          String?
   isActive       Boolean  @default(true)
+  archived       Boolean  @default(false)
   createReminder Boolean  @default(false)
   createdById    String?
   createdBy      User?    @relation("PersonCreatedBy", fields: [createdById], references: [id])

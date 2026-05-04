@@ -2,18 +2,23 @@ const prisma = require("../config/prisma");
 
 function normalizeString(value) {
   if (value === undefined || value === null) return null;
+
   const text = String(value).trim();
+
   return text === "" ? null : text;
 }
 
 function normalizeEmail(value) {
   const email = normalizeString(value);
+
   return email ? email.toLowerCase() : null;
 }
 
 function onlyNumbers(value) {
   if (value === undefined || value === null) return null;
+
   const numbers = String(value).replace(/\D/g, "");
+
   return numbers === "" ? null : numbers;
 }
 
@@ -41,8 +46,71 @@ function normalizeWhatsapp(value) {
   return false;
 }
 
+function normalizeBoolean(value, defaultValue = false) {
+  if (value === undefined || value === null || value === "") {
+    return defaultValue;
+  }
+
+  if (
+    value === true ||
+    value === "true" ||
+    value === "Sim" ||
+    value === "sim" ||
+    value === "SIM" ||
+    value === 1 ||
+    value === "1"
+  ) {
+    return true;
+  }
+
+  if (
+    value === false ||
+    value === "false" ||
+    value === "Não" ||
+    value === "nao" ||
+    value === "não" ||
+    value === "NAO" ||
+    value === 0 ||
+    value === "0"
+  ) {
+    return false;
+  }
+
+  return defaultValue;
+}
+
+function normalizeActivities(value) {
+  if (value === undefined || value === null || value === "") {
+    return [];
+  }
+
+  if (Array.isArray(value)) {
+    return value;
+  }
+
+  try {
+    const parsed = JSON.parse(value);
+
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function normalizePersonType(value) {
+  const type = String(value || "CLIENTE").trim().toUpperCase();
+
+  if (type === "CLIENTE") return "CLIENTE";
+  if (type === "PROPRIETARIO") return "PROPRIETARIO";
+  if (type === "PROPRIETÁRIO") return "PROPRIETARIO";
+  if (type === "AMBOS") return "AMBOS";
+
+  return "CLIENTE";
+}
+
 function isValidEmail(email) {
   if (!email) return true;
+
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
@@ -72,8 +140,8 @@ function validatePersonPayload(data, isUpdate = false) {
 
 function buildCreatePersonData(body) {
   return {
-    type: String(body.type).trim(),
-    fullName: String(body.fullName).trim(),
+    type: normalizePersonType(body.type),
+    fullName: String(body.fullName || "").trim(),
     cpf: normalizeCpf(body.cpf),
     rg: normalizeString(body.rg),
     email: normalizeEmail(body.email),
@@ -86,16 +154,11 @@ function buildCreatePersonData(body) {
     category: normalizeString(body.category),
     firstContact: normalizeString(body.firstContact),
     notes: normalizeString(body.notes),
-    isActive:
-      body.isActive !== undefined && body.isActive !== null
-        ? Boolean(body.isActive)
-        : true,
-    createReminder:
-      body.createReminder !== undefined && body.createReminder !== null
-        ? Boolean(body.createReminder)
-        : false,
+    isActive: normalizeBoolean(body.isActive, true),
+    archived: normalizeBoolean(body.archived, false),
+    createReminder: normalizeBoolean(body.createReminder, false),
     businessTemperature: normalizeString(body.businessTemperature) || "FRIO",
-    activities: Array.isArray(body.activities) ? body.activities : [],
+    activities: normalizeActivities(body.activities),
     createdById: normalizeString(body.createdById)
   };
 }
@@ -103,49 +166,81 @@ function buildCreatePersonData(body) {
 function buildUpdatePersonData(body) {
   const data = {};
 
-  if (body.type !== undefined) data.type = String(body.type).trim();
-  if (body.fullName !== undefined) data.fullName = String(body.fullName).trim();
+  if (body.type !== undefined) data.type = normalizePersonType(body.type);
+  if (body.fullName !== undefined) data.fullName = String(body.fullName || "").trim();
   if (body.cpf !== undefined) data.cpf = normalizeCpf(body.cpf);
   if (body.rg !== undefined) data.rg = normalizeString(body.rg);
   if (body.email !== undefined) data.email = normalizeEmail(body.email);
   if (body.phone !== undefined) data.phone = normalizePhone(body.phone);
   if (body.company !== undefined) data.company = normalizeString(body.company);
-  if (body.commercialPhone !== undefined)
+
+  if (body.commercialPhone !== undefined) {
     data.commercialPhone = normalizePhone(body.commercialPhone);
-  if (body.residentialPhone !== undefined)
+  }
+
+  if (body.residentialPhone !== undefined) {
     data.residentialPhone = normalizePhone(body.residentialPhone);
-  if (body.contactPhone !== undefined)
+  }
+
+  if (body.contactPhone !== undefined) {
     data.contactPhone = normalizePhone(body.contactPhone);
-  if (body.whatsapp !== undefined)
+  }
+
+  if (body.whatsapp !== undefined) {
     data.whatsapp = normalizeWhatsapp(body.whatsapp);
-  if (body.category !== undefined)
+  }
+
+  if (body.category !== undefined) {
     data.category = normalizeString(body.category);
-  if (body.firstContact !== undefined)
+  }
+
+  if (body.firstContact !== undefined) {
     data.firstContact = normalizeString(body.firstContact);
-  if (body.notes !== undefined)
+  }
+
+  if (body.notes !== undefined) {
     data.notes = normalizeString(body.notes);
-  if (body.isActive !== undefined)
-    data.isActive = Boolean(body.isActive);
-  if (body.createReminder !== undefined)
-    data.createReminder = Boolean(body.createReminder);
-  if (body.businessTemperature !== undefined)
+  }
+
+  if (body.isActive !== undefined) {
+    data.isActive = normalizeBoolean(body.isActive, true);
+  }
+
+  if (body.archived !== undefined) {
+    data.archived = normalizeBoolean(body.archived, false);
+  }
+
+  if (body.createReminder !== undefined) {
+    data.createReminder = normalizeBoolean(body.createReminder, false);
+  }
+
+  if (body.businessTemperature !== undefined) {
     data.businessTemperature = normalizeString(body.businessTemperature) || "FRIO";
-  if (body.activities !== undefined)
-    data.activities = Array.isArray(body.activities) ? body.activities : [];
-  if (body.createdById !== undefined)
+  }
+
+  if (body.activities !== undefined) {
+    data.activities = normalizeActivities(body.activities);
+  }
+
+  if (body.createdById !== undefined) {
     data.createdById = normalizeString(body.createdById);
+  }
 
   return data;
 }
 
-
 function getAuthUser(req) {
   const user = req.user || {};
+
   return {
     id: user.id || user.userId || null,
     role: user.role || "USER",
     name: user.name || user.fullName || user.email || ""
   };
+}
+
+function canManageAllPersons(authUser) {
+  return authUser.role === "ADMIN" || authUser.role === "GERENTE";
 }
 
 function handlePrismaError(error, res, defaultMessage) {
@@ -171,6 +266,21 @@ function handlePrismaError(error, res, defaultMessage) {
   });
 }
 
+const personInclude = {
+  properties: true,
+  documents: true,
+  appointments: true,
+  proposals: true,
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true
+    }
+  }
+};
+
 async function createPerson(req, res) {
   try {
     const errors = validatePersonPayload(req.body, false);
@@ -189,18 +299,13 @@ async function createPerson(req, res) {
       createData.createdById = authUser.id;
     }
 
+    if (!canManageAllPersons(authUser) && authUser.id) {
+      createData.createdById = authUser.id;
+    }
+
     const person = await prisma.person.create({
       data: createData,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          }
-        }
-      }
+      include: personInclude
     });
 
     return res.status(201).json({
@@ -215,46 +320,53 @@ async function createPerson(req, res) {
 async function listPersons(req, res) {
   try {
     const { type, search } = req.query;
+    const authUser = getAuthUser(req);
 
     const where = {};
 
     if (type) {
-      where.type = String(type).trim();
+      const normalizedType = normalizePersonType(type);
+
+      if (normalizedType === "CLIENTE") {
+        where.OR = [{ type: "CLIENTE" }, { type: "AMBOS" }];
+      } else if (normalizedType === "PROPRIETARIO") {
+        where.OR = [{ type: "PROPRIETARIO" }, { type: "AMBOS" }];
+      } else if (normalizedType === "AMBOS") {
+        where.type = "AMBOS";
+      }
     }
 
     if (search && String(search).trim()) {
       const term = String(search).trim();
 
-      where.OR = [
+      const searchOr = [
         { fullName: { contains: term, mode: "insensitive" } },
         { email: { contains: term, mode: "insensitive" } },
         { cpf: { contains: term } },
         { phone: { contains: term, mode: "insensitive" } },
-        { contactPhone: { contains: term, mode: "insensitive" } }
+        { contactPhone: { contains: term, mode: "insensitive" } },
+        { category: { contains: term, mode: "insensitive" } }
       ];
+
+      if (where.OR) {
+        where.AND = [{ OR: where.OR }, { OR: searchOr }];
+        delete where.OR;
+      } else {
+        where.OR = searchOr;
+      }
     }
 
-    const authUser = getAuthUser(req);
-
-    const secureWhere = {
-      ...where,
-      ...(authUser.role === "ADMIN" || !authUser.id
-        ? {}
-        : { createdById: authUser.id })
-    };
+    const secureWhere =
+      canManageAllPersons(authUser) || !authUser.id
+        ? where
+        : {
+            ...where,
+            createdById: authUser.id
+          };
 
     const persons = await prisma.person.findMany({
       where: secureWhere,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          }
-        }
-      },
+      include: personInclude,
       orderBy: { createdAt: "desc" }
     });
 
@@ -270,21 +382,7 @@ async function getPersonById(req, res) {
 
     const person = await prisma.person.findUnique({
       where: { id },
-      include: {
-        properties: true,
-    createdBy: true,
-        documents: true,
-        appointments: true,
-        proposals: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          }
-        }
-      }
+      include: personInclude
     });
 
     if (!person) {
@@ -297,12 +395,12 @@ async function getPersonById(req, res) {
 
     if (
       authUser.id &&
-      authUser.role !== "ADMIN" &&
+      !canManageAllPersons(authUser) &&
       person.createdById &&
       person.createdById !== authUser.id
     ) {
       return res.status(403).json({
-        error: "Você não tem permissão para visualizar este cliente."
+        error: "Você não tem permissão para visualizar este cadastro."
       });
     }
 
@@ -330,12 +428,12 @@ async function updatePerson(req, res) {
 
     if (
       authUser.id &&
-      authUser.role !== "ADMIN" &&
+      !canManageAllPersons(authUser) &&
       existing.createdById &&
       existing.createdById !== authUser.id
     ) {
       return res.status(403).json({
-        error: "Você não tem permissão para editar este cliente."
+        error: "Você não tem permissão para editar este cadastro."
       });
     }
 
@@ -356,24 +454,14 @@ async function updatePerson(req, res) {
 
     const updateData = buildUpdatePersonData(req.body);
 
-    // Somente ADMIN pode alterar o captador de um cliente/proprietário.
-    if (authUser.role !== "ADMIN") {
+    if (!canManageAllPersons(authUser)) {
       delete updateData.createdById;
     }
 
     const person = await prisma.person.update({
       where: { id },
       data: updateData,
-      include: {
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          }
-        }
-      }
+      include: personInclude
     });
 
     return res.json({
@@ -391,20 +479,7 @@ async function deletePerson(req, res) {
 
     const existing = await prisma.person.findUnique({
       where: { id },
-      include: {
-        properties: true,
-        documents: true,
-        appointments: true,
-        proposals: true,
-        createdBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            role: true
-          }
-        }
-      }
+      include: personInclude
     });
 
     if (!existing) {
@@ -417,12 +492,12 @@ async function deletePerson(req, res) {
 
     if (
       authUser.id &&
-      authUser.role !== "ADMIN" &&
+      !canManageAllPersons(authUser) &&
       existing.createdById &&
       existing.createdById !== authUser.id
     ) {
       return res.status(403).json({
-        error: "Você não tem permissão para excluir este cliente."
+        error: "Você não tem permissão para excluir este cadastro."
       });
     }
 
