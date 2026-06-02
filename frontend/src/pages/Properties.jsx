@@ -707,6 +707,36 @@ function Properties() {
 
   function handleImagesChange(e) {
     const files = Array.from(e.target.files || []);
+
+    const maxFiles = 10;
+    const maxSizeMB = 5;
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+    if (files.length > maxFiles) {
+      alert(`Selecione no máximo ${maxFiles} imagens por vez.\n\nVocê selecionou ${files.length} imagens.`);
+      e.target.value = "";
+      setNewImages([]);
+      return;
+    }
+
+    const invalidType = files.find((file) => !allowedTypes.includes(file.type));
+
+    if (invalidType) {
+      alert(`O arquivo "${invalidType.name}" não é uma imagem válida.\n\nUse apenas JPG, PNG ou WEBP.`);
+      e.target.value = "";
+      setNewImages([]);
+      return;
+    }
+
+    const invalidSize = files.find((file) => file.size > maxSizeMB * 1024 * 1024);
+
+    if (invalidSize) {
+      alert(`A imagem "${invalidSize.name}" tem mais de ${maxSizeMB}MB.\n\nEscolha uma imagem menor.`);
+      e.target.value = "";
+      setNewImages([]);
+      return;
+    }
+
     setNewImages(files);
   }
 
@@ -733,6 +763,10 @@ function Properties() {
     if (!form.type.trim()) return alert("Tipo é obrigatório.");
     if (!form.price.toString().trim()) return alert("Preço é obrigatório.");
     if (!form.ownerId) return alert("Selecione o proprietário.");
+
+    if (newImages.length > 10) {
+      return alert("Envie no máximo 10 imagens por vez para evitar erro no servidor.");
+    }
 
     const payload = new FormData();
 
@@ -819,7 +853,8 @@ function Properties() {
       setNewImages([]);
       setViewMode("list");
     } catch (error) {
-      console.error("Erro ao salvar imóvel:", error);
+      console.error("Erro ao salvar imóvel:", error.response?.data || error.message);
+      console.error("Erro completo ao salvar imóvel:", error);
 
       const apiMessage =
         error.response?.data?.error ||
@@ -1026,6 +1061,11 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
     if (user.role !== "ADMIN") {
       alert("Somente administradores podem salvar fotos.");
+      return;
+    }
+
+    if (newImages.length > 10) {
+      alert("Envie no máximo 10 imagens por vez para evitar erro no servidor.");
       return;
     }
 
