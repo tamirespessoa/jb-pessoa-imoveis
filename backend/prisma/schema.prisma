@@ -77,7 +77,8 @@ model User {
   @@index([role])
   @@index([online])
   @@map("users")
-  personsCreated Person[] @relation("PersonCreatedBy")
+  personsCreated     Person[]   @relation("PersonCreatedBy")
+  propertiesCreated  Property[] @relation("PropertyCreatedBy")
 }
 
 model Person {
@@ -180,6 +181,9 @@ model Property {
   ownerId String?
   owner   Person? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
 
+  createdById String?
+  createdBy   User? @relation("PropertyCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
   documents          Document[]
   proposals          Proposal[]
   medias             PropertyMedia[]
@@ -191,6 +195,7 @@ model Property {
   @@index([district])
   @@index([publishOnSite])
   @@index([publishOnPortals])
+  @@index([createdById])
   @@map("properties")
 }
 

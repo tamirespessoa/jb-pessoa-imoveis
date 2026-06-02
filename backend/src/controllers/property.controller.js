@@ -30,6 +30,8 @@ function normalizeStatus(status) {
   if (value === "DISPONIVEL") return "DISPONIVEL";
   if (value === "RESERVADO") return "RESERVADO";
   if (value === "EM_ANALISE") return "EM_ANALISE";
+  if (value === "VENDIDO") return "VENDIDO";
+  if (value === "LOCADO") return "LOCADO";
   if (value === "ARQUIVADO") return "ARQUIVADO";
 
   return "DISPONIVEL";
@@ -40,9 +42,7 @@ function toBoolean(value) {
 }
 
 function toNullableNumber(value) {
-  if (value === undefined || value === null || value === "") {
-    return null;
-  }
+  if (value === undefined || value === null || value === "") return null;
 
   const normalized = String(value).replace(/\./g, "").replace(",", ".");
   const number = Number(normalized);
@@ -51,32 +51,23 @@ function toNullableNumber(value) {
 }
 
 function toNullableInt(value) {
-  if (value === undefined || value === null || value === "") {
-    return null;
-  }
+  if (value === undefined || value === null || value === "") return null;
 
   const number = parseInt(String(value), 10);
   return Number.isNaN(number) ? null : number;
 }
 
+function getLoggedUserId(req) {
+  return req.user?.id || req.userId || req.auth?.id || null;
+}
+
 function getPriceRangeFilter(priceRange) {
   if (!priceRange) return undefined;
 
-  if (priceRange === "ate-200") {
-    return { gte: 1, lte: 200000 };
-  }
-
-  if (priceRange === "200-500") {
-    return { gt: 200000, lte: 500000 };
-  }
-
-  if (priceRange === "500-1000") {
-    return { gt: 500000, lte: 1000000 };
-  }
-
-  if (priceRange === "acima-1000") {
-    return { gt: 1000000 };
-  }
+  if (priceRange === "ate-200") return { gte: 1, lte: 200000 };
+  if (priceRange === "200-500") return { gt: 200000, lte: 500000 };
+  if (priceRange === "500-1000") return { gt: 500000, lte: 1000000 };
+  if (priceRange === "acima-1000") return { gt: 1000000 };
 
   return undefined;
 }
@@ -108,9 +99,7 @@ function buildFinalImages(req, fallbackImages = []) {
 }
 
 function getReferencePrefix(type) {
-  const value = String(type || "")
-    .trim()
-    .toLowerCase();
+  const value = String(type || "").trim().toLowerCase();
 
   if (value.includes("apart")) return "AP";
   if (value.includes("casa")) return "CA";
@@ -139,8 +128,10 @@ async function generatePropertyCode(type) {
 
   for (const property of properties) {
     const match = String(property.code || "").match(/^([A-Z]{2})(\d{4})$/);
+
     if (match && match[1] === prefix) {
       const number = Number(match[2]);
+
       if (number > maxNumber) {
         maxNumber = number;
       }
@@ -165,7 +156,12 @@ function mapProperty(property) {
     address: `${property.street || ""}, ${property.number || ""}`
       .trim()
       .replace(/^,\s*/, ""),
-    coverImage: images.length ? images[0] : null
+    coverImage: images.length ? images[0] : null,
+    createdByName:
+      property.createdBy?.name ||
+      property.createdBy?.email ||
+      property.createdByName ||
+      null
   };
 }
 
@@ -177,7 +173,10 @@ async function ensureUniqueCode(code, currentId = null) {
       code,
       ...(currentId ? { id: { not: currentId } } : {})
     },
-    select: { id: true, code: true }
+    select: {
+      id: true,
+      code: true
+    }
   });
 
   if (existing) {
@@ -186,6 +185,24 @@ async function ensureUniqueCode(code, currentId = null) {
     throw error;
   }
 }
+
+const propertyInclude = {
+  owner: {
+    select: {
+      id: true,
+      fullName: true,
+      email: true,
+      phone: true
+    }
+  },
+  createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true
+    }
+  }
+};
 
 async function createProperty(req, res) {
   try {
@@ -220,7 +237,27 @@ async function createProperty(req, res) {
       valueOnRequest,
       negotiable,
       publishOnPortals,
-      highlightOnPortals
+      highlightOnPortals,
+      category,
+      purpose,
+      promoPrice,
+      builtArea,
+      usableArea,
+      totalArea,
+      suites,
+      livingRooms,
+      floor,
+      furnished,
+      financed,
+      exchange,
+      financing,
+      condominiumValue,
+      iptuValue,
+      iptuPayment,
+      block,
+      apartment,
+      officialDistrict,
+      country
     } = req.body;
 
     if (!title || !String(title).trim()) {
@@ -299,6 +336,7 @@ async function createProperty(req, res) {
     await ensureUniqueCode(finalCode);
 
     const finalImages = buildFinalImages(req, []);
+    const loggedUserId = getLoggedUserId(req);
 
     const property = await prisma.property.create({
       data: {
@@ -309,42 +347,62 @@ async function createProperty(req, res) {
           ? String(internalDescription).trim()
           : null,
         captorName: captorName ? String(captorName).trim() : null,
+
         price: Number(price),
         rentPrice: toNullableNumber(rentPrice),
+        promoPrice: toNullableNumber(promoPrice),
+
         type: normalizeType(type),
+        category: category ? String(category).trim() : "Normal",
+        purpose: purpose ? String(purpose).trim() : "Residencial",
         status: normalizeStatus(status),
+
         street: String(street).trim(),
         number: String(number).trim(),
         complement: complement ? String(complement).trim() : null,
+        block: block ? String(block).trim() : null,
+        apartment: apartment ? String(apartment).trim() : null,
         district: String(district || neighborhood).trim(),
+        officialDistrict: officialDistrict ? String(officialDistrict).trim() : null,
         city: String(city).trim(),
         state: String(state).trim(),
+        country: country ? String(country).trim() : "Brasil",
         zipCode: String(zipCode || cep).trim(),
+
         rooms: Number(rooms ?? bedrooms),
         bathrooms: Number(bathrooms),
         garage: toNullableInt(garage ?? garageSpots),
         area: Number(area),
+        builtArea: toNullableNumber(builtArea),
+        usableArea: toNullableNumber(usableArea),
+        totalArea: toNullableNumber(totalArea),
+        suites: toNullableInt(suites),
+        livingRooms: toNullableInt(livingRooms),
+        floor: floor ? String(floor).trim() : null,
+
+        furnished: toBoolean(furnished),
+        financed: toBoolean(financed),
+        exchange: toBoolean(exchange),
+
+        financing: financing ? String(financing).trim() : "NAO_INFORMADO",
+        condominiumValue: toNullableNumber(condominiumValue),
+        iptuValue: toNullableNumber(iptuValue),
+        iptuPayment: iptuPayment ? String(iptuPayment).trim() : null,
+
         ownerId: String(ownerId).trim(),
+        createdById: loggedUserId,
+
         images: finalImages,
+
         publishOnSite:
           publishOnSite !== undefined ? toBoolean(publishOnSite) : true,
         siteHighlight: toBoolean(siteHighlight),
         valueOnRequest: toBoolean(valueOnRequest),
         negotiable: toBoolean(negotiable),
-
         publishOnPortals: toBoolean(publishOnPortals),
         highlightOnPortals: toBoolean(highlightOnPortals)
       },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            phone: true
-          }
-        }
-      }
+      include: propertyInclude
     });
 
     return res.status(201).json({
@@ -378,20 +436,8 @@ async function createProperty(req, res) {
 async function listProperties(req, res) {
   try {
     const properties = await prisma.property.findMany({
-      orderBy: [
-        { siteHighlight: "desc" },
-        { createdAt: "desc" }
-      ],
-      include: {
-        owner: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            phone: true
-          }
-        }
-      }
+      orderBy: [{ createdAt: "desc" }],
+      include: propertyInclude
     });
 
     return res.json(properties.map(mapProperty));
@@ -407,16 +453,7 @@ async function getPropertyById(req, res) {
 
     const property = await prisma.property.findUnique({
       where: { id },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            phone: true
-          }
-        }
-      }
+      include: propertyInclude
     });
 
     if (!property) {
@@ -433,6 +470,7 @@ async function getPropertyById(req, res) {
 async function updateProperty(req, res) {
   try {
     const { id } = req.params;
+
     const {
       title,
       code,
@@ -464,7 +502,27 @@ async function updateProperty(req, res) {
       valueOnRequest,
       negotiable,
       publishOnPortals,
-      highlightOnPortals
+      highlightOnPortals,
+      category,
+      purpose,
+      promoPrice,
+      builtArea,
+      usableArea,
+      totalArea,
+      suites,
+      livingRooms,
+      floor,
+      furnished,
+      financed,
+      exchange,
+      financing,
+      condominiumValue,
+      iptuValue,
+      iptuPayment,
+      block,
+      apartment,
+      officialDistrict,
+      country
     } = req.body;
 
     const existingProperty = await prisma.property.findUnique({
@@ -496,36 +554,59 @@ async function updateProperty(req, res) {
 
     await ensureUniqueCode(finalCode, id);
 
-    const finalImages = buildFinalImages(req, parseImages(existingProperty.images));
+    const finalImages = buildFinalImages(
+      req,
+      parseImages(existingProperty.images)
+    );
 
     const property = await prisma.property.update({
       where: { id },
       data: {
         title: title !== undefined ? String(title).trim() : undefined,
         code: finalCode,
+
         description:
           description !== undefined
             ? description
               ? String(description).trim()
               : null
             : undefined,
+
         internalDescription:
           internalDescription !== undefined
             ? internalDescription
               ? String(internalDescription).trim()
               : null
             : undefined,
+
         captorName:
           captorName !== undefined
             ? captorName
               ? String(captorName).trim()
               : null
             : undefined,
+
         price: price !== undefined ? Number(price) : undefined,
         rentPrice:
           rentPrice !== undefined ? toNullableNumber(rentPrice) : undefined,
+        promoPrice:
+          promoPrice !== undefined ? toNullableNumber(promoPrice) : undefined,
+
         type: type !== undefined ? normalizeType(type) : undefined,
+        category:
+          category !== undefined
+            ? category
+              ? String(category).trim()
+              : null
+            : undefined,
+        purpose:
+          purpose !== undefined
+            ? purpose
+              ? String(purpose).trim()
+              : null
+            : undefined,
         status: status !== undefined ? normalizeStatus(status) : undefined,
+
         street: street !== undefined ? String(street).trim() : undefined,
         number: number !== undefined ? String(number).trim() : undefined,
         complement:
@@ -534,6 +615,19 @@ async function updateProperty(req, res) {
               ? String(complement).trim()
               : null
             : undefined,
+        block:
+          block !== undefined
+            ? block
+              ? String(block).trim()
+              : null
+            : undefined,
+        apartment:
+          apartment !== undefined
+            ? apartment
+              ? String(apartment).trim()
+              : null
+            : undefined,
+
         district:
           district !== undefined
             ? district
@@ -544,18 +638,35 @@ async function updateProperty(req, res) {
                 ? String(neighborhood).trim()
                 : null
               : undefined,
+
+        officialDistrict:
+          officialDistrict !== undefined
+            ? officialDistrict
+              ? String(officialDistrict).trim()
+              : null
+            : undefined,
+
         city:
           city !== undefined
             ? city
               ? String(city).trim()
               : null
             : undefined,
+
         state:
           state !== undefined
             ? state
               ? String(state).trim()
               : null
             : undefined,
+
+        country:
+          country !== undefined
+            ? country
+              ? String(country).trim()
+              : null
+            : undefined,
+
         zipCode:
           zipCode !== undefined
             ? zipCode
@@ -566,39 +677,80 @@ async function updateProperty(req, res) {
                 ? String(cep).trim()
                 : null
               : undefined,
+
         rooms:
           rooms !== undefined || bedrooms !== undefined
             ? Number(rooms ?? bedrooms)
             : undefined,
+
         bathrooms:
           bathrooms !== undefined ? Number(bathrooms) : undefined,
+
         garage:
           garage !== undefined || garageSpots !== undefined
             ? toNullableInt(garage ?? garageSpots)
             : undefined,
+
         area: area !== undefined ? Number(area) : undefined,
+        builtArea:
+          builtArea !== undefined ? toNullableNumber(builtArea) : undefined,
+        usableArea:
+          usableArea !== undefined ? toNullableNumber(usableArea) : undefined,
+        totalArea:
+          totalArea !== undefined ? toNullableNumber(totalArea) : undefined,
+
+        suites: suites !== undefined ? toNullableInt(suites) : undefined,
+        livingRooms:
+          livingRooms !== undefined ? toNullableInt(livingRooms) : undefined,
+        floor:
+          floor !== undefined
+            ? floor
+              ? String(floor).trim()
+              : null
+            : undefined,
+
+        furnished:
+          furnished !== undefined ? toBoolean(furnished) : undefined,
+        financed: financed !== undefined ? toBoolean(financed) : undefined,
+        exchange: exchange !== undefined ? toBoolean(exchange) : undefined,
+
+        financing:
+          financing !== undefined
+            ? financing
+              ? String(financing).trim()
+              : "NAO_INFORMADO"
+            : undefined,
+
+        condominiumValue:
+          condominiumValue !== undefined
+            ? toNullableNumber(condominiumValue)
+            : undefined,
+
+        iptuValue:
+          iptuValue !== undefined ? toNullableNumber(iptuValue) : undefined,
+
+        iptuPayment:
+          iptuPayment !== undefined
+            ? iptuPayment
+              ? String(iptuPayment).trim()
+              : null
+            : undefined,
+
         ownerId:
           ownerId !== undefined && ownerId !== null && ownerId !== ""
             ? String(ownerId).trim()
             : undefined,
-        images: finalImages,
-        publishOnSite:
-          publishOnSite !== undefined
-            ? toBoolean(publishOnSite)
-            : undefined,
-        siteHighlight:
-          siteHighlight !== undefined
-            ? toBoolean(siteHighlight)
-            : undefined,
-        valueOnRequest:
-          valueOnRequest !== undefined
-            ? toBoolean(valueOnRequest)
-            : undefined,
-        negotiable:
-          negotiable !== undefined
-            ? toBoolean(negotiable)
-            : undefined,
 
+        images: finalImages,
+
+        publishOnSite:
+          publishOnSite !== undefined ? toBoolean(publishOnSite) : undefined,
+        siteHighlight:
+          siteHighlight !== undefined ? toBoolean(siteHighlight) : undefined,
+        valueOnRequest:
+          valueOnRequest !== undefined ? toBoolean(valueOnRequest) : undefined,
+        negotiable:
+          negotiable !== undefined ? toBoolean(negotiable) : undefined,
         publishOnPortals:
           publishOnPortals !== undefined
             ? toBoolean(publishOnPortals)
@@ -608,16 +760,7 @@ async function updateProperty(req, res) {
             ? toBoolean(highlightOnPortals)
             : undefined
       },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            fullName: true,
-            email: true,
-            phone: true
-          }
-        }
-      }
+      include: propertyInclude
     });
 
     return res.json({
