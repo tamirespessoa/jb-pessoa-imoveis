@@ -70,6 +70,10 @@ function Properties() {
     furnished: false,
     financed: false,
     exchange: false,
+    financing: "NAO_INFORMADO",
+    condominiumValue: "",
+    iptuValue: "",
+    iptuPayment: "",
 
     street: "",
     number: "",
@@ -387,7 +391,13 @@ function Properties() {
   }, []);
 
   const filteredProperties = useMemo(() => {
-    return properties.filter((property) =>
+    const orderedProperties = [...properties].sort((a, b) => {
+      const dateA = new Date(a.createdAt || 0).getTime();
+      const dateB = new Date(b.createdAt || 0).getTime();
+      return dateB - dateA;
+    });
+
+    return orderedProperties.filter((property) =>
       `${property.title || ""} ${property.code || ""} ${property.city || ""} ${
         property.district || ""
       } ${property.owner?.fullName || ""} ${property.createdByName || ""} ${
@@ -1464,7 +1474,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
           <div style={styles.listHeaderActions}>
             <input
               style={styles.searchInputTop}
-              placeholder="Buscar por código, título, cidade, bairro ou proprietário"
+              placeholder="Buscar por código, título, cidade, bairro, proprietário ou cadastrado por"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />

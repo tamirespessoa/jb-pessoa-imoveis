@@ -37,6 +37,32 @@ function normalizeStatus(status) {
   return "DISPONIVEL";
 }
 
+function normalizeFinancing(value) {
+  if (!value) return "NAO_INFORMADO";
+
+  const normalized = String(value)
+    .trim()
+    .toUpperCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "_");
+
+  if (normalized === "ACEITA" || normalized === "SIM" || normalized === "ACEITA_FINANCIAMENTO") {
+    return "ACEITA";
+  }
+
+  if (
+    normalized === "NAO_ACEITA" ||
+    normalized === "NÃO_ACEITA" ||
+    normalized === "NAO" ||
+    normalized === "NAO_ACEITA_FINANCIAMENTO"
+  ) {
+    return "NAO_ACEITA";
+  }
+
+  return "NAO_INFORMADO";
+}
+
 function toBoolean(value) {
   return value === true || value === "true" || value === "1" || value === 1;
 }
@@ -58,7 +84,15 @@ function toNullableInt(value) {
 }
 
 function getLoggedUserId(req) {
-  return req.user?.id || req.userId || req.auth?.id || null;
+  return (
+    req.user?.id ||
+    req.user?.userId ||
+    req.user?.sub ||
+    req.userId ||
+    req.auth?.id ||
+    req.auth?.userId ||
+    null
+  );
 }
 
 function getPriceRangeFilter(priceRange) {
@@ -384,7 +418,7 @@ async function createProperty(req, res) {
         financed: toBoolean(financed),
         exchange: toBoolean(exchange),
 
-        financing: financing ? String(financing).trim() : "NAO_INFORMADO",
+        financing: normalizeFinancing(financing),
         condominiumValue: toNullableNumber(condominiumValue),
         iptuValue: toNullableNumber(iptuValue),
         iptuPayment: iptuPayment ? String(iptuPayment).trim() : null,
@@ -715,11 +749,7 @@ async function updateProperty(req, res) {
         exchange: exchange !== undefined ? toBoolean(exchange) : undefined,
 
         financing:
-          financing !== undefined
-            ? financing
-              ? String(financing).trim()
-              : "NAO_INFORMADO"
-            : undefined,
+          financing !== undefined ? normalizeFinancing(financing) : undefined,
 
         condominiumValue:
           condominiumValue !== undefined
