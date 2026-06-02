@@ -390,7 +390,9 @@ function Properties() {
     return properties.filter((property) =>
       `${property.title || ""} ${property.code || ""} ${property.city || ""} ${
         property.district || ""
-      } ${property.owner?.fullName || ""} ${property.street || ""}`
+      } ${property.owner?.fullName || ""} ${property.createdByName || ""} ${
+        property.createdBy?.name || ""
+      } ${property.createdBy?.email || ""} ${property.street || ""}`
         .toLowerCase()
         .includes(search.toLowerCase())
     );
@@ -1447,7 +1449,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
       <div style={styles.listPage}>
         <div style={styles.listHeader}>
           <div>
-            <h1 style={styles.pageTitle}>Imóveis cadastrados</h1>
+            <h1 style={styles.pageTitle}>Últimos imóveis cadastrados</h1>
             <p style={styles.pageSubtitle}>
               Visual estilo CRM imobiliário profissional, com lista organizada, fotos, valores e ações rápidas.
             </p>
@@ -1492,6 +1494,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                 <th style={styles.thCenter}>Área</th>
                 <th style={styles.th}>Bairro/Cidade</th>
                 <th style={styles.th}>Endereço</th>
+                <th style={styles.th}>Cadastrado por</th>
                 <th style={styles.thCenter}>Ações</th>
               </tr>
             </thead>
@@ -1499,7 +1502,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
             <tbody>
               {filteredProperties.length === 0 ? (
                 <tr>
-                  <td colSpan="11" style={styles.emptyTableCell}>
+                  <td colSpan="12" style={styles.emptyTableCell}>
                     Nenhum imóvel encontrado.
                   </td>
                 </tr>
@@ -1554,6 +1557,20 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                       </div>
                     </td>
                     <td style={styles.td}>{getAddressLine(property)}</td>
+
+                    <td style={styles.td}>
+                      <div style={styles.createdByName}>
+                        {property.createdByName ||
+                          property.createdBy?.name ||
+                          property.createdBy?.email ||
+                          "-"}
+                      </div>
+                      <div style={styles.subText}>
+                        {property.createdAt
+                          ? new Date(property.createdAt).toLocaleDateString("pt-BR")
+                          : ""}
+                      </div>
+                    </td>
 
                     <td
                       style={styles.tdCenter}
@@ -4186,6 +4203,10 @@ const styles = {
     display: "flex",
     flexWrap: "wrap",
     gap: "18px"
+  },
+  createdByName: {
+    fontWeight: "800",
+    color: "#111827"
   },
   cleanCheckLabel: {
     display: "inline-flex",
