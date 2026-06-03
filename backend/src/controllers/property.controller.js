@@ -925,6 +925,17 @@ async function listPublicProperties(req, res) {
       })
     ]);
 
+    const cities = await prisma.property.findMany({
+      where: {
+        status: "DISPONIVEL",
+        publishOnSite: true,
+        city: { not: null }
+      },
+      distinct: ["city"],
+      select: { city: true },
+      orderBy: { city: "asc" }
+    });
+
     return res.json({
       data: properties.map(mapProperty),
       pagination: {
@@ -932,6 +943,9 @@ async function listPublicProperties(req, res) {
         limit: perPage,
         total,
         totalPages: Math.ceil(total / perPage)
+      },
+      filters: {
+        cities: cities.map((item) => item.city).filter(Boolean)
       }
     });
   } catch (error) {
