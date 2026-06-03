@@ -270,6 +270,30 @@ async function createProperty(req, res) {
       seoDescription,
       internalDescription,
       captorName,
+      indicationName,
+      indicationCommissionPercent,
+      indicationCommissionValue,
+      partnershipName,
+      partnershipCommissionPercent,
+      partnershipCommissionValue,
+      inspectionName,
+      inspectionCommissionPercent,
+      inspectionCommissionValue,
+      brokerName,
+      brokerCommissionPercent,
+      brokerCommissionValue,
+      indicationName,
+      indicationCommissionPercent,
+      indicationCommissionValue,
+      partnershipName,
+      partnershipCommissionPercent,
+      partnershipCommissionValue,
+      inspectionName,
+      inspectionCommissionPercent,
+      inspectionCommissionValue,
+      brokerName,
+      brokerCommissionPercent,
+      brokerCommissionValue,
       price,
       rentPrice,
       type,
@@ -413,6 +437,19 @@ async function createProperty(req, res) {
           ? String(internalDescription).trim()
           : null,
         captorName: captorName ? String(captorName).trim() : null,
+
+        indicationName: normalizeText(indicationName),
+        indicationCommissionPercent: toNullableNumber(indicationCommissionPercent),
+        indicationCommissionValue: toNullableNumber(indicationCommissionValue),
+        partnershipName: normalizeText(partnershipName),
+        partnershipCommissionPercent: toNullableNumber(partnershipCommissionPercent),
+        partnershipCommissionValue: toNullableNumber(partnershipCommissionValue),
+        inspectionName: normalizeText(inspectionName),
+        inspectionCommissionPercent: toNullableNumber(inspectionCommissionPercent),
+        inspectionCommissionValue: toNullableNumber(inspectionCommissionValue),
+        brokerName: normalizeText(brokerName),
+        brokerCommissionPercent: toNullableNumber(brokerCommissionPercent),
+        brokerCommissionValue: toNullableNumber(brokerCommissionValue),
 
         price: Number(price),
         rentPrice: toNullableNumber(rentPrice),
@@ -668,6 +705,47 @@ async function updateProperty(req, res) {
             ? captorName
               ? String(captorName).trim()
               : null
+            : undefined,
+
+        indicationName:
+          indicationName !== undefined ? normalizeText(indicationName) : undefined,
+        indicationCommissionPercent:
+          indicationCommissionPercent !== undefined
+            ? toNullableNumber(indicationCommissionPercent)
+            : undefined,
+        indicationCommissionValue:
+          indicationCommissionValue !== undefined
+            ? toNullableNumber(indicationCommissionValue)
+            : undefined,
+        partnershipName:
+          partnershipName !== undefined ? normalizeText(partnershipName) : undefined,
+        partnershipCommissionPercent:
+          partnershipCommissionPercent !== undefined
+            ? toNullableNumber(partnershipCommissionPercent)
+            : undefined,
+        partnershipCommissionValue:
+          partnershipCommissionValue !== undefined
+            ? toNullableNumber(partnershipCommissionValue)
+            : undefined,
+        inspectionName:
+          inspectionName !== undefined ? normalizeText(inspectionName) : undefined,
+        inspectionCommissionPercent:
+          inspectionCommissionPercent !== undefined
+            ? toNullableNumber(inspectionCommissionPercent)
+            : undefined,
+        inspectionCommissionValue:
+          inspectionCommissionValue !== undefined
+            ? toNullableNumber(inspectionCommissionValue)
+            : undefined,
+        brokerName:
+          brokerName !== undefined ? normalizeText(brokerName) : undefined,
+        brokerCommissionPercent:
+          brokerCommissionPercent !== undefined
+            ? toNullableNumber(brokerCommissionPercent)
+            : undefined,
+        brokerCommissionValue:
+          brokerCommissionValue !== undefined
+            ? toNullableNumber(brokerCommissionValue)
             : undefined,
 
         price: price !== undefined ? Number(price) : undefined,

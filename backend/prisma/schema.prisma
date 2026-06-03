@@ -175,6 +175,22 @@ model Property {
   internalDescription String?
   captorName          String?
 
+  indicationName String?
+  indicationCommissionPercent Float?
+  indicationCommissionValue Float?
+
+  partnershipName String?
+  partnershipCommissionPercent Float?
+  partnershipCommissionValue Float?
+
+  inspectionName String?
+  inspectionCommissionPercent Float?
+  inspectionCommissionValue Float?
+
+  brokerName String?
+  brokerCommissionPercent Float?
+  brokerCommissionValue Float?
+
   images     Json?
   coverImage String?
 

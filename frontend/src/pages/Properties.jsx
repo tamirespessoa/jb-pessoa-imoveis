@@ -94,6 +94,18 @@ function Properties() {
     internalDescription: "",
     ownerId: "",
     captorName: "",
+    indicationName: "",
+    indicationCommissionPercent: "",
+    indicationCommissionValue: "",
+    partnershipName: "",
+    partnershipCommissionPercent: "",
+    partnershipCommissionValue: "",
+    inspectionName: "",
+    inspectionCommissionPercent: "",
+    inspectionCommissionValue: "",
+    brokerName: "",
+    brokerCommissionPercent: "",
+    brokerCommissionValue: "",
 
     publishOnSite: true,
     siteHighlight: false,
@@ -112,7 +124,7 @@ function Properties() {
 
   const visibleSections =
     formMode === "EXPRESS"
-      ? ["cadastro", "localizacao", "detalhes", "internet", "confidencial"]
+      ? ["cadastro", "localizacao", "detalhes", "internet", "captacao", "confidencial"]
       : [
           "cadastro",
           "localizacao",
@@ -463,6 +475,18 @@ function Properties() {
       internalDescription: property.internalDescription || "",
       ownerId: property.ownerId ? String(property.ownerId) : "",
       captorName: property.captorName || "",
+      indicationName: property.indicationName || "",
+      indicationCommissionPercent: property.indicationCommissionPercent ?? "",
+      indicationCommissionValue: property.indicationCommissionValue ?? "",
+      partnershipName: property.partnershipName || "",
+      partnershipCommissionPercent: property.partnershipCommissionPercent ?? "",
+      partnershipCommissionValue: property.partnershipCommissionValue ?? "",
+      inspectionName: property.inspectionName || "",
+      inspectionCommissionPercent: property.inspectionCommissionPercent ?? "",
+      inspectionCommissionValue: property.inspectionCommissionValue ?? "",
+      brokerName: property.brokerName || "",
+      brokerCommissionPercent: property.brokerCommissionPercent ?? "",
+      brokerCommissionValue: property.brokerCommissionValue ?? "",
 
       publishOnSite:
         property.publishOnSite !== undefined ? Boolean(property.publishOnSite) : true,
@@ -524,9 +548,24 @@ function Properties() {
       country: "Brasil",
 
       description: "",
+      seoTitle: "",
+      seoKeywords: "",
+      seoDescription: "",
       internalDescription: "",
       ownerId: "",
       captorName: "",
+    indicationName: "",
+    indicationCommissionPercent: "",
+    indicationCommissionValue: "",
+    partnershipName: "",
+    partnershipCommissionPercent: "",
+    partnershipCommissionValue: "",
+    inspectionName: "",
+    inspectionCommissionPercent: "",
+    inspectionCommissionValue: "",
+    brokerName: "",
+    brokerCommissionPercent: "",
+    brokerCommissionValue: "",
 
       publishOnSite: true,
       siteHighlight: false,
@@ -621,6 +660,59 @@ function Properties() {
     }));
   }
 
+
+
+  function renderCommissionPersonRow(label, nameField, percentField, valueField) {
+    return (
+      <div style={styles.peopleRow}>
+        <div style={styles.fieldContent}>
+          <label style={styles.label}>{label}</label>
+          <input
+            style={styles.lineInput}
+            name={nameField}
+            value={form[nameField] || ""}
+            onChange={handleChange}
+            placeholder={label}
+          />
+        </div>
+
+        <div style={styles.fieldContent}>
+          <label style={styles.label}>Comissão (%)</label>
+          <input
+            style={styles.lineInput}
+            name={percentField}
+            value={form[percentField] || ""}
+            onChange={handleChange}
+            placeholder="0,00"
+          />
+        </div>
+
+        <div style={styles.fieldContent}>
+          <label style={styles.label}>Comissão (R$)</label>
+          <input
+            style={styles.lineInput}
+            name={valueField}
+            value={form[valueField] || ""}
+            onChange={handleChange}
+            placeholder="0,00"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  function formatDateTime(value) {
+    if (!value) return "-";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "-";
+    return date.toLocaleString("pt-BR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+  }
   function emptyOwnerForm() {
     return {
       fullName: "",
@@ -864,6 +956,36 @@ function Properties() {
 
     const captorName = normalizeString(form.captorName);
     if (captorName !== null) payload.append("captorName", captorName);
+
+
+    const indicationName = normalizeString(form.indicationName);
+    if (indicationName !== null) payload.append("indicationName", indicationName);
+    const partnershipName = normalizeString(form.partnershipName);
+    if (partnershipName !== null) payload.append("partnershipName", partnershipName);
+    const inspectionName = normalizeString(form.inspectionName);
+    if (inspectionName !== null) payload.append("inspectionName", inspectionName);
+    const brokerName = normalizeString(form.brokerName);
+    if (brokerName !== null) payload.append("brokerName", brokerName);
+
+    const indicationCommissionPercent = numberOrNull(form.indicationCommissionPercent);
+    if (indicationCommissionPercent !== null) payload.append("indicationCommissionPercent", String(indicationCommissionPercent));
+    const indicationCommissionValue = numberOrNull(form.indicationCommissionValue);
+    if (indicationCommissionValue !== null) payload.append("indicationCommissionValue", String(indicationCommissionValue));
+
+    const partnershipCommissionPercent = numberOrNull(form.partnershipCommissionPercent);
+    if (partnershipCommissionPercent !== null) payload.append("partnershipCommissionPercent", String(partnershipCommissionPercent));
+    const partnershipCommissionValue = numberOrNull(form.partnershipCommissionValue);
+    if (partnershipCommissionValue !== null) payload.append("partnershipCommissionValue", String(partnershipCommissionValue));
+
+    const inspectionCommissionPercent = numberOrNull(form.inspectionCommissionPercent);
+    if (inspectionCommissionPercent !== null) payload.append("inspectionCommissionPercent", String(inspectionCommissionPercent));
+    const inspectionCommissionValue = numberOrNull(form.inspectionCommissionValue);
+    if (inspectionCommissionValue !== null) payload.append("inspectionCommissionValue", String(inspectionCommissionValue));
+
+    const brokerCommissionPercent = numberOrNull(form.brokerCommissionPercent);
+    if (brokerCommissionPercent !== null) payload.append("brokerCommissionPercent", String(brokerCommissionPercent));
+    const brokerCommissionValue = numberOrNull(form.brokerCommissionValue);
+    if (brokerCommissionValue !== null) payload.append("brokerCommissionValue", String(brokerCommissionValue));
 
     const internalDescription = normalizeString(form.internalDescription);
     if (internalDescription !== null) {
@@ -1457,7 +1579,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
       { key: "localizacao", label: "Localização" },
       { key: "detalhes", label: "Detalhes" },
       { key: "internet", label: "Internet e Anúncios" },
-      ...(formMode === "AVANCADA" ? [{ key: "captacao", label: "Captação" }] : []),
+      { key: "captacao", label: "Captação" },
       { key: "confidencial", label: "Confidencial" }
     ];
 
@@ -2523,6 +2645,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                 </section>
               )}
 
+
               {visibleSections.includes("captacao") && (
                 <section ref={sectionRefs.captacao} style={styles.formSection}>
                   <h2 style={styles.formSectionTitle}>Captação</h2>
@@ -2551,6 +2674,75 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                     <div style={styles.fieldContent}>
                       <label style={styles.label}>*Proprietário</label>
                       {renderOwnerSelect()}
+                    </div>
+                  </div>
+
+                  <div style={{ ...styles.separator, marginTop: 28 }}></div>
+
+                  <h3 style={styles.blueSectionTitle}>Pessoas envolvidas</h3>
+
+                  <div style={styles.peopleBox}>
+                    {renderCommissionPersonRow(
+                      "Indicação",
+                      "indicationName",
+                      "indicationCommissionPercent",
+                      "indicationCommissionValue"
+                    )}
+
+                    {renderCommissionPersonRow(
+                      "Parceria",
+                      "partnershipName",
+                      "partnershipCommissionPercent",
+                      "partnershipCommissionValue"
+                    )}
+
+                    {renderCommissionPersonRow(
+                      "Vistoria",
+                      "inspectionName",
+                      "inspectionCommissionPercent",
+                      "inspectionCommissionValue"
+                    )}
+
+                    {renderCommissionPersonRow(
+                      "Corretor",
+                      "brokerName",
+                      "brokerCommissionPercent",
+                      "brokerCommissionValue"
+                    )}
+                  </div>
+
+                  <div style={styles.metaInfoGrid}>
+                    <div style={styles.metaInfoItem}>
+                      <label style={styles.label}>Cadastrado em</label>
+                      <strong>{formatDateTime(selectedProperty?.createdAt)}</strong>
+                    </div>
+
+                    <div style={styles.metaInfoItem}>
+                      <label style={styles.label}>Cadastrado por</label>
+                      <strong>
+                        {selectedProperty?.createdByName ||
+                          selectedProperty?.createdBy?.name ||
+                          selectedProperty?.createdBy?.email ||
+                          "-"}
+                      </strong>
+                    </div>
+
+                    <div style={styles.metaInfoItem}>
+                      <label style={styles.label}>Atualizado em</label>
+                      <strong>{formatDateTime(selectedProperty?.updatedAt)}</strong>
+                    </div>
+
+                    <div style={styles.metaInfoItem}>
+                      <label style={styles.label}>Atualizado por</label>
+                      <strong>
+                        {selectedProperty?.updatedByName ||
+                          selectedProperty?.updatedBy?.name ||
+                          selectedProperty?.updatedBy?.email ||
+                          selectedProperty?.createdByName ||
+                          selectedProperty?.createdBy?.name ||
+                          selectedProperty?.createdBy?.email ||
+                          "-"}
+                      </strong>
                     </div>
                   </div>
                 </section>
@@ -2830,6 +3022,41 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 }
 
 const styles = {
+
+  blueSectionTitle: {
+    margin: "0 0 22px",
+    color: "#1a73e8",
+    fontSize: "22px",
+    fontWeight: 500
+  },
+  peopleBox: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "24px",
+    marginBottom: "34px"
+  },
+  peopleRow: {
+    display: "grid",
+    gridTemplateColumns: "minmax(220px, 1.6fr) minmax(130px, 0.7fr) minmax(150px, 0.9fr)",
+    gap: "18px",
+    alignItems: "end"
+  },
+  metaInfoGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+    gap: "28px 18px",
+    borderTop: "1px solid #e5e7eb",
+    paddingTop: "28px",
+    marginTop: "24px"
+  },
+  metaInfoItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    borderBottom: "1px dotted #cbd5e1",
+    paddingBottom: "10px",
+    color: "#1f2937"
+  },
 
   premiumDetailsOverlay: {
     position: "fixed",
