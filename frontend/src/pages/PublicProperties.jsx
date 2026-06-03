@@ -23,6 +23,27 @@ function formatCurrency(value) {
   });
 }
 
+
+function getDisplayLocation(property) {
+  return [
+    property.neighborhood || property.district,
+    property.city,
+    property.state
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function getRoomsLabel(value) {
+  const rooms = Number(value || 0);
+  return `${rooms} ${rooms === 1 ? "quarto" : "quartos"}`;
+}
+
+function getBathroomsLabel(value) {
+  const bathrooms = Number(value || 0);
+  return `${bathrooms} ${bathrooms === 1 ? "banheiro" : "banheiros"}`;
+}
+
 function getMainImage(property) {
   if (property?.images && property.images.length > 0) {
     return property.images[0].url || property.images[0];
@@ -95,25 +116,26 @@ export default function PublicProperties() {
                   className="property-image"
                 />
 
-                <div className="property-card-body">
-                  <span className="property-type">
-                    {property.category || property.type || "Imóvel"}
-                  </span>
-
-                  <h2>{property.title || "Imóvel sem título"}</h2>
-
-                  <p className="property-location">
-                    {property.neighborhood || property.city || "Localização não informada"}
-                  </p>
-
-                  <p className="property-price">
+                <div className="property-card-body property-card-body-univen">
+                  <p className="property-price property-price-main">
                     {formatCurrency(property.price)}
                   </p>
 
-                  <div className="property-info">
-                    <span>{property.bedrooms ?? 0} quartos</span>
-                    <span>{property.bathrooms ?? 0} banheiros</span>
-                    <span>{property.area ?? 0} m²</span>
+                  <p className="property-location">
+                    {getDisplayLocation(property) || "Localização não informada"}
+                  </p>
+
+                  <p className="property-type property-type-line">
+                    {property.type || property.category || "Imóvel"}
+                  </p>
+
+                  <div className="property-divider"></div>
+
+                  <div className="property-info property-info-univen">
+                    <span>🛏 {getRoomsLabel(property.bedrooms ?? property.rooms)}</span>
+                    <span>🚿 {getBathroomsLabel(property.bathrooms)}</span>
+                    {property.garage ? <span>🚗 {property.garage} vaga(s)</span> : null}
+                    {property.area ? <span>📐 {property.area} m²</span> : null}
                   </div>
 
                   <div className="property-actions">
@@ -123,7 +145,7 @@ export default function PublicProperties() {
 
                     <a
                       href={`https://wa.me/5511983416160?text=${encodeURIComponent(
-                        `Olá, tenho interesse no imóvel ${property.title || property.id}`
+                        `Olá, tenho interesse no imóvel ${property.code || property.id}`
                       )}`}
                       target="_blank"
                       rel="noreferrer"

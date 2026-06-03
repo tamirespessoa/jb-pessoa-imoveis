@@ -33,6 +33,26 @@ function formatBusinessType(value) {
   return value;
 }
 
+function getDisplayLocation(property) {
+  return [
+    property.district || property.neighborhood,
+    property.city,
+    property.state
+  ]
+    .filter(Boolean)
+    .join(", ");
+}
+
+function getRoomsLabel(value) {
+  const rooms = Number(value || 0);
+  return `${rooms} ${rooms === 1 ? "quarto" : "quartos"}`;
+}
+
+function getBathroomsLabel(value) {
+  const bathrooms = Number(value || 0);
+  return `${bathrooms} ${bathrooms === 1 ? "banheiro" : "banheiros"}`;
+}
+
 export default function SiteProperties() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -314,13 +334,7 @@ export default function SiteProperties() {
                       ? getImageUrl(property.images[0])
                       : "/sem-imagem.png";
 
-                    const locationText = [
-                      property.district || property.neighborhood,
-                      property.city,
-                      property.state
-                    ]
-                      .filter(Boolean)
-                      .join(" - ");
+                    const locationText = getDisplayLocation(property);
 
                     return (
                       <article
@@ -344,26 +358,32 @@ export default function SiteProperties() {
                           </div>
                         </Link>
 
-                        <div className="site-properties-card-content">
-                          <p className="site-properties-card-code">
-                            Código: {property.id}
-                          </p>
-
-                          <h2>{property.title}</h2>
+                        <div className="site-properties-card-content site-properties-card-content-univen">
+                          <strong className="site-properties-card-price-main">
+                            {formatPrice(property.price)}
+                          </strong>
 
                           <p className="site-properties-card-location">
                             {locationText || "Localização não informada"}
                           </p>
 
-                          <div className="site-properties-card-features">
-                            <span>{property.rooms || 0} quartos</span>
-                            <span>{property.bathrooms || 0} banheiros</span>
-                            <span>{property.garage || 0} vagas</span>
-                            <span>{property.area || 0} m²</span>
+                          <p className="site-properties-card-type-text">
+                            {property.type || property.category || "Imóvel"}
+                          </p>
+
+                          <div className="site-properties-card-divider"></div>
+
+                          <div className="site-properties-card-features site-properties-card-features-univen">
+                            <span>🛏 {getRoomsLabel(property.rooms || property.bedrooms)}</span>
+                            <span>🚿 {getBathroomsLabel(property.bathrooms)}</span>
+                            {property.garage ? <span>🚗 {property.garage} vaga(s)</span> : null}
+                            {property.area ? <span>📐 {property.area} m²</span> : null}
                           </div>
 
-                          <div className="site-properties-card-footer">
-                            <strong>{formatPrice(property.price)}</strong>
+                          <div className="site-properties-card-footer site-properties-card-footer-univen">
+                            <span className="site-properties-card-code">
+                              {property.code ? `Código: ${property.code}` : ""}
+                            </span>
 
                             <Link
                               to={`/site/imoveis/${property.id}`}

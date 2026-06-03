@@ -206,6 +206,10 @@ function Properties() {
     return parts.length ? parts.join(", ") : "-";
   }
 
+  function buildAutoTitle() {
+    return `${form.type || "Imóvel"} ${form.code || ""}`.trim();
+  }
+
   function getEmployeeLabel(employee) {
     const name =
       employee?.name ||
@@ -771,7 +775,6 @@ function Properties() {
       return;
     }
 
-    if (!form.title.trim()) return alert("Título do imóvel é obrigatório.");
     if (!form.type.trim()) return alert("Tipo é obrigatório.");
     if (!form.price.toString().trim()) return alert("Preço é obrigatório.");
     if (!form.ownerId) return alert("Selecione o proprietário.");
@@ -790,8 +793,9 @@ function Properties() {
     const garage = intOrNull(form.garage);
     const condominiumValue = numberOrNull(form.condominiumValue);
     const iptuValue = numberOrNull(form.iptuValue);
+    const autoTitle = buildAutoTitle();
 
-    payload.append("title", form.title.trim());
+    payload.append("title", autoTitle);
 
     if (form.code.trim()) payload.append("code", form.code.trim());
 
@@ -1083,8 +1087,9 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
     try {
       const payload = new FormData();
+      const autoTitle = buildAutoTitle();
 
-      payload.append("title", form.title.trim());
+      payload.append("title", autoTitle);
       payload.append("type", form.type.trim());
       payload.append("status", normalizeString(form.status) || "DISPONIVEL");
       payload.append("price", String(numberOrNull(form.price) ?? 0));
@@ -2038,15 +2043,6 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                     />
                   </div>
 
-                  <div style={styles.fieldContent}>
-                    <label style={styles.label}>*Título do imóvel</label>
-                    <input
-                      style={styles.lineInput}
-                      name="title"
-                      value={form.title}
-                      onChange={handleChange}
-                    />
-                  </div>
                 </div>
               </section>
 

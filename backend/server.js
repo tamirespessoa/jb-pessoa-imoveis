@@ -21,33 +21,36 @@ const portalRoutes = require("./src/routes/portal.routes");
 const app = express();
 const server = http.createServer(app);
 
-setupSocket(server);
-
 const allowedOrigins = [
   "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
   "https://jb-pessoa-imoveis.vercel.app"
 ];
 
-app.use(
-  cors({
-    origin(origin, callback) {
-      if (!origin) return callback(null, true);
+const corsOptions = {
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
 
-      console.log("CORS bloqueou a origem:", origin);
-      return callback(new Error("Origem não permitida pelo CORS."));
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"]
-  })
-);
+    console.log("CORS bloqueou a origem:", origin);
+    return callback(new Error("Origem não permitida pelo CORS."));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+};
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+
+setupSocket(server);
+
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 const uploadDir =
   process.env.NODE_ENV === "production"
