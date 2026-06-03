@@ -109,12 +109,11 @@ function Properties() {
 
   const visibleSections =
     formMode === "EXPRESS"
-      ? ["cadastro", "localizacao", "detalhes", "financeiro", "internet", "confidencial"]
+      ? ["cadastro", "localizacao", "detalhes", "internet", "confidencial"]
       : [
           "cadastro",
           "localizacao",
           "detalhes",
-          "financeiro",
           "internet",
           "captacao",
           "confidencial"
@@ -204,6 +203,10 @@ function Properties() {
       property.complement
     ].filter(Boolean);
     return parts.length ? parts.join(", ") : "-";
+  }
+
+  function buildAutoTitle() {
+    return `${form.type || "Imóvel"} ${form.code || ""}`.trim();
   }
 
   function getEmployeeLabel(employee) {
@@ -501,10 +504,6 @@ function Properties() {
       condominiumValue: "",
       iptuValue: "",
       iptuPayment: "",
-      financing: "NAO_INFORMADO",
-      condominiumValue: "",
-      iptuValue: "",
-      iptuPayment: "",
 
       street: "",
       number: "",
@@ -771,7 +770,6 @@ function Properties() {
       return;
     }
 
-    if (!form.title.trim()) return alert("Título do imóvel é obrigatório.");
     if (!form.type.trim()) return alert("Tipo é obrigatório.");
     if (!form.price.toString().trim()) return alert("Preço é obrigatório.");
     if (!form.ownerId) return alert("Selecione o proprietário.");
@@ -790,8 +788,9 @@ function Properties() {
     const garage = intOrNull(form.garage);
     const condominiumValue = numberOrNull(form.condominiumValue);
     const iptuValue = numberOrNull(form.iptuValue);
+    const autoTitle = buildAutoTitle();
 
-    payload.append("title", form.title.trim());
+    payload.append("title", autoTitle);
 
     if (form.code.trim()) payload.append("code", form.code.trim());
 
@@ -1083,8 +1082,9 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
     try {
       const payload = new FormData();
+      const autoTitle = buildAutoTitle();
 
-      payload.append("title", form.title.trim());
+      payload.append("title", autoTitle);
       payload.append("type", form.type.trim());
       payload.append("status", normalizeString(form.status) || "DISPONIVEL");
       payload.append("price", String(numberOrNull(form.price) ?? 0));
@@ -1402,7 +1402,6 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
       { key: "cadastro", label: "Cadastro" },
       { key: "localizacao", label: "Localização" },
       { key: "detalhes", label: "Detalhes" },
-      { key: "financeiro", label: "Financeiro" },
       { key: "internet", label: "Internet e Anúncios" },
       ...(formMode === "AVANCADA" ? [{ key: "captacao", label: "Captação" }] : []),
       { key: "confidencial", label: "Confidencial" }
@@ -1974,11 +1973,11 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
 
 
-                <div style={styles.rowFour}>
+                <div style={{ ...styles.rowFour, alignItems: "end", rowGap: "18px" }}>
                   <div style={styles.fieldContent}>
                     <label style={styles.label}>Financiamento</label>
                     <select
-                      style={styles.lineSelect}
+                      style={{ ...styles.lineSelect, minWidth: "170px" }}
                       name="financing"
                       value={form.financing}
                       onChange={handleChange}
@@ -2038,15 +2037,6 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                     />
                   </div>
 
-                  <div style={styles.fieldContent}>
-                    <label style={styles.label}>*Título do imóvel</label>
-                    <input
-                      style={styles.lineInput}
-                      name="title"
-                      value={form.title}
-                      onChange={handleChange}
-                    />
-                  </div>
                 </div>
               </section>
 
@@ -2331,108 +2321,6 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                 </section>
               )}
 
-
-              {visibleSections.includes("financeiro") && (
-                <section ref={sectionRefs.financeiro} style={styles.formSectionPremium}>
-                  <div style={styles.sectionHeaderRow}>
-                    <div style={styles.formHeaderBadge}></div>
-                    <div>
-                      <h2 style={styles.formSectionTitle}>Financeiro</h2>
-                      <p style={styles.sectionDescription}>
-                        Configure financiamento, condomínio, IPTU e condições comerciais do imóvel.
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={styles.financeCardGrid}>
-                    <div style={styles.financeCard}>
-                      <span style={styles.financeCardIcon}>🏦</span>
-                      <label style={styles.label}>Financiamento</label>
-                      <select
-                        style={styles.lineSelect}
-                        name="financing"
-                        value={form.financing}
-                        onChange={handleChange}
-                      >
-                        <option value="NAO_INFORMADO">Não informado</option>
-                        <option value="ACEITA">Aceita financiamento</option>
-                        <option value="NAO_ACEITA">Não aceita financiamento</option>
-                      </select>
-                    </div>
-
-                    <div style={styles.financeCard}>
-                      <span style={styles.financeCardIcon}>🏢</span>
-                      <label style={styles.label}>Condomínio</label>
-                      <input
-                        style={styles.lineInput}
-                        name="condominiumValue"
-                        value={form.condominiumValue}
-                        onChange={handleChange}
-                        placeholder="Ex: 350,00"
-                      />
-                    </div>
-
-                    <div style={styles.financeCard}>
-                      <span style={styles.financeCardIcon}>📄</span>
-                      <label style={styles.label}>IPTU</label>
-                      <input
-                        style={styles.lineInput}
-                        name="iptuValue"
-                        value={form.iptuValue}
-                        onChange={handleChange}
-                        placeholder="Ex: 120,00"
-                      />
-                    </div>
-
-                    <div style={styles.financeCard}>
-                      <span style={styles.financeCardIcon}>📅</span>
-                      <label style={styles.label}>Pagamento do IPTU</label>
-                      <select
-                        style={styles.lineSelect}
-                        name="iptuPayment"
-                        value={form.iptuPayment}
-                        onChange={handleChange}
-                      >
-                        <option value="">Selecione...</option>
-                        <option value="MENSAL">Mensal</option>
-                        <option value="ANUAL">Anual</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div style={styles.financeOptionsBox}>
-                    <label style={styles.cleanCheckLabel}>
-                      <input
-                        type="checkbox"
-                        name="exchange"
-                        checked={form.exchange}
-                        onChange={handleChange}
-                      />
-                      <span>Permuta</span>
-                    </label>
-
-                    <label style={styles.cleanCheckLabel}>
-                      <input
-                        type="checkbox"
-                        name="financed"
-                        checked={form.financed}
-                        onChange={handleChange}
-                      />
-                      <span>Financiado</span>
-                    </label>
-
-                    <label style={styles.cleanCheckLabel}>
-                      <input
-                        type="checkbox"
-                        name="furnished"
-                        checked={form.furnished}
-                        onChange={handleChange}
-                      />
-                      <span>Mobiliado</span>
-                    </label>
-                  </div>
-                </section>
-              )}
 
               {visibleSections.includes("internet") && (
                 <section ref={sectionRefs.internet} style={styles.formSection}>
