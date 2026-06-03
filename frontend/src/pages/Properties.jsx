@@ -206,10 +206,6 @@ function Properties() {
     return parts.length ? parts.join(", ") : "-";
   }
 
-  function buildAutoTitle() {
-    return `${form.type || "Imóvel"} ${form.code || ""}`.trim();
-  }
-
   function getEmployeeLabel(employee) {
     const name =
       employee?.name ||
@@ -793,9 +789,6 @@ function Properties() {
     const garage = intOrNull(form.garage);
     const condominiumValue = numberOrNull(form.condominiumValue);
     const iptuValue = numberOrNull(form.iptuValue);
-    const autoTitle = buildAutoTitle();
-
-    payload.append("title", autoTitle);
 
     if (form.code.trim()) payload.append("code", form.code.trim());
 
@@ -1087,9 +1080,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
     try {
       const payload = new FormData();
-      const autoTitle = buildAutoTitle();
 
-      payload.append("title", autoTitle);
       payload.append("type", form.type.trim());
       payload.append("status", normalizeString(form.status) || "DISPONIVEL");
       payload.append("price", String(numberOrNull(form.price) ?? 0));
@@ -1479,7 +1470,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
           <div style={styles.listHeaderActions}>
             <input
               style={styles.searchInputTop}
-              placeholder="Buscar por código, título, cidade, bairro, proprietário ou cadastrado por"
+              placeholder="Buscar por código, cidade, bairro, proprietário ou cadastrado por"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
@@ -1977,59 +1968,6 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                   </label>
                 </div>
 
-
-
-                <div style={styles.rowFour}>
-                  <div style={styles.fieldContent}>
-                    <label style={styles.label}>Financiamento</label>
-                    <select
-                      style={styles.lineSelect}
-                      name="financing"
-                      value={form.financing}
-                      onChange={handleChange}
-                    >
-                      <option value="NAO_INFORMADO">Não informado</option>
-                      <option value="ACEITA">Aceita</option>
-                      <option value="NAO_ACEITA">Não aceita</option>
-                    </select>
-                  </div>
-
-                  <div style={styles.fieldContent}>
-                    <label style={styles.label}>Valor do condomínio</label>
-                    <input
-                      style={styles.lineInput}
-                      name="condominiumValue"
-                      value={form.condominiumValue}
-                      onChange={handleChange}
-                      placeholder="Ex: 350,00"
-                    />
-                  </div>
-
-                  <div style={styles.fieldContent}>
-                    <label style={styles.label}>Valor do IPTU</label>
-                    <input
-                      style={styles.lineInput}
-                      name="iptuValue"
-                      value={form.iptuValue}
-                      onChange={handleChange}
-                      placeholder="Ex: 120,00"
-                    />
-                  </div>
-
-                  <div style={styles.fieldContent}>
-                    <label style={styles.label}>Pagamento do IPTU</label>
-                    <select
-                      style={styles.lineSelect}
-                      name="iptuPayment"
-                      value={form.iptuPayment}
-                      onChange={handleChange}
-                    >
-                      <option value="">Selecione...</option>
-                      <option value="MENSAL">Mensal</option>
-                      <option value="ANUAL">Anual</option>
-                    </select>
-                  </div>
-                </div>
 
                 <div style={styles.rowDouble}>
                   <div style={styles.fieldContent}>
