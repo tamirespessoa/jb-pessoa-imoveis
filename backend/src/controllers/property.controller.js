@@ -38,7 +38,9 @@ function normalizeStatus(status) {
 }
 
 function normalizeFinancing(value) {
-  if (!value) return "NAO_INFORMADO";
+  if (value === undefined || value === null || value === "") {
+    return "NAO_INFORMADO";
+  }
 
   const normalized = String(value)
     .trim()
@@ -47,17 +49,29 @@ function normalizeFinancing(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/\s+/g, "_");
 
-  if (normalized === "ACEITA" || normalized === "SIM" || normalized === "ACEITA_FINANCIAMENTO") {
+  if (
+    normalized === "ACEITA" ||
+    normalized === "SIM" ||
+    normalized === "ACEITA_FINANCIAMENTO"
+  ) {
     return "ACEITA";
   }
 
   if (
     normalized === "NAO_ACEITA" ||
-    normalized === "NÃO_ACEITA" ||
     normalized === "NAO" ||
+    normalized === "N" ||
     normalized === "NAO_ACEITA_FINANCIAMENTO"
   ) {
     return "NAO_ACEITA";
+  }
+
+  if (
+    normalized === "NAO_INFORMADO" ||
+    normalized === "NAO_INFORMADA" ||
+    normalized === "INFORMAR_DEPOIS"
+  ) {
+    return "NAO_INFORMADO";
   }
 
   return "NAO_INFORMADO";
@@ -181,6 +195,7 @@ function mapProperty(property) {
 
   return {
     ...property,
+    financing: normalizeFinancing(property.financing),
     images,
     featured: Boolean(property.siteHighlight),
     bedrooms: property.rooms ?? 0,
@@ -372,6 +387,10 @@ async function createProperty(req, res) {
 
     const finalImages = buildFinalImages(req, []);
     const loggedUserId = getLoggedUserId(req);
+    const finalFinancing = normalizeFinancing(financing);
+
+    console.log("FINANCING RECEBIDO CREATE:", financing);
+    console.log("FINANCING NORMALIZADO CREATE:", finalFinancing);
 
     const property = await prisma.property.create({
       data: {
@@ -419,7 +438,7 @@ async function createProperty(req, res) {
         financed: toBoolean(financed),
         exchange: toBoolean(exchange),
 
-        financing: normalizeFinancing(financing),
+        financing: finalFinancing,
         condominiumValue: toNullableNumber(condominiumValue),
         iptuValue: toNullableNumber(iptuValue),
         iptuPayment: iptuPayment ? String(iptuPayment).trim() : null,
@@ -594,6 +613,14 @@ async function updateProperty(req, res) {
       parseImages(existingProperty.images)
     );
 
+    const finalFinancing =
+      financing !== undefined
+        ? normalizeFinancing(financing)
+        : undefined;
+
+    console.log("FINANCING RECEBIDO UPDATE:", financing);
+    console.log("FINANCING NORMALIZADO UPDATE:", finalFinancing);
+
     const property = await prisma.property.update({
       where: { id },
       data: {
@@ -749,8 +776,7 @@ async function updateProperty(req, res) {
         financed: financed !== undefined ? toBoolean(financed) : undefined,
         exchange: exchange !== undefined ? toBoolean(exchange) : undefined,
 
-        financing:
-          financing !== undefined ? normalizeFinancing(financing) : undefined,
+        financing: finalFinancing,
 
         condominiumValue:
           condominiumValue !== undefined
