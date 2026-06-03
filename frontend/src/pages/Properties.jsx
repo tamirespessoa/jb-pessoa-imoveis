@@ -88,6 +88,9 @@ function Properties() {
     country: "Brasil",
 
     description: "",
+    seoTitle: "",
+    seoKeywords: "",
+    seoDescription: "",
     internalDescription: "",
     ownerId: "",
     captorName: "",
@@ -454,6 +457,9 @@ function Properties() {
       country: property.country || "Brasil",
 
       description: property.description || "",
+      seoTitle: property.seoTitle || "",
+      seoKeywords: property.seoKeywords || "",
+      seoDescription: property.seoDescription || "",
       internalDescription: property.internalDescription || "",
       ownerId: property.ownerId ? String(property.ownerId) : "",
       captorName: property.captorName || "",
@@ -582,6 +588,36 @@ function Properties() {
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value
+    }));
+  }
+
+  function handleGenerateSeo() {
+    const tipo = form.type || "Imóvel";
+    const bairro = form.district || form.officialDistrict || "bairro";
+    const cidade = form.city || "São Paulo";
+    const quartos = form.rooms ? `${form.rooms} quartos` : "";
+    const vagas = form.garage ? `${form.garage} vaga${Number(form.garage) > 1 ? "s" : ""}` : "";
+    const area = form.area || form.builtArea ? `${form.area || form.builtArea}m²` : "";
+    const preco = form.price ? formatCurrency(form.price) : "valor sob consulta";
+
+    const detalhes = [quartos, vagas, area].filter(Boolean).join(", ");
+    const titulo = `${tipo} à venda em ${bairro}, ${cidade}`;
+    const descricao = `${tipo} à venda em ${bairro}, ${cidade}${detalhes ? `, com ${detalhes}` : ""}. Imóvel disponível na JB Pessoa Imóveis por ${preco}. Entre em contato para mais informações.`;
+    const palavras = [
+      tipo,
+      `imóvel em ${bairro}`,
+      `imóvel em ${cidade}`,
+      `comprar ${tipo.toLowerCase()}`,
+      "JB Pessoa Imóveis",
+      bairro,
+      cidade
+    ].filter(Boolean).join(", ");
+
+    setForm((prev) => ({
+      ...prev,
+      seoTitle: titulo,
+      seoKeywords: palavras,
+      seoDescription: descricao
     }));
   }
 
@@ -816,6 +852,15 @@ function Properties() {
 
     const description = normalizeString(form.description);
     if (description !== null) payload.append("description", description);
+
+    const seoTitle = normalizeString(form.seoTitle);
+    if (seoTitle !== null) payload.append("seoTitle", seoTitle);
+
+    const seoKeywords = normalizeString(form.seoKeywords);
+    if (seoKeywords !== null) payload.append("seoKeywords", seoKeywords);
+
+    const seoDescription = normalizeString(form.seoDescription);
+    if (seoDescription !== null) payload.append("seoDescription", seoDescription);
 
     const captorName = normalizeString(form.captorName);
     if (captorName !== null) payload.append("captorName", captorName);
@@ -1114,6 +1159,15 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
       if (garage !== null) payload.append("garage", String(garage));
       if (complement !== null) payload.append("complement", complement);
       if (description !== null) payload.append("description", description);
+
+      const seoTitle = normalizeString(form.seoTitle);
+      if (seoTitle !== null) payload.append("seoTitle", seoTitle);
+
+      const seoKeywords = normalizeString(form.seoKeywords);
+      if (seoKeywords !== null) payload.append("seoKeywords", seoKeywords);
+
+      const seoDescription = normalizeString(form.seoDescription);
+      if (seoDescription !== null) payload.append("seoDescription", seoDescription);
       if (captorName !== null) payload.append("captorName", captorName);
       if (internalDescription !== null) {
         payload.append("internalDescription", internalDescription);
@@ -2399,6 +2453,72 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                         rows={6}
                       />
                     </div>
+                  </div>
+
+                  <div style={{ ...styles.separator, marginTop: 28 }}></div>
+
+                  <div style={styles.rowSingle}>
+                    <div style={styles.fieldContent}>
+                      <h3 style={{ margin: "0 0 22px", color: "#1a73e8", fontWeight: 500 }}>SEO Google</h3>
+
+                      <label style={styles.label}>Título (Também enviado para alguns portais)</label>
+                      <input
+                        style={styles.lineInput}
+                        name="seoTitle"
+                        value={form.seoTitle}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.rowSingle}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Palavras Chaves (SEO: Keywords)</label>
+                      <input
+                        style={styles.lineInput}
+                        name="seoKeywords"
+                        value={form.seoKeywords}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.rowSingle}>
+                    <div style={styles.fieldContent}>
+                      <label style={styles.label}>Descrição (SEO: Description)</label>
+                      <textarea
+                        style={styles.textareaInputLarge}
+                        name="seoDescription"
+                        value={form.seoDescription}
+                        onChange={handleChange}
+                        rows={5}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.rowSingle}>
+                    <button
+                      type="button"
+                      onClick={handleGenerateSeo}
+                      style={{
+                        width: "100%",
+                        maxWidth: "560px",
+                        minHeight: "54px",
+                        border: "1px solid #1a73e8",
+                        borderRadius: "10px",
+                        backgroundColor: "#fff",
+                        color: "#1a73e8",
+                        fontWeight: 600,
+                        letterSpacing: "0.4px",
+                        cursor: "pointer"
+                      }}
+                    >
+                      🤖 SUGERIR SEO GOOGLE ATRAVÉS DE INTELIGÊNCIA ARTIFICIAL (*)
+                    </button>
+
+                    <p style={{ marginTop: 14, color: "#8b95a1", fontSize: 12, lineHeight: 1.5 }}>
+                      (*) Gere um título, descrição e palavras-chave baseado nas informações preenchidas do imóvel.
+                    </p>
                   </div>
                 </section>
               )}
