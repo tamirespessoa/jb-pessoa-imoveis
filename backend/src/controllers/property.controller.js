@@ -294,10 +294,6 @@ async function createProperty(req, res) {
       country
     } = req.body;
 
-    if (!title || !String(title).trim()) {
-      return res.status(400).json({ error: "Título é obrigatório." });
-    }
-
     if (!type || !String(type).trim()) {
       return res.status(400).json({ error: "Tipo é obrigatório." });
     }
@@ -369,12 +365,17 @@ async function createProperty(req, res) {
 
     await ensureUniqueCode(finalCode);
 
+    const finalTitle =
+      title && String(title).trim()
+        ? String(title).trim()
+        : `${normalizeType(type) || "Imóvel"} ${finalCode || ""}`.trim();
+
     const finalImages = buildFinalImages(req, []);
     const loggedUserId = getLoggedUserId(req);
 
     const property = await prisma.property.create({
       data: {
-        title: String(title).trim(),
+        title: finalTitle,
         code: finalCode,
         description: description ? String(description).trim() : null,
         internalDescription: internalDescription
