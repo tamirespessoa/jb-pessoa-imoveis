@@ -22,6 +22,12 @@ function normalizeType(type) {
   return String(type).trim();
 }
 
+function normalizeText(value) {
+  if (value === undefined || value === null) return null;
+  const text = String(value).trim();
+  return text === "" ? null : text;
+}
+
 function normalizeStatus(status) {
   if (!status) return "DISPONIVEL";
 
@@ -259,6 +265,9 @@ async function createProperty(req, res) {
       title,
       code,
       description,
+      seoTitle,
+      seoKeywords,
+      seoDescription,
       internalDescription,
       captorName,
       price,
@@ -397,6 +406,9 @@ async function createProperty(req, res) {
         title: finalTitle,
         code: finalCode,
         description: description ? String(description).trim() : null,
+        seoTitle: normalizeText(seoTitle),
+        seoKeywords: normalizeText(seoKeywords),
+        seoDescription: normalizeText(seoDescription),
         internalDescription: internalDescription
           ? String(internalDescription).trim()
           : null,
@@ -529,6 +541,9 @@ async function updateProperty(req, res) {
       title,
       code,
       description,
+      seoTitle,
+      seoKeywords,
+      seoDescription,
       internalDescription,
       captorName,
       price,
@@ -633,6 +648,13 @@ async function updateProperty(req, res) {
               ? String(description).trim()
               : null
             : undefined,
+
+        seoTitle:
+          seoTitle !== undefined ? normalizeText(seoTitle) : undefined,
+        seoKeywords:
+          seoKeywords !== undefined ? normalizeText(seoKeywords) : undefined,
+        seoDescription:
+          seoDescription !== undefined ? normalizeText(seoDescription) : undefined,
 
         internalDescription:
           internalDescription !== undefined
