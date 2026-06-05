@@ -95,17 +95,17 @@ function Properties() {
     ownerId: "",
     captorName: "",
     indicationName: "",
-      indicationCommissionPercent: "",
-      indicationCommissionValue: "",
-      partnershipName: "",
-      partnershipCommissionPercent: "",
-      partnershipCommissionValue: "",
-      inspectionName: "",
-      inspectionCommissionPercent: "",
-      inspectionCommissionValue: "",
-      brokerName: "",
-      brokerCommissionPercent: "",
-      brokerCommissionValue: "",
+    indicationCommissionPercent: "",
+    indicationCommissionValue: "",
+    partnershipName: "",
+    partnershipCommissionPercent: "",
+    partnershipCommissionValue: "",
+    inspectionName: "",
+    inspectionCommissionPercent: "",
+    inspectionCommissionValue: "",
+    brokerName: "",
+    brokerCommissionPercent: "",
+    brokerCommissionValue: "",
 
     publishOnSite: true,
     siteHighlight: false,
@@ -2111,6 +2111,9 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                       <option value="DISPONIVEL">Disponível</option>
                       <option value="RESERVADO">Reservado</option>
                       <option value="EM_ANALISE">Em análise</option>
+                      <option value="VENDIDO">Vendido</option>
+                      <option value="LOCADO">Locado</option>
+                      <option value="ARQUIVADO">Arquivado</option>
                     </select>
                   </div>
                 </div>

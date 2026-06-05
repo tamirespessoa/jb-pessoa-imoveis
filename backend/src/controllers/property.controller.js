@@ -216,6 +216,11 @@ function mapProperty(property) {
       property.createdBy?.name ||
       property.createdBy?.email ||
       property.createdByName ||
+      null,
+    updatedByName:
+      property.updatedBy?.name ||
+      property.updatedBy?.email ||
+      property.updatedByName ||
       null
   };
 }
@@ -251,6 +256,13 @@ const propertyInclude = {
     }
   },
   createdBy: {
+    select: {
+      id: true,
+      name: true,
+      email: true
+    }
+  },
+  updatedBy: {
     select: {
       id: true,
       name: true,
@@ -482,6 +494,7 @@ async function createProperty(req, res) {
 
         ownerId: String(ownerId).trim(),
         createdById: loggedUserId,
+        updatedById: loggedUserId,
 
         images: finalImages,
 
@@ -670,12 +683,15 @@ async function updateProperty(req, res) {
         ? normalizeFinancing(financing)
         : undefined;
 
+    const loggedUserId = getLoggedUserId(req);
+
     console.log("FINANCING RECEBIDO UPDATE:", financing);
     console.log("FINANCING NORMALIZADO UPDATE:", finalFinancing);
 
     const property = await prisma.property.update({
       where: { id },
       data: {
+        updatedById: loggedUserId || undefined,
         title: title !== undefined ? String(title).trim() : undefined,
         code: finalCode,
 

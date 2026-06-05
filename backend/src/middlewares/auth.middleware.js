@@ -5,25 +5,19 @@ function authMiddleware(req, res, next) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader) {
-      return res.status(401).json({
-        error: "Token não enviado."
-      });
+      return res.status(401).json({ error: "Token não enviado." });
     }
 
     const parts = authHeader.split(" ");
 
     if (parts.length !== 2) {
-      return res.status(401).json({
-        error: "Token mal formatado."
-      });
+      return res.status(401).json({ error: "Token mal formatado." });
     }
 
     const [scheme, token] = parts;
 
     if (!/^Bearer$/i.test(scheme)) {
-      return res.status(401).json({
-        error: "Token mal formatado."
-      });
+      return res.status(401).json({ error: "Token mal formatado." });
     }
 
     if (!process.env.JWT_SECRET) {
@@ -34,11 +28,19 @@ function authMiddleware(req, res, next) {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
+    const userId =
+      decoded.id ||
+      decoded.userId ||
+      decoded.sub ||
+      decoded._id ||
+      null;
+
     req.user = {
-      id: decoded.id,
-      email: decoded.email,
-      name: decoded.name,
-      role: decoded.role
+      id: userId,
+      userId,
+      email: decoded.email || null,
+      name: decoded.name || decoded.fullName || null,
+      role: decoded.role || null
     };
 
     next();
