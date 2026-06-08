@@ -220,6 +220,56 @@ function Properties() {
     return parts.length ? parts.join(", ") : "-";
   }
 
+  function normalizeAddressValue(value) {
+    return String(value || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .toLowerCase();
+  }
+
+  function normalizeAddressZip(value) {
+    return String(value || "").replace(/\D/g, "");
+  }
+
+  function isSameAddress(property, currentForm) {
+    const propertyZip = normalizeAddressZip(property?.zipCode);
+    const formZip = normalizeAddressZip(currentForm?.zipCode);
+
+    const propertyStreet = normalizeAddressValue(property?.street);
+    const formStreet = normalizeAddressValue(currentForm?.street);
+
+    const propertyNumber = normalizeAddressValue(property?.number);
+    const formNumber = normalizeAddressValue(currentForm?.number);
+
+    const propertyBlock = normalizeAddressValue(property?.block);
+    const formBlock = normalizeAddressValue(currentForm?.block);
+
+    const propertyApartment = normalizeAddressValue(property?.apartment);
+    const formApartment = normalizeAddressValue(currentForm?.apartment);
+
+    if (!propertyZip || !formZip || !propertyStreet || !formStreet || !propertyNumber || !formNumber) {
+      return false;
+    }
+
+    return (
+      propertyZip === formZip &&
+      propertyStreet === formStreet &&
+      propertyNumber === formNumber &&
+      propertyBlock === formBlock &&
+      propertyApartment === formApartment
+    );
+  }
+
+  function findDuplicateAddress() {
+    return properties.find((property) => {
+      if (!property?.id) return false;
+      if (editingId && property.id === editingId) return false;
+      return isSameAddress(property, form);
+    });
+  }
+
   function buildAutoTitle() {
     return `${form.type || "Imóvel"} ${form.code || ""}`.trim();
   }
@@ -902,6 +952,19 @@ function Properties() {
     if (!form.price.toString().trim()) return alert("Preço é obrigatório.");
     if (!form.ownerId) return alert("Selecione o proprietário.");
 
+    const duplicateAddress = findDuplicateAddress();
+
+    if (duplicateAddress) {
+      alert(
+        `Atenção: já existe um imóvel cadastrado neste endereço.\n\n` +
+          `Código: ${duplicateAddress.code || duplicateAddress.id}\n` +
+          `Tipo: ${duplicateAddress.type || "-"}\n` +
+          `Endereço: ${getAddressLine(duplicateAddress)}\n\n` +
+          `Confira o cadastro antes de continuar.`
+      );
+      return;
+    }
+
     if (newImages.length > 10) {
       return alert("Envie no máximo 10 imagens por vez para evitar erro no servidor.");
     }
@@ -930,6 +993,13 @@ function Properties() {
     payload.append("bathrooms", String(bathrooms ?? 0));
     payload.append("street", form.street.trim());
     payload.append("number", form.number.trim());
+
+    const block = normalizeString(form.block);
+    if (block !== null) payload.append("block", block);
+
+    const apartment = normalizeString(form.apartment);
+    if (apartment !== null) payload.append("apartment", apartment);
+
     payload.append("zipCode", form.zipCode.trim());
     payload.append("district", form.district.trim());
     payload.append("city", form.city.trim());
@@ -1260,6 +1330,13 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
       payload.append("bathrooms", String(intOrNull(form.bathrooms) ?? 0));
       payload.append("street", form.street.trim());
       payload.append("number", form.number.trim());
+
+      const block = normalizeString(form.block);
+      if (block !== null) payload.append("block", block);
+
+      const apartment = normalizeString(form.apartment);
+      if (apartment !== null) payload.append("apartment", apartment);
+
       payload.append("zipCode", form.zipCode.trim());
       payload.append("district", form.district.trim());
       payload.append("city", form.city.trim());
