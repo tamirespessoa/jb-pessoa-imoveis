@@ -897,16 +897,8 @@ function Properties() {
   function handleImagesChange(e) {
     const files = Array.from(e.target.files || []);
 
-    const maxFiles = 10;
     const maxSizeMB = 5;
     const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
-
-    if (files.length > maxFiles) {
-      alert(`Selecione no máximo ${maxFiles} imagens por vez.\n\nVocê selecionou ${files.length} imagens.`);
-      e.target.value = "";
-      setNewImages([]);
-      return;
-    }
 
     const invalidType = files.find((file) => !allowedTypes.includes(file.type));
 
@@ -963,10 +955,6 @@ function Properties() {
           `Confira o cadastro antes de continuar.`
       );
       return;
-    }
-
-    if (newImages.length > 10) {
-      return alert("Envie no máximo 10 imagens por vez para evitar erro no servidor.");
     }
 
     const payload = new FormData();
@@ -1309,11 +1297,6 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
     if (user.role !== "ADMIN") {
       alert("Somente administradores podem salvar fotos.");
-      return;
-    }
-
-    if (newImages.length > 10) {
-      alert("Envie no máximo 10 imagens por vez para evitar erro no servidor.");
       return;
     }
 
