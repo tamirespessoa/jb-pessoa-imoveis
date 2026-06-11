@@ -4,6 +4,10 @@ import api from "../services/api";
 function Properties() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
+  function canManageProperties() {
+    return canManageProperties() || user.role === "CORRETOR";
+  }
+
   const menuRef = useRef(null);
   const cepTimeoutRef = useRef(null);
   const lastFetchedCepRef = useRef("");
@@ -639,7 +643,7 @@ function Properties() {
   }
 
   function handleOpenEdit(property) {
-    if (user.role !== "ADMIN") return;
+    if (!canManageProperties()) return;
     handleSelectProperty(property, true);
   }
 
@@ -652,7 +656,7 @@ function Properties() {
   }
 
   function handleNewProperty() {
-    if (user.role !== "ADMIN") return;
+    if (!canManageProperties()) return;
 
     setSelectedProperty(null);
     setEditingId(null);
@@ -935,8 +939,8 @@ function Properties() {
   async function handleSubmit(e) {
     e.preventDefault();
 
-    if (user.role !== "ADMIN") {
-      alert("Somente administradores podem salvar imóveis.");
+    if (!canManageProperties()) {
+      alert("Somente administradores e corretores podem salvar imóveis.");
       return;
     }
 
@@ -1104,8 +1108,8 @@ function Properties() {
   }
 
   async function handleDelete() {
-    if (user.role !== "ADMIN") {
-      alert("Somente administradores podem excluir imóveis.");
+    if (!canManageProperties()) {
+      alert("Somente administradores e corretores podem excluir imóveis.");
       return;
     }
 
@@ -1191,8 +1195,8 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
   }
 
   function handleOpenPhotoEditor() {
-    if (user.role !== "ADMIN") {
-      alert("Somente administradores podem editar fotos.");
+    if (!canManageProperties()) {
+      alert("Somente administradores e corretores podem editar fotos.");
       return;
     }
 
@@ -1295,8 +1299,8 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
       return;
     }
 
-    if (user.role !== "ADMIN") {
-      alert("Somente administradores podem salvar fotos.");
+    if (!canManageProperties()) {
+      alert("Somente administradores e corretores podem salvar fotos.");
       return;
     }
 
@@ -1469,7 +1473,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
   function renderPhotoEditor() {
     const photoItems = getPhotoItems();
 
-    if (user.role !== "ADMIN") {
+    if (!canManageProperties()) {
       return (
         <div style={styles.photoEditorPage}>
           <div style={styles.photoEditorTopBar}>
@@ -1717,7 +1721,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
               Atualizar
             </button>
 
-            {user.role === "ADMIN" && (
+            {canManageProperties() && (
               <button type="button" style={styles.primaryButton} onClick={handleNewProperty}>
                 + Novo imóvel
               </button>
@@ -1821,7 +1825,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                       style={styles.tdCenter}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {user.role === "ADMIN" ? (
+                      {canManageProperties() ? (
                         <button
                           type="button"
                           style={styles.editButton}
@@ -1897,7 +1901,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                   👤
                 </button>
 
-                {user.role === "ADMIN" && (
+                {canManageProperties() && (
                   <button
                     type="button"
                     style={styles.premiumHeroIconButton}
@@ -2036,7 +2040,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
     );
   }
   function renderForm() {
-    if (user.role !== "ADMIN") {
+    if (!canManageProperties()) {
       return (
         <div style={styles.formPage}>
           <div style={styles.formTopBar}>
@@ -2048,7 +2052,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
           <div style={styles.accessDeniedCard}>
             <h2 style={styles.accessDeniedTitle}>Acesso restrito</h2>
             <p style={styles.accessDeniedText}>
-              Somente administradores podem cadastrar ou editar imóveis.
+              Somente administradores e corretores podem cadastrar ou editar imóveis.
             </p>
           </div>
         </div>
@@ -2903,7 +2907,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
               )}
 
               <div style={styles.actionRow}>
-                {user.role === "ADMIN" && editingId && (
+                {canManageProperties() && editingId && (
                   <button type="button" style={styles.deleteButton} onClick={handleDelete}>
                     Excluir
                   </button>
