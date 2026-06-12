@@ -5,7 +5,7 @@ function Properties() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   function canManageProperties() {
-    return user.role === "ADMIN" || user.role === "CORRETOR";
+    return canManageProperties() || user.role === "CORRETOR";
   }
 
   const menuRef = useRef(null);
@@ -421,6 +421,11 @@ function Properties() {
   }
 
   async function loadEmployees() {
+    if (user.role !== "ADMIN") {
+      setEmployees([]);
+      return;
+    }
+
     try {
       const response = await api.get("/users");
       const list = Array.isArray(response.data) ? response.data : [];
@@ -430,7 +435,6 @@ function Properties() {
         "Erro ao carregar funcionários:",
         error.response?.data || error.message
       );
-      alert("Erro ao carregar funcionários.");
     }
   }
 
