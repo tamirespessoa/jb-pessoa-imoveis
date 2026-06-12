@@ -12,16 +12,6 @@ const {
 } = require("../controllers/person.controller");
 
 // ===============================
-// DEBUG (PODE REMOVER DEPOIS)
-// ===============================
-console.log("authMiddleware:", typeof authMiddleware);
-console.log("createPerson:", typeof createPerson);
-console.log("listPersons:", typeof listPersons);
-console.log("getPersonById:", typeof getPersonById);
-console.log("updatePerson:", typeof updatePerson);
-console.log("deletePerson:", typeof deletePerson);
-
-// ===============================
 // ROTAS
 // ===============================
 

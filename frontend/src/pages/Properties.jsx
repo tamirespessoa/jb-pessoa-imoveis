@@ -5,7 +5,7 @@ function Properties() {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
 
   function canManageProperties() {
-    return canManageProperties() || user.role === "CORRETOR";
+    return user.role === "ADMIN" || user.role === "CORRETOR";
   }
 
   const menuRef = useRef(null);
