@@ -663,3 +663,56 @@
 .site-property-details-page {
   background: linear-gradient(180deg, #f8f9fb 0%, #eef0f3 100%) !important;
 }
+
+
+
+/* ===== VISUAL PREMIUM 2026 ===== */
+:root{
+ --gold:#d4af37;
+ --dark:#202833;
+ --dark2:#333b46;
+}
+.site-property-details-hero,
+.site-properties-hero{
+ background:
+ radial-gradient(circle at 15% 25%, rgba(212,175,55,.22), transparent 35%),
+ linear-gradient(135deg,#202833,#333b46)!important;
+}
+
+.site-property-details-gallery,
+.site-property-details-section-card,
+.site-property-details-contact-card,
+.site-properties-card,
+.diferencial-card,
+.about-content{
+ border-radius:28px!important;
+ box-shadow:0 24px 60px rgba(0,0,0,.10)!important;
+ border:1px solid rgba(212,175,55,.18)!important;
+}
+
+.site-properties-card:hover,
+.diferencial-card:hover{
+ transform:translateY(-6px);
+ transition:.25s;
+}
+
+.hero-primary-btn,
+.site-properties-details-button,
+.site-contact-cta-button{
+ background:linear-gradient(135deg,#f0cf6a,#d4af37)!important;
+ color:#111!important;
+ font-weight:800!important;
+}
+
+.site-properties-image{
+ transition:.4s!important;
+}
+.site-properties-card:hover .site-properties-image{
+ transform:scale(1.05)!important;
+}
+
+.site-property-details-price-box{
+ background:rgba(255,255,255,.08)!important;
+ backdrop-filter:blur(12px)!important;
+ border:1px solid rgba(212,175,55,.3)!important;
+}
