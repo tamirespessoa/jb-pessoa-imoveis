@@ -2,7 +2,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import api from "../services/api";
 import { io } from "socket.io-client";
 
-const socket = io("http://localhost:3001");
+const SOCKET_URL =
+  import.meta.env.VITE_API_URL ||
+  "https://jb-pessoa-imoveis.onrender.com";
+
+const socket = io(SOCKET_URL);
 
 export default function Chat() {
   const [conversations, setConversations] = useState([]);
