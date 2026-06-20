@@ -9,7 +9,11 @@ function setupSocket(server) {
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:5175",
-        "https://jb-pessoa-imoveis.vercel.app"
+
+        "https://jb-pessoa-imoveis.vercel.app",
+
+        "https://jbpessoaimoveis.com.br",
+       "https://www.jbpessoaimoveis.com.br"
       ],
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true
