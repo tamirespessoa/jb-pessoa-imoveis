@@ -141,3 +141,54 @@
     width: 100%;
   }
 }
+
+/* ===== CORREÇÃO DEFINITIVA DO LOGO GIGANTE ===== */
+.site-header {
+  overflow: hidden !important;
+}
+
+.site-header-container {
+  max-height: 110px !important;
+  overflow: hidden !important;
+}
+
+.site-header-brand {
+  max-width: 320px !important;
+  overflow: hidden !important;
+}
+
+.site-header-logo,
+.site-header-brand img,
+.site-header img[src*="logo"],
+.site-header img[src*="Logo"],
+.site-header img[src*="jb"] {
+  width: 74px !important;
+  height: 74px !important;
+  min-width: 74px !important;
+  max-width: 74px !important;
+  min-height: 74px !important;
+  max-height: 74px !important;
+  object-fit: contain !important;
+  display: block !important;
+  flex: 0 0 74px !important;
+}
+
+@media (max-width: 640px) {
+  .site-header-container {
+    max-height: none !important;
+  }
+
+  .site-header-logo,
+  .site-header-brand img,
+  .site-header img[src*="logo"],
+  .site-header img[src*="Logo"],
+  .site-header img[src*="jb"] {
+    width: 62px !important;
+    height: 62px !important;
+    min-width: 62px !important;
+    max-width: 62px !important;
+    min-height: 62px !important;
+    max-height: 62px !important;
+    flex-basis: 62px !important;
+  }
+}
