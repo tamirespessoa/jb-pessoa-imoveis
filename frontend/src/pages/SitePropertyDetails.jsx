@@ -1,415 +1,448 @@
-import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useState } from "react";
+import FeaturedProperties from "../components/site/FeaturedProperties";
+import SiteChatWidget from "../components/SiteChatWidget";
+import SiteFinancingSimulator from "../components/SiteFinancingSimulator";
 import publicApi from "../services/publicApi";
-import SiteLayout from "../components/SiteLayout";
-import "./SitePropertyDetails.css";
+import logo from "../assets/logo-jb.png";
+import "./SiteHome.css";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:3001";
-
-function getImageUrl(path) {
-  if (!path) return "/sem-imagem.png";
-  if (path.startsWith("http://") || path.startsWith("https://")) return path;
-  return `${API_BASE_URL}${path}`;
-}
-
-export default function SitePropertyDetails() {
-  const { id } = useParams();
-
-  const [property, setProperty] = useState(null);
-  const [selectedImage, setSelectedImage] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-
+export default function SiteHome() {
+  const [search, setSearch] = useState("");
+  const [businessType, setBusinessType] = useState("comprar");
   const [leadForm, setLeadForm] = useState({
     name: "",
-    phone: "",
     email: "",
+    phone: "",
+    mobile: "",
     message: ""
   });
+  const [showLeadBubbleForm, setShowLeadBubbleForm] = useState(false);
+  const [leadStatus, setLeadStatus] = useState("");
   const [sendingLead, setSendingLead] = useState(false);
-  const [leadSuccess, setLeadSuccess] = useState("");
-  const [leadError, setLeadError] = useState("");
 
-  useEffect(() => {
-    async function fetchProperty() {
-      try {
-        const response = await publicApi.get(`/properties/public/${id}`);
-        const data = response.data;
+  const navigate = useNavigate();
 
-        setProperty(data);
+  const whatsappLink =
+    "https://wa.me/5511983416160?text=Olá! Gostaria de atendimento sobre imóveis.";
 
-        const firstImage = data?.coverImage
-          ? getImageUrl(data.coverImage)
-          : data?.images?.length > 0
-            ? getImageUrl(data.images[0])
-            : "/sem-imagem.png";
+  function handleSearch() {
+    const value = search.trim();
 
-        setSelectedImage(firstImage);
-      } catch (err) {
-        console.error("Erro ao carregar imóvel:", err);
-        setError("Não foi possível carregar este imóvel.");
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchProperty();
-  }, [id]);
-
-  const galleryImages = useMemo(() => {
-    if (!property) return [];
-
-    const images = [];
-
-    if (property.coverImage) {
-      images.push(getImageUrl(property.coverImage));
-    }
-
-    if (property.images?.length > 0) {
-      property.images.forEach((img) => {
-        const full = getImageUrl(img);
-        if (!images.includes(full)) images.push(full);
-      });
-    }
-
-    if (images.length === 0) {
-      images.push("/sem-imagem.png");
-    }
-
-    return images;
-  }, [property]);
-
-  async function handleLeadSubmit(e) {
-    e.preventDefault();
-
-    setLeadSuccess("");
-    setLeadError("");
-
-    if (!leadForm.name.trim()) {
-      setLeadError("Informe seu nome.");
+    if (!value) {
+      navigate("/site/imoveis");
       return;
     }
 
-    if (!leadForm.phone.trim()) {
-      setLeadError("Informe seu telefone.");
+    const params = new URLSearchParams();
+    params.set("search", value);
+
+    navigate(`/site/imoveis?${params.toString()}`);
+  }
+
+  function handleSearchKeyDown(event) {
+    if (event.key === "Enter") {
+      handleSearch();
+    }
+  }
+
+  function handleGoToRegisterProperty() {
+    window.location.href = "/site/cadastrar-imovel";
+  }
+
+  function handleLeadChange(event) {
+    const { name, value } = event.target;
+    setLeadForm((prev) => ({
+      ...prev,
+      [name]: value
+    }));
+  }
+
+  async function handleLeadSubmit(event) {
+    event.preventDefault();
+
+    if (!leadForm.name.trim()) {
+      setLeadStatus("Informe seu nome para enviarmos seu atendimento.");
+      return;
+    }
+
+    if (!leadForm.phone.trim() && !leadForm.mobile.trim()) {
+      setLeadStatus("Informe um telefone ou celular para contato.");
       return;
     }
 
     try {
       setSendingLead(true);
+      setLeadStatus("");
 
       await publicApi.post("/leads", {
         name: leadForm.name.trim(),
-        phone: leadForm.phone.trim(),
+        phone: leadForm.mobile.trim() || leadForm.phone.trim(),
         email: leadForm.email.trim() || null,
-        message: leadForm.message.trim() || null,
-        propertyId: property?.id || null
+        message:
+          leadForm.message.trim() ||
+          "Lead enviado pelo formulário premium da página inicial."
       });
 
-      setLeadSuccess(
-        "Contato enviado com sucesso. Um corretor falará com você em breve."
-      );
-
+      setLeadStatus("Contato enviado com sucesso. Um corretor falará com você em breve.");
       setLeadForm({
         name: "",
-        phone: "",
         email: "",
+        phone: "",
+        mobile: "",
         message: ""
       });
-    } catch (err) {
-      console.error("Erro ao enviar lead:", err);
-      setLeadError(
-        err.response?.data?.error || "Não foi possível enviar seu contato."
+    } catch (error) {
+      console.error("Erro ao enviar lead:", error);
+      setLeadStatus(
+        error.response?.data?.error ||
+          "Não foi possível enviar agora. Tente pelo WhatsApp."
       );
     } finally {
       setSendingLead(false);
     }
   }
 
-  if (loading) {
-    return (
-      <SiteLayout>
-        <div className="site-property-details-page">
-          <div className="site-property-details-container">
-            <div className="site-property-details-message">
-              Carregando imóvel...
-            </div>
-          </div>
-        </div>
-      </SiteLayout>
-    );
-  }
-
-  if (error || !property) {
-    return (
-      <SiteLayout>
-        <div className="site-property-details-page">
-          <div className="site-property-details-container">
-            <div className="site-property-details-message site-property-details-message-error">
-              <h2>Imóvel não encontrado</h2>
-              <p>{error || "Este imóvel não está disponível."}</p>
-
-              <Link
-                to="/site/imoveis"
-                className="site-property-details-back-button"
-              >
-                Voltar para imóveis
-              </Link>
-            </div>
-          </div>
-        </div>
-      </SiteLayout>
-    );
-  }
-
-  const formattedPrice = property.price
-    ? Number(property.price).toLocaleString("pt-BR", {
-        style: "currency",
-        currency: "BRL"
-      })
-    : "Valor a consultar";
-
-  const locationText = [
-    property.street || property.address,
-    property.number,
-    property.complement,
-    property.district || property.neighborhood,
-    property.city,
-    property.state
-  ]
-    .filter(Boolean)
-    .join(", ");
-
-  const whatsappMessage = encodeURIComponent(
-    `Olá! Tenho interesse no imóvel "${property.title}". Link: ${window.location.href}`
-  );
-
-  const whatsappLink = `https://wa.me/5511983416160?text=${whatsappMessage}`;
-
   return (
-    <SiteLayout>
-      <div className="site-property-details-page">
-        <section className="site-property-details-hero">
-          <div className="site-property-details-container">
-            <div className="site-property-details-breadcrumb">
-              <Link to="/site">Início</Link>
-              <span>/</span>
-              <Link to="/site/imoveis">Imóveis</Link>
-              <span>/</span>
-              <strong>{property.title}</strong>
+    <div className="site-home premium-site-home">
+      <header className="premium-header">
+        <div className="premium-container premium-header-content">
+          <Link to="/site" className="premium-logo">
+            <img src={logo} alt="JB Pessoa Imóveis" />
+          </Link>
+
+          <nav className="premium-nav">
+            <Link to="/site" className="active">Início</Link>
+            <Link to="/site/imoveis">Imóveis</Link>
+            <a href="#servicos">Serviços</a>
+            <a href="#sobre">Institucional</a>
+            <a href="#contato">Contato</a>
+          </nav>
+
+          <div className="premium-header-actions">
+            <a href={whatsappLink} target="_blank" rel="noreferrer" className="premium-phone">
+              <span className="premium-phone-icon">☏</span>
+              <span>
+                <small>Fale pelo WhatsApp</small>
+                <strong>(11) 98341-6160</strong>
+              </span>
+            </a>
+
+            <a href={whatsappLink} target="_blank" rel="noreferrer" className="premium-online-btn">
+              <span>♙</span>
+              Corretor Online
+            </a>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <section className="premium-hero">
+          <div className="premium-hero-overlay"></div>
+
+          <div className="premium-container premium-hero-grid">
+            <div className="premium-hero-content">
+              <span className="premium-eyebrow">ENCONTRE O IMÓVEL IDEAL</span>
+
+              <h1>
+                Seu maior sonho
+                <strong> tem um endereço</strong>
+              </h1>
+
+              <p>
+                As melhores oportunidades para comprar ou alugar imóveis em São Paulo
+                com segurança, transparência e exclusividade.
+              </p>
+
+              <div className="premium-tabs">
+                <button
+                  type="button"
+                  className={businessType === "comprar" ? "active" : ""}
+                  onClick={() => setBusinessType("comprar")}
+                >
+                  ⌂ Comprar
+                </button>
+
+                <button
+                  type="button"
+                  className={businessType === "alugar" ? "active" : ""}
+                  onClick={() => setBusinessType("alugar")}
+                >
+                  ⚿ Alugar
+                </button>
+              </div>
+
+              <div className="premium-search">
+                <span>⌕</span>
+                <input
+                  type="text"
+                  placeholder="Digite bairro, cidade ou condomínio"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  onKeyDown={handleSearchKeyDown}
+                />
+                <button type="button" onClick={handleSearch}>
+                  Buscar
+                </button>
+              </div>
+
+              <div className="premium-benefits">
+                <div>
+                  <span>♜</span>
+                  <strong>Imóveis</strong>
+                  <small>Selecionados</small>
+                </div>
+
+                <div>
+                  <span>♚</span>
+                  <strong>Atendimento</strong>
+                  <small>Personalizado</small>
+                </div>
+
+                <div>
+                  <span>♛</span>
+                  <strong>Segurança em</strong>
+                  <small>todas as etapas</small>
+                </div>
+
+                <div>
+                  <span>✺</span>
+                  <strong>Avaliação</strong>
+                  <small>Gratuita</small>
+                </div>
+              </div>
             </div>
 
-            <div className="site-property-details-hero-top">
-              <div className="site-property-details-hero-info">
-                <span className="site-property-details-tag">
-                  {property.type || "Imóvel"}
-                </span>
+            <button
+              type="button"
+              className="premium-lead-bubble-callout"
+              onClick={() => setShowLeadBubbleForm(true)}
+            >
+              <span className="premium-lead-bubble-icon">💬</span>
+              <span>
+                <strong>Não encontrou o imóvel ideal?</strong>
+                <small>Descreva o que procura</small>
+              </span>
+            </button>
+          </div>
+        </section>
 
-                <h1>{property.title}</h1>
+        <section className="premium-featured-wrap">
+          <div className="premium-container premium-section-title-row">
+            <div>
+              <span className="premium-section-kicker">DESTAQUES</span>
+              <h2>Imóveis em Destaque</h2>
+            </div>
 
-                <p className="site-property-details-location">
-                  {locationText || "Localização não informada"}
+            <Link to="/site/imoveis" className="premium-outline-link">
+              Ver todos os imóveis
+              <span>›</span>
+            </Link>
+          </div>
+
+          <FeaturedProperties />
+        </section>
+
+        <section className="premium-about-strip" id="servicos">
+          <div className="premium-container premium-about-grid">
+            <div>
+              <span className="premium-section-kicker">SOBRE NÓS</span>
+              <h2>Experiência e confiança para realizar bons negócios</h2>
+              <p>
+                A JB Pessoa Imóveis une atendimento humano, tecnologia e conhecimento
+                local para conectar clientes aos imóveis certos com muito mais segurança.
+              </p>
+            </div>
+
+            <div className="premium-stat-card">
+              <strong>150+</strong>
+              <span>imóveis cadastrados</span>
+            </div>
+
+            <div className="premium-stat-card">
+              <strong>100%</strong>
+              <span>atendimento personalizado</span>
+            </div>
+          </div>
+        </section>
+
+        <section className="site-register-highlight">
+          <div className="premium-container">
+            <div className="register-highlight-content">
+              <div className="register-text">
+                <span className="premium-section-kicker">PARA PROPRIETÁRIOS</span>
+                <h2>Quer anunciar seu imóvel conosco?</h2>
+                <p>
+                  Cadastre seu imóvel pelo site e nossa equipe entrará em contato para
+                  avaliar, orientar e ajudar na venda ou locação com segurança.
                 </p>
               </div>
 
-              <div className="site-property-details-price-box">
-                <span className="site-property-details-price-label">
-                  Valor do imóvel
-                </span>
-                <strong>{formattedPrice}</strong>
-              </div>
+              <button
+                type="button"
+                className="register-highlight-button"
+                onClick={handleGoToRegisterProperty}
+              >
+                Cadastrar meu imóvel
+              </button>
             </div>
           </div>
         </section>
 
-        <section className="site-property-details-content-section">
-          <div className="site-property-details-container">
-            <div className="site-property-details-grid">
-              <div className="site-property-details-main">
-                <div className="site-property-details-gallery">
-                  <div className="site-property-details-main-image-wrap">
-                    <img
-                      src={selectedImage}
-                      alt={property.title}
-                      className="site-property-details-main-image"
-                    />
-                  </div>
+        <section id="simulador" className="premium-simulator-section">
+          <SiteFinancingSimulator />
+        </section>
 
-                  <div className="site-property-details-thumbs">
-                    {galleryImages.map((img, i) => (
-                      <button
-                        key={i}
-                        type="button"
-                        className={`site-property-details-thumb ${
-                          selectedImage === img ? "active" : ""
-                        }`}
-                        onClick={() => setSelectedImage(img)}
-                      >
-                        <img src={img} alt={`Imagem ${i + 1} do imóvel`} />
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="site-property-details-section-card">
-                  <h2>Características</h2>
-
-                  <div className="site-property-details-features">
-                    <div className="site-property-details-feature">
-                      <span className="label">Quartos</span>
-                      <strong>{property.rooms || 0}</strong>
-                    </div>
-
-                    <div className="site-property-details-feature">
-                      <span className="label">Banheiros</span>
-                      <strong>{property.bathrooms || 0}</strong>
-                    </div>
-
-                    <div className="site-property-details-feature">
-                      <span className="label">Vagas</span>
-                      <strong>{property.garage || 0}</strong>
-                    </div>
-
-                    <div className="site-property-details-feature">
-                      <span className="label">Área</span>
-                      <strong>{property.area || 0} m²</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="site-property-details-section-card">
-                  <h2>Descrição</h2>
-                  <p className="site-property-details-description">
-                    {property.description || "Sem descrição."}
-                  </p>
-                </div>
+        <section className="premium-contact-cta" id="contato">
+          <div className="premium-container">
+            <div className="premium-contact-card">
+              <div>
+                <span className="premium-section-kicker">ATENDIMENTO</span>
+                <h2>Pronto para encontrar ou anunciar seu imóvel?</h2>
+                <p>
+                  Fale agora com a JB Pessoa Imóveis e receba atendimento rápido pelo WhatsApp.
+                </p>
               </div>
 
-              <aside className="site-property-details-sidebar">
-                <div className="site-property-details-contact-card">
-                  <span className="site-property-details-contact-label">
-                    Atendimento
-                  </span>
-
-                  <h3>JB Pessoa Imóveis</h3>
-
-                  <p>Entre em contato agora e agende uma visita.</p>
-
-                  <div className="site-property-details-contact-info">
-                    <span>Telefone / WhatsApp</span>
-                    <strong>(11) 98341-6160</strong>
-                  </div>
-
-                  <a
-                    href={whatsappLink}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="site-property-details-whatsapp-button"
-                  >
-                    Falar no WhatsApp
-                  </a>
-
-                  <Link
-                    to="/site/imoveis"
-                    className="site-property-details-outline-button"
-                  >
-                    Ver outros imóveis
-                  </Link>
-                </div>
-
-                <div className="site-property-details-contact-card">
-                  <span className="site-property-details-contact-label">
-                    Receber contato
-                  </span>
-
-                  <h3>Fale com um corretor</h3>
-
-                  <p>
-                    Preencha seus dados e o sistema enviará seu contato para o
-                    próximo corretor disponível.
-                  </p>
-
-                  <form
-                    onSubmit={handleLeadSubmit}
-                    className="site-property-details-lead-form"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Seu nome"
-                      value={leadForm.name}
-                      onChange={(e) =>
-                        setLeadForm((prev) => ({
-                          ...prev,
-                          name: e.target.value
-                        }))
-                      }
-                    />
-
-                    <input
-                      type="text"
-                      placeholder="Seu telefone"
-                      value={leadForm.phone}
-                      onChange={(e) =>
-                        setLeadForm((prev) => ({
-                          ...prev,
-                          phone: e.target.value
-                        }))
-                      }
-                    />
-
-                    <input
-                      type="email"
-                      placeholder="Seu e-mail"
-                      value={leadForm.email}
-                      onChange={(e) =>
-                        setLeadForm((prev) => ({
-                          ...prev,
-                          email: e.target.value
-                        }))
-                      }
-                    />
-
-                    <textarea
-                      placeholder="Mensagem"
-                      rows="4"
-                      value={leadForm.message}
-                      onChange={(e) =>
-                        setLeadForm((prev) => ({
-                          ...prev,
-                          message: e.target.value
-                        }))
-                      }
-                    />
-
-                    {leadSuccess && (
-                      <div className="site-property-details-success-message">
-                        {leadSuccess}
-                      </div>
-                    )}
-
-                    {leadError && (
-                      <div className="site-property-details-error-message">
-                        {leadError}
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      className="site-property-details-send-button"
-                      disabled={sendingLead}
-                    >
-                      {sendingLead
-                        ? "Enviando..."
-                        : "Quero falar com um corretor"}
-                    </button>
-                  </form>
-                </div>
-              </aside>
+              <a href={whatsappLink} target="_blank" rel="noreferrer">
+                Chamar no WhatsApp
+              </a>
             </div>
           </div>
         </section>
-      </div>
-    </SiteLayout>
+      </main>
+
+
+      {showLeadBubbleForm && (
+        <div className="premium-lead-modal-overlay">
+          <div className="premium-lead-card premium-lead-card-modal">
+            <button
+              type="button"
+              className="premium-close-btn"
+              aria-label="Fechar"
+              onClick={() => setShowLeadBubbleForm(false)}
+            >
+              ×
+            </button>
+
+            <div className="premium-lead-image">
+              <img
+                src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=620&q=80"
+                alt="Atendimento JB Pessoa Imóveis"
+              />
+              <div className="premium-lead-logo">
+                <img src={logo} alt="JB Pessoa Imóveis" />
+              </div>
+            </div>
+
+            <form className="premium-lead-form" onSubmit={handleLeadSubmit}>
+              <h2>
+                Não vá embora! O imóvel dos seus sonhos pode estar aqui.
+                <span> Descreva-o abaixo:</span>
+              </h2>
+
+              <label>
+                <span>♙</span>
+                <input
+                  name="name"
+                  value={leadForm.name}
+                  onChange={handleLeadChange}
+                  placeholder="Nome"
+                />
+              </label>
+
+              <label>
+                <span>@</span>
+                <input
+                  name="email"
+                  value={leadForm.email}
+                  onChange={handleLeadChange}
+                  placeholder="E-mail"
+                />
+              </label>
+
+              <label>
+                <span>☎</span>
+                <input
+                  name="phone"
+                  value={leadForm.phone}
+                  onChange={handleLeadChange}
+                  placeholder="Telefone"
+                />
+              </label>
+
+              <label>
+                <span>☎</span>
+                <input
+                  name="mobile"
+                  value={leadForm.mobile}
+                  onChange={handleLeadChange}
+                  placeholder="Celular"
+                />
+              </label>
+
+              <textarea
+                name="message"
+                value={leadForm.message}
+                onChange={handleLeadChange}
+                placeholder="Descreva o imóvel que procura"
+              />
+
+              {leadStatus && <p className="premium-lead-status">{leadStatus}</p>}
+
+              <button type="submit" disabled={sendingLead}>
+                ✈ {sendingLead ? "Enviando..." : "Enviar"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      <footer className="premium-footer">
+        <div className="premium-container premium-footer-grid">
+          <div>
+            <img src={logo} alt="JB Pessoa Imóveis" />
+            <p>
+              Atendimento com seriedade, transparência e foco no melhor negócio.
+              A JB Pessoa Imóveis conecta você às melhores oportunidades.
+            </p>
+          </div>
+
+          <div>
+            <h3>Contato</h3>
+            <a href={whatsappLink} target="_blank" rel="noreferrer">
+              WhatsApp: (11) 98341-6160
+            </a>
+            <a href="mailto:imobiliaria@jbpessoaimoveis.com">
+              imobiliaria@jbpessoaimoveis.com
+            </a>
+          </div>
+
+          <div>
+            <h3>Endereço</h3>
+            <p>Rua Paulo Badi, 67</p>
+            <p>Cidade Tiradentes — São Paulo</p>
+            <p>CEP: 08471-080</p>
+          </div>
+
+          <div>
+            <h3>Links rápidos</h3>
+            <Link to="/site">Início</Link>
+            <Link to="/site/imoveis">Imóveis</Link>
+            <Link to="/site/cadastrar-imovel">Cadastre seu imóvel</Link>
+          </div>
+        </div>
+
+        <div className="premium-footer-copy">
+          © {new Date().getFullYear()} JB Pessoa Imóveis. Todos os direitos reservados.
+        </div>
+      </footer>
+
+      <a href={whatsappLink} target="_blank" rel="noreferrer" className="premium-floating-whatsapp">
+        ☎
+      </a>
+
+      <SiteChatWidget />
+    </div>
   );
 }
