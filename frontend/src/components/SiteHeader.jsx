@@ -21,32 +21,47 @@ export default function SiteHeader() {
             alt="JB Pessoa Imóveis"
             className="site-header-logo"
           />
+
           <div className="site-header-brand-text">
             <strong>JB Pessoa Imóveis</strong>
-            <span>Seu imóvel com segurança</span>
+            <span>Compra • Venda • Locação</span>
           </div>
         </Link>
 
         <nav className="site-header-nav">
           <Link
             to="/site"
-            className={`site-header-link ${isActive("/site") && location.pathname === "/site" ? "active" : ""}`}
+            className={`site-header-link ${
+              isActive("/site") && location.pathname === "/site" ? "active" : ""
+            }`}
           >
             Início
           </Link>
 
           <Link
             to="/site/imoveis"
-            className={`site-header-link ${isActive("/site/imoveis") ? "active" : ""}`}
+            className={`site-header-link ${
+              isActive("/site/imoveis") ? "active" : ""
+            }`}
           >
             Imóveis
           </Link>
 
           <Link
             to="/site/cadastrar-imovel"
-            className={`site-header-link ${isActive("/site/cadastrar-imovel") ? "active" : ""}`}
+            className={`site-header-link ${
+              isActive("/site/cadastrar-imovel") ? "active" : ""
+            }`}
           >
             Cadastre seu imóvel
+          </Link>
+
+          <Link to="/site#sobre" className="site-header-link">
+            Sobre
+          </Link>
+
+          <Link to="/site#contato" className="site-header-link">
+            Contato
           </Link>
         </nav>
 
