@@ -8,13 +8,67 @@ const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 function getImageUrl(path) {
-  if (!path) return "/sem-imagem.png";
-
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
+  if (!path) {
+    return "https://via.placeholder.com/800x500?text=Sem+Imagem";
   }
 
-  return `${API_BASE_URL}${path}`;
+  const rawPath = String(path).trim();
+  const lowerPath = rawPath.toLowerCase();
+
+  const isLogoOrFavicon =
+    lowerPath.includes("logo") ||
+    lowerPath.includes("favicon") ||
+    lowerPath.includes("marca") ||
+    lowerPath.includes("watermark");
+
+  if (isLogoOrFavicon) {
+    return "https://via.placeholder.com/800x500?text=Sem+Imagem";
+  }
+
+  if (rawPath.startsWith("http://") || rawPath.startsWith("https://")) {
+    return rawPath;
+  }
+
+  if (rawPath.startsWith("/")) {
+    return `${API_BASE_URL}${rawPath}`;
+  }
+
+  return `${API_BASE_URL}/${rawPath}`;
+}
+
+function pickPropertyImage(property) {
+  const candidates = [];
+
+  if (property?.coverImage) {
+    candidates.push(property.coverImage);
+  }
+
+  if (Array.isArray(property?.images)) {
+    for (const item of property.images) {
+      if (typeof item === "string") {
+        candidates.push(item);
+      } else if (item?.url) {
+        candidates.push(item.url);
+      } else if (item?.path) {
+        candidates.push(item.path);
+      }
+    }
+  }
+
+  const validImage = candidates.find((item) => {
+    if (!item) return false;
+
+    const value = String(item).toLowerCase();
+
+    return (
+      !value.includes("logo") &&
+      !value.includes("favicon") &&
+      !value.includes("marca") &&
+      !value.includes("watermark")
+    );
+  });
+
+  return getImageUrl(validImage);
 }
 
 function formatPrice(value) {
@@ -328,11 +382,7 @@ export default function SiteProperties() {
               <>
                 <div className="site-properties-grid">
                   {properties.map((property) => {
-                    const image = property.coverImage
-                      ? getImageUrl(property.coverImage)
-                      : property.images?.length > 0
-                      ? getImageUrl(property.images[0])
-                      : "/sem-imagem.png";
+                    const image = pickPropertyImage(property);
 
                     const locationText = getDisplayLocation(property);
 
@@ -348,8 +398,12 @@ export default function SiteProperties() {
                           <div className="site-properties-image-wrap">
                             <img
                               src={image}
-                              alt={property.title}
+                              alt={property.title || "Imóvel"}
                               className="site-properties-image"
+                              onError={(e) => {
+                                e.currentTarget.src =
+                                  "https://via.placeholder.com/800x500?text=Sem+Imagem";
+                              }}
                             />
 
                             <div className="site-properties-card-badge">

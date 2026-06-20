@@ -495,3 +495,30 @@
   .site-properties-card-features,
   .premium-property-features { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ===== CORREÇÃO: impede logo/imagem inválida gigante na listagem ===== */
+.site-properties-image-wrap,
+.premium-property-image-wrap {
+  height: 260px !important;
+  max-height: 260px !important;
+  overflow: hidden !important;
+  background: #111827 !important;
+  position: relative !important;
+}
+
+.site-properties-image-wrap img,
+.site-properties-image,
+.premium-property-image-wrap img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 260px !important;
+  object-fit: cover !important;
+  object-position: center !important;
+  display: block !important;
+}
+
+.site-properties-card,
+.premium-property-card {
+  overflow: hidden !important;
+}
