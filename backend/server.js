@@ -50,6 +50,14 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+app.use((req, res, next) => {
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+
+  return next();
+});
+
 setupSocket(server);
 
 app.use(express.json({ limit: "50mb" }));

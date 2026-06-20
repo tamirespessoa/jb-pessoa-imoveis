@@ -13,7 +13,7 @@ function setupSocket(server) {
         "https://jb-pessoa-imoveis.vercel.app",
 
         "https://jbpessoaimoveis.com.br",
-       "https://www.jbpessoaimoveis.com.br"
+        "https://www.jbpessoaimoveis.com.br"
       ],
       methods: ["GET", "POST", "PUT", "DELETE"],
       credentials: true
