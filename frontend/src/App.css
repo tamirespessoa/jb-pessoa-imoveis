@@ -8,18 +8,100 @@ body,
   margin: 0;
   padding: 0;
   width: 100%;
-  min-height: 100%;
-  font-family: Arial, sans-serif;
-  background: #efefef;
+  min-height: 100vh;
 }
 
+html,
 body {
   overflow-x: hidden;
+  font-family: Arial, sans-serif;
+  background: #efefef;
+  color: #333;
 }
 
+#root {
+  width: 100%;
+  min-height: 100vh;
+  display: block;
+}
+
+body,
+input,
+button,
+textarea,
+select {
+  font-family: Arial, sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin: 0;
+}
+
+button,
 input,
 select,
-button,
 textarea {
-  font-family: inherit;
+  outline: none;
+}
+
+/* CORREÇÃO LOGO GIGANTE */
+.site-header img,
+.site-header-logo,
+.site-footer img,
+.site-footer-logo,
+img[src="/logo-jb.png"],
+img[src*="logo-jb.png"] {
+  width: 90px !important;
+  max-width: 90px !important;
+  height: auto !important;
+  max-height: 90px !important;
+  object-fit: contain !important;
+  display: block !important;
+}
+
+/* Corrige cabeçalho sem CSS */
+.site-header {
+  width: 100% !important;
+  background: #0d1117 !important;
+  overflow: hidden !important;
+}
+
+.site-header-container {
+  min-height: 96px !important;
+  max-height: 120px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+  padding: 12px 32px !important;
+  overflow: hidden !important;
+}
+
+.site-header-brand {
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  text-decoration: none !important;
+}
+
+.site-header-nav {
+  display: flex !important;
+  align-items: center !important;
+  gap: 24px !important;
+}
+
+.site-header-link {
+  color: #ffffff !important;
+  text-decoration: none !important;
+  font-weight: 700 !important;
+}
+
+.site-header-link.active {
+  color: #d4af37 !important;
 }
