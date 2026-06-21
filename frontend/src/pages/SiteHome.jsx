@@ -409,14 +409,32 @@ export default function SiteHome() {
           </div>
 
           <div>
-            <h3>Contato</h3>
-            <a href={whatsappLink} target="_blank" rel="noreferrer">
-              WhatsApp: (11) 98341-6160
-            </a>
-            <a href="mailto:imobiliaria@jbpessoaimoveis.com">
-              imobiliaria@jbpessoaimoveis.com
-            </a>
-          </div>
+  <h3>Contato</h3>
+
+  <a href={whatsappLink} target="_blank" rel="noreferrer">
+    WhatsApp: (11) 98341-6160
+  </a>
+
+  <a href="mailto:imobiliaria@jbpessoaimoveis.com">
+    imobiliaria@jbpessoaimoveis.com
+  </a>
+
+  <a
+    href="https://www.instagram.com/jbpessoaimoveis"
+    target="_blank"
+    rel="noreferrer"
+  >
+    Instagram
+  </a>
+
+  <a
+    href="https://www.facebook.com/jbpessoaimoveis"
+    target="_blank"
+    rel="noreferrer"
+  >
+    Facebook
+  </a>
+</div>
 
           <div>
             <h3>Endereço</h3>
