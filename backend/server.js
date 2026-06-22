@@ -17,6 +17,7 @@ const propertyRequestRoutes = require("./src/routes/propertyRequest.routes");
 const leadRoutes = require("./src/routes/lead.routes");
 const chatRoutes = require("./src/routes/chat.routes");
 const portalRoutes = require("./src/routes/portal.routes");
+const siteVisitRoutes = require("./src/routes/siteVisit.routes");
 
 const app = express();
 const server = http.createServer(app);
@@ -87,6 +88,7 @@ app.use("/property-requests", propertyRequestRoutes);
 app.use("/leads", leadRoutes);
 app.use("/chat", chatRoutes);
 app.use("/portals", portalRoutes);
+app.use("/site-visits", siteVisitRoutes);
 
 app.use((err, req, res, next) => {
   console.error("Erro global:", err);

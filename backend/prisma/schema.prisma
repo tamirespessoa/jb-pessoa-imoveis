@@ -490,3 +490,22 @@ model AuditLog {
   @@index([createdAt])
   @@map("audit_logs")
 }
+
+model SiteVisit {
+  id        String   @id @default(cuid())
+  page      String
+  eventType String   @default("PAGE_VIEW")
+  propertyId String?
+  source    String?
+  referrer  String?
+  userAgent String?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([page])
+  @@index([eventType])
+  @@index([propertyId])
+  @@index([source])
+  @@index([createdAt])
+  @@map("site_visits")
+}
