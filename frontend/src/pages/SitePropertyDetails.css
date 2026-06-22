@@ -1,379 +1,438 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Playfair+Display:wght@700;800;900&display=swap");
 
 :root {
-  --premium-gold: #d4a72c;
-  --premium-gold-light: #f2c766;
-  --premium-dark: #0d1117;
-  --premium-dark-2: #151b22;
+  --jb-gold: #d4a72c;
+  --jb-gold-light: #f2c766;
+  --jb-dark: #0d1117;
+  --jb-dark-2: #151b22;
 }
 
-.site-property-details-page {
+.property-details-page {
   min-height: 100vh;
-  background: #0d1117;
-  color: #ffffff;
+  background: #f7f7f5;
+  color: #111827;
   font-family: "Inter", sans-serif;
-  padding-bottom: 80px;
 }
 
-.site-property-details-container {
+.property-details-container {
   width: min(1500px, calc(100% - 56px));
   margin: 0 auto;
 }
 
-.site-property-details-hero {
+.property-details-header {
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  background: linear-gradient(90deg, #0d1117, #151b22);
+  border-bottom: 1px solid rgba(212, 167, 44, 0.25);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.28);
+}
+
+.property-details-header-content {
+  min-height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+}
+
+.property-details-logo img {
+  width: 84px;
+  height: auto;
+  display: block;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 10px;
+  padding: 6px;
+}
+
+.property-details-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.property-details-nav a {
+  color: rgba(255, 255, 255, 0.88);
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.property-details-nav a:hover {
+  color: var(--jb-gold-light);
+}
+
+.property-details-header-button {
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--jb-gold-light), var(--jb-gold));
+  color: #111827;
+  text-decoration: none;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.property-details-hero {
   background:
-    linear-gradient(90deg, rgba(8, 10, 13, 0.96), rgba(8, 10, 13, 0.68)),
+    linear-gradient(90deg, rgba(8, 10, 13, 0.96), rgba(8, 10, 13, 0.66)),
     url("https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=2200&q=90");
   background-size: cover;
   background-position: center;
-  padding: 36px 0 46px;
-  border-bottom: 1px solid rgba(212, 167, 44, 0.25);
+  color: #fff;
+  padding: 42px 0 52px;
 }
 
-.site-property-details-breadcrumb {
+.property-details-breadcrumb {
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 10px;
-  color: rgba(255, 255, 255, 0.70);
+  flex-wrap: wrap;
   font-size: 14px;
-  margin-bottom: 26px;
+  margin-bottom: 28px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
-.site-property-details-breadcrumb a {
-  color: rgba(255, 255, 255, 0.82);
+.property-details-breadcrumb a {
+  color: rgba(255, 255, 255, 0.9);
   text-decoration: none;
 }
 
-.site-property-details-breadcrumb a:hover {
-  color: var(--premium-gold-light);
-}
-
-.site-property-details-hero-top {
+.property-details-title-row {
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 30px;
+  gap: 28px;
   align-items: end;
 }
 
-.site-property-details-tag {
+.property-details-tag {
   display: inline-block;
   padding: 8px 14px;
-  background: linear-gradient(135deg, var(--premium-gold-light), var(--premium-gold));
-  color: #111827;
   border-radius: 6px;
+  background: linear-gradient(135deg, var(--jb-gold-light), var(--jb-gold));
+  color: #111827;
   font-weight: 900;
-  font-size: 13px;
   margin-bottom: 16px;
 }
 
-.site-property-details-hero h1 {
-  margin: 0 0 10px;
+.property-details-hero h1 {
+  margin: 0 0 12px;
   font-family: "Playfair Display", serif;
   font-size: clamp(38px, 4vw, 64px);
   line-height: 1;
-  color: #ffffff;
 }
 
-.site-property-details-location {
+.property-details-hero p {
   margin: 0;
-  color: rgba(255, 255, 255, 0.82);
+  color: rgba(255, 255, 255, 0.84);
   font-size: 18px;
-  line-height: 1.65;
+  line-height: 1.6;
 }
 
-.site-property-details-price-box {
-  min-width: 310px;
-  background: rgba(21, 27, 34, 0.86);
+.property-details-price-card {
+  min-width: 300px;
+  background: rgba(21, 27, 34, 0.92);
   border: 1px solid rgba(212, 167, 44, 0.42);
-  border-radius: 14px;
+  border-radius: 16px;
   padding: 24px;
-  box-shadow: 0 22px 54px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.32);
 }
 
-.site-property-details-price-label {
+.property-details-price-card span,
+.property-details-price-card small {
   display: block;
-  color: rgba(255, 255, 255, 0.62);
+  color: rgba(255, 255, 255, 0.68);
   font-size: 13px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: .08em;
+}
+
+.property-details-price-card strong {
+  display: block;
+  margin: 8px 0;
+  color: var(--jb-gold-light);
+  font-size: clamp(30px, 3vw, 44px);
   font-weight: 900;
-  margin-bottom: 8px;
 }
 
-.site-property-details-price-box strong {
-  color: var(--premium-gold-light);
-  font-size: clamp(30px, 3vw, 42px);
-  font-weight: 900;
+.property-details-content {
+  padding: 36px 0 80px;
 }
 
-.site-property-details-content-section {
-  padding: 34px 0 0;
-}
-
-.site-property-details-grid {
+.property-details-grid {
   display: grid;
   grid-template-columns: 1fr 390px;
   gap: 30px;
   align-items: start;
 }
 
-.site-property-details-gallery,
-.site-property-details-section-card,
-.site-property-details-contact-card,
-.site-property-details-message {
-  background: #151b22;
-  border: 1px solid rgba(212, 167, 44, 0.20);
-  border-radius: 16px;
-  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.26);
+.property-details-gallery,
+.property-details-card,
+.property-details-contact-card,
+.property-details-error,
+.property-details-loading {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 18px;
+  box-shadow: 0 20px 52px rgba(17, 24, 39, 0.10);
 }
 
-.site-property-details-gallery {
+.property-details-gallery {
   padding: 16px;
   margin-bottom: 24px;
 }
 
-.site-property-details-main-image-wrap {
-  aspect-ratio: 16/10;
-  border-radius: 12px;
+.property-details-main-image {
+  aspect-ratio: 16 / 10;
+  border-radius: 14px;
   overflow: hidden;
   background: #111827;
 }
 
-.site-property-details-main-image {
+.property-details-main-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  display: block;
 }
 
-.site-property-details-thumbs {
+.property-details-thumbs {
   margin-top: 14px;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: 12px;
 }
 
-.site-property-details-thumb {
-  padding: 0;
+.property-details-thumbs button {
   border: 2px solid transparent;
+  padding: 0;
   border-radius: 10px;
   overflow: hidden;
-  aspect-ratio: 1/1;
+  aspect-ratio: 1 / 1;
   background: #111827;
   cursor: pointer;
 }
 
-.site-property-details-thumb.active,
-.site-property-details-thumb:hover {
-  border-color: var(--premium-gold);
+.property-details-thumbs button.active,
+.property-details-thumbs button:hover {
+  border-color: var(--jb-gold);
 }
 
-.site-property-details-thumb img {
+.property-details-thumbs img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.site-property-details-section-card {
+.property-details-card {
   padding: 28px;
   margin-bottom: 24px;
 }
 
-.site-property-details-section-card h2,
-.site-property-details-contact-card h3 {
+.property-details-card h2,
+.property-details-contact-card h3 {
   margin: 0 0 18px;
   font-family: "Playfair Display", serif;
-  color: #ffffff;
   font-size: 34px;
-  line-height: 1.05;
+  color: #111827;
 }
 
-.site-property-details-features {
+.property-details-features {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 14px;
 }
 
-.site-property-details-feature {
-  min-height: 112px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(212, 167, 44, 0.16);
-  border-radius: 12px;
+.property-details-features div {
+  min-height: 104px;
+  border-radius: 14px;
+  background: #f7f7f5;
+  border: 1px solid #ededed;
   padding: 16px;
 }
 
-.site-property-details-feature .label {
+.property-details-features span {
   display: block;
-  color: rgba(255, 255, 255, 0.58);
+  color: #6b7280;
   text-transform: uppercase;
   font-size: 12px;
   font-weight: 900;
-  letter-spacing: .06em;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
-.site-property-details-feature strong {
-  color: var(--premium-gold-light);
-  font-size: 30px;
+.property-details-features strong {
+  color: var(--jb-gold);
+  font-size: 28px;
   font-weight: 900;
 }
 
-.site-property-details-description {
-  color: rgba(255, 255, 255, 0.78);
+.property-details-description {
+  color: #4b5563;
   font-size: 17px;
-  line-height: 1.9;
-  margin: 0;
+  line-height: 1.85;
 }
 
-.site-property-details-sidebar {
+.property-details-sidebar {
   position: sticky;
-  top: 24px;
+  top: 118px;
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
-.site-property-details-contact-card {
+.property-details-contact-card {
   padding: 26px;
 }
 
-.site-property-details-contact-label {
+.property-details-contact-card > span {
   display: inline-block;
-  color: var(--premium-gold-light);
+  color: var(--jb-gold);
   font-size: 12px;
   font-weight: 900;
   letter-spacing: .08em;
   text-transform: uppercase;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
-.site-property-details-contact-card p {
-  color: rgba(255, 255, 255, 0.72);
+.property-details-contact-card p {
+  color: #6b7280;
   line-height: 1.7;
   margin: 0 0 16px;
 }
 
-.site-property-details-contact-info {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(212, 167, 44, 0.16);
-  border-radius: 12px;
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.site-property-details-contact-info span {
-  display: block;
-  color: rgba(255, 255, 255, 0.58);
-  font-size: 12px;
-  font-weight: 900;
-  text-transform: uppercase;
-  margin-bottom: 8px;
-}
-
-.site-property-details-contact-info strong {
-  color: var(--premium-gold-light);
-  font-size: 26px;
-}
-
-.site-property-details-whatsapp-button,
-.site-property-details-outline-button,
-.site-property-details-back-button,
-.site-property-details-send-button {
+.property-details-whatsapp,
+.property-details-outline,
+.property-details-contact-card button {
   width: 100%;
   min-height: 52px;
-  border-radius: 8px;
+  border-radius: 10px;
+  text-decoration: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-decoration: none;
   font-weight: 900;
-  transition: .2s;
-}
-
-.site-property-details-whatsapp-button,
-.site-property-details-send-button {
-  background: linear-gradient(135deg, var(--premium-gold-light), var(--premium-gold));
-  color: #111827;
   border: none;
+  cursor: pointer;
 }
 
-.site-property-details-outline-button,
-.site-property-details-back-button {
-  background: transparent;
-  color: #ffffff;
-  border: 1px solid rgba(212, 167, 44, 0.34);
-}
-
-.site-property-details-whatsapp-button {
-  margin-bottom: 12px;
-}
-
-.site-property-details-lead-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.site-property-details-lead-form input,
-.site-property-details-lead-form textarea {
-  width: 100%;
-  border: 1px solid rgba(255,255,255,.16);
-  background: rgba(255,255,255,.96);
+.property-details-whatsapp,
+.property-details-contact-card button {
+  background: linear-gradient(135deg, var(--jb-gold-light), var(--jb-gold));
   color: #111827;
-  border-radius: 8px;
+}
+
+.property-details-outline {
+  margin-top: 12px;
+  background: #111827;
+  color: #ffffff;
+}
+
+.property-details-contact-card input,
+.property-details-contact-card textarea {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   padding: 14px;
   font-family: inherit;
+  margin-bottom: 12px;
   outline: none;
 }
 
-.site-property-details-lead-form textarea {
-  min-height: 116px;
+.property-details-contact-card textarea {
+  min-height: 110px;
+  resize: vertical;
 }
 
-.site-property-details-success-message,
-.site-property-details-error-message {
-  padding: 12px 14px;
+.property-details-status {
+  margin: 0 0 12px;
+  padding: 12px;
   border-radius: 8px;
+  background: #f7f7f5;
+  color: #111827;
+  font-weight: 700;
   font-size: 13px;
-  font-weight: 800;
 }
 
-.site-property-details-success-message {
-  background: rgba(22, 163, 74, .16);
-  color: #bbf7d0;
+.property-details-error,
+.property-details-loading {
+  width: min(760px, calc(100% - 40px));
+  margin: 80px auto;
+  padding: 38px;
+  text-align: center;
 }
 
-.site-property-details-error-message {
-  background: rgba(220, 38, 38, .16);
-  color: #fecaca;
+.property-details-error img {
+  width: 120px;
+  height: auto;
+  margin-bottom: 18px;
+}
+
+.property-details-error h1 {
+  margin: 0 0 10px;
+}
+
+.property-details-error p {
+  color: #6b7280;
+  margin-bottom: 22px;
+}
+
+.property-details-error a {
+  min-height: 46px;
+  padding: 0 20px;
+  border-radius: 10px;
+  background: #111827;
+  color: #ffffff;
+  text-decoration: none;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
 }
 
 @media (max-width: 1100px) {
-  .site-property-details-grid,
-  .site-property-details-hero-top {
+  .property-details-title-row,
+  .property-details-grid {
     grid-template-columns: 1fr;
   }
 
-  .site-property-details-sidebar {
+  .property-details-price-card {
+    min-width: 0;
+  }
+
+  .property-details-sidebar {
     position: static;
   }
 }
 
 @media (max-width: 760px) {
-  .site-property-details-container {
+  .property-details-container {
     width: min(100%, calc(100% - 28px));
   }
 
-  .site-property-details-features {
-    grid-template-columns: 1fr 1fr;
+  .property-details-header-content {
+    flex-direction: column;
+    padding: 14px 0;
   }
 
-  .site-property-details-price-box {
-    min-width: 0;
+  .property-details-nav {
+    gap: 16px;
+  }
+
+  .property-details-header-button {
+    width: 100%;
+  }
+
+  .property-details-features {
+    grid-template-columns: 1fr 1fr;
   }
 }
 
 @media (max-width: 520px) {
-  .site-property-details-features {
+  .property-details-features {
     grid-template-columns: 1fr;
   }
 }
