@@ -121,14 +121,23 @@ export default function FeaturedProperties() {
   }, []);
 
   const featuredProperties = useMemo(() => {
-    const highlighted = properties.filter((property) => property.featured);
+  const highlighted = properties.filter(
+    (property) =>
+      property.featured ||
+      property.siteHighlight ||
+      property.highlightOnPortals
+  );
 
-    if (highlighted.length > 0) {
-      return highlighted.slice(0, 3);
-    }
+  if (highlighted.length >= 6) {
+    return highlighted.slice(0, 6);
+  }
 
-    return properties.slice(0, 3);
-  }, [properties]);
+  const remaining = properties.filter(
+    (property) => !highlighted.some((item) => item.id === property.id)
+  );
+
+  return [...highlighted, ...remaining].slice(0, 6);
+}, [properties]);
 
   return (
     <section className="featured-properties-section">
