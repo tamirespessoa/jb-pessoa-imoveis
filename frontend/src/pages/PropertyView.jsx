@@ -13,6 +13,23 @@ function PropertyView() {
   const apiBaseUrl =
     import.meta.env.VITE_API_URL || api.defaults.baseURL || "http://localhost:3001";
 
+  const siteBaseUrl =
+    import.meta.env.VITE_SITE_URL ||
+    window.location.origin ||
+    "https://www.jbpessoaimoveis.com.br";
+
+  function getPublicPropertyUrl() {
+    if (!property?.id) {
+      return `${siteBaseUrl}/site/imoveis`;
+    }
+
+    return `${siteBaseUrl}/site/imoveis/${property.id}`;
+  }
+
+  function handleOpenPublicProperty() {
+    window.open(getPublicPropertyUrl(), "_blank", "noopener,noreferrer");
+  }
+
   useEffect(() => {
     loadProperty();
   }, [id]);
@@ -265,6 +282,16 @@ Preço: ${formattedPrice}
 
                 <div style={styles.descriptionBox}>
                   <div style={styles.descriptionHeader}>
+
+                  <a
+                    href={getPublicPropertyUrl()}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.publicSiteLink}
+                  >
+                    Ver imóvel no site
+                  </a>
+
                     <h3 style={styles.descriptionTitle}>Descrição</h3>
 
                     <button
@@ -324,6 +351,12 @@ Preço: ${formattedPrice}
 }
 
 const styles = {
+  publicSiteLink: {
+    color: "#2563eb",
+    textDecoration: "underline",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
   page: {
     minHeight: "100vh",
     background: "#eef2f7",

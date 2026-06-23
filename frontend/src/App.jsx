@@ -57,6 +57,7 @@ function AppRoutes({ logged, setLogged }) {
       <Route path="/site" element={<SiteHome />} />
       <Route path="/site/imoveis" element={<SiteProperties />} />
       <Route path="/site/imoveis/:id" element={<SitePropertyDetails />} />
+      <Route path="/site/imovel/:id" element={<SitePropertyDetails />} />
       <Route
         path="/site/cadastrar-imovel"
         element={<SiteRegisterProperty />}
