@@ -19,24 +19,13 @@ function PropertyView() {
     loadProperty();
   }, [id]);
 
-
   useEffect(() => {
-    if (!galleryOpen) {
-      return;
-    }
+    if (!galleryOpen) return;
 
     function handleKeyDown(event) {
-      if (event.key === "Escape") {
-        closeGallery();
-      }
-
-      if (event.key === "ArrowLeft") {
-        goToPreviousImage();
-      }
-
-      if (event.key === "ArrowRight") {
-        goToNextImage();
-      }
+      if (event.key === "Escape") closeGallery();
+      if (event.key === "ArrowLeft") goToPreviousImage();
+      if (event.key === "ArrowRight") goToNextImage();
     }
 
     document.addEventListener("keydown", handleKeyDown);
@@ -46,8 +35,7 @@ function PropertyView() {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "";
     };
-  }, [galleryOpen]);
-
+  }, [galleryOpen, galleryIndex]);
 
   async function loadProperty() {
     try {
@@ -80,19 +68,21 @@ function PropertyView() {
   }
 
   function getGalleryImages() {
-    if (!property?.images || !Array.isArray(property.images)) {
-      return [];
+    const images = Array.isArray(property?.images)
+      ? property.images.filter(Boolean)
+      : [];
+
+    if (images.length === 0 && selectedImage) {
+      return [selectedImage];
     }
 
-    return property.images.filter(Boolean);
+    return images;
   }
 
   function openGallery(imagePath = selectedImage) {
     const images = getGalleryImages();
 
-    if (images.length === 0) {
-      return;
-    }
+    if (images.length === 0) return;
 
     const foundIndex = images.findIndex((item) => item === imagePath);
 
@@ -107,10 +97,6 @@ function PropertyView() {
   function goToPreviousImage() {
     const images = getGalleryImages();
 
-    if (images.length === 0) {
-      return;
-    }
-
     setGalleryIndex((current) =>
       current === 0 ? images.length - 1 : current - 1
     );
@@ -119,15 +105,10 @@ function PropertyView() {
   function goToNextImage() {
     const images = getGalleryImages();
 
-    if (images.length === 0) {
-      return;
-    }
-
     setGalleryIndex((current) =>
       current === images.length - 1 ? 0 : current + 1
     );
   }
-
 
   const formattedPrice = useMemo(() => {
     if (!property?.price && property?.price !== 0) return "-";
@@ -228,14 +209,12 @@ Preço: ${formattedPrice}
             </span>
           </div>
 
-          <div style={styles.mainImageBox}>
+          <div style={styles.mainImageBox} onClick={() => openGallery(selectedImage)} title="Clique para abrir a galeria">
             {selectedImage ? (
               <img
                 src={getImageUrl(selectedImage)}
                 alt={property.title}
                 style={styles.mainImage}
-                onClick={() => openGallery(selectedImage)}
-                title="Clique para abrir a galeria"
               />
             ) : (
               <div style={styles.noMainImage}>Sem imagem</div>
@@ -267,18 +246,27 @@ Preço: ${formattedPrice}
 
         <div style={styles.detailsColumn}>
           <div style={styles.heroCard}>
-            <div style={styles.heroImageArea}>
+            <div style={styles.heroImageArea} onClick={() => openGallery(selectedImage)} title="Clique para abrir a galeria">
               {selectedImage ? (
                 <img
                   src={getImageUrl(selectedImage)}
                   alt={property.title}
                   style={styles.heroImage}
-                  onClick={() => openGallery(selectedImage)}
-                  title="Clique para abrir a galeria"
                 />
               ) : (
                 <div style={styles.heroNoImage}>Sem imagem</div>
               )}
+
+              <button
+                type="button"
+                style={styles.openGalleryButton}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openGallery(selectedImage);
+                }}
+              >
+                📷 Ver todas as fotos
+              </button>
 
               <div style={styles.heroOverlay}>
                 <div style={styles.heroTitle}>
@@ -293,7 +281,10 @@ Preço: ${formattedPrice}
                   <button
                     type="button"
                     style={styles.photoBadgeButton}
-                    onClick={() => openGallery(selectedImage)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      openGallery(selectedImage);
+                    }}
                   >
                     📷 {property.images?.length || 0} fotos
                   </button>
@@ -412,12 +403,7 @@ Preço: ${formattedPrice}
 
       {galleryOpen && (
         <div style={styles.galleryOverlay} onClick={closeGallery}>
-          <button
-            type="button"
-            style={styles.galleryCloseButton}
-            onClick={closeGallery}
-            aria-label="Fechar galeria"
-          >
+          <button type="button" style={styles.galleryCloseButton} onClick={closeGallery}>
             ×
           </button>
 
@@ -428,15 +414,11 @@ Preço: ${formattedPrice}
               event.stopPropagation();
               goToPreviousImage();
             }}
-            aria-label="Foto anterior"
           >
             ‹
           </button>
 
-          <div
-            style={styles.galleryModalContent}
-            onClick={(event) => event.stopPropagation()}
-          >
+          <div style={styles.galleryModalContent} onClick={(event) => event.stopPropagation()}>
             <img
               src={getImageUrl(getGalleryImages()[galleryIndex])}
               alt={`Foto ${galleryIndex + 1} do imóvel`}
@@ -475,13 +457,11 @@ Preço: ${formattedPrice}
               event.stopPropagation();
               goToNextImage();
             }}
-            aria-label="Próxima foto"
           >
             ›
           </button>
         </div>
       )}
-
     </div>
   );
 }
@@ -498,11 +478,25 @@ const styles = {
     fontWeight: "800",
     cursor: "pointer"
   },
+  openGalleryButton: {
+    position: "absolute",
+    left: "32px",
+    bottom: "34px",
+    zIndex: 20,
+    border: "none",
+    background: "rgba(0,0,0,0.72)",
+    color: "#fff",
+    borderRadius: "14px",
+    padding: "12px 18px",
+    fontSize: "15px",
+    fontWeight: "800",
+    cursor: "pointer"
+  },
   galleryOverlay: {
     position: "fixed",
     inset: 0,
     zIndex: 99999,
-    background: "rgba(0,0,0,0.92)",
+    background: "rgba(0,0,0,0.94)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -520,7 +514,6 @@ const styles = {
     background: "rgba(255,255,255,0.16)",
     color: "#fff",
     fontSize: "36px",
-    fontWeight: "700",
     cursor: "pointer",
     zIndex: 100001
   },
@@ -536,8 +529,7 @@ const styles = {
     maxWidth: "100%",
     maxHeight: "72vh",
     objectFit: "contain",
-    borderRadius: "16px",
-    boxShadow: "0 24px 80px rgba(0,0,0,0.55)"
+    borderRadius: "16px"
   },
   galleryCounter: {
     color: "#fff",
@@ -555,7 +547,6 @@ const styles = {
     background: "rgba(255,255,255,0.16)",
     color: "#fff",
     fontSize: "48px",
-    lineHeight: "48px",
     cursor: "pointer",
     zIndex: 100000
   },
@@ -662,6 +653,7 @@ const styles = {
     color: "#2f86d6"
   },
   mainImageBox: {
+    cursor: "zoom-in",
     marginBottom: "14px"
   },
   mainImage: {
@@ -669,8 +661,7 @@ const styles = {
     height: "255px",
     objectFit: "cover",
     borderRadius: "12px",
-    display: "block",
-    cursor: "zoom-in"
+    display: "block"
   },
   noMainImage: {
     width: "100%",
@@ -716,6 +707,7 @@ const styles = {
     border: "1px solid #ddd"
   },
   heroImageArea: {
+    cursor: "zoom-in",
     position: "relative",
     height: "360px",
     background: "#ddd"
@@ -724,8 +716,7 @@ const styles = {
     width: "100%",
     height: "100%",
     objectFit: "cover",
-    display: "block",
-    cursor: "zoom-in"
+    display: "block"
   },
   heroNoImage: {
     width: "100%",
