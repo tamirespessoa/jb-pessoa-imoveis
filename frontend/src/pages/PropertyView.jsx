@@ -9,6 +9,9 @@ function PropertyView() {
   const [property, setProperty] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [zoom, setZoom] = useState(1);
 
   const apiBaseUrl =
     import.meta.env.VITE_API_URL || api.defaults.baseURL || "http://localhost:3001";
@@ -18,21 +21,35 @@ function PropertyView() {
     window.location.origin ||
     "https://www.jbpessoaimoveis.com.br";
 
-  function getPublicPropertyUrl() {
-    if (!property?.id) {
-      return `${siteBaseUrl}/site/imoveis`;
-    }
-
-    return `${siteBaseUrl}/site/imoveis/${property.id}`;
-  }
-
-  function handleOpenPublicProperty() {
-    window.open(getPublicPropertyUrl(), "_blank", "noopener,noreferrer");
-  }
-
   useEffect(() => {
     loadProperty();
   }, [id]);
+
+  useEffect(() => {
+    if (!lightboxOpen) return;
+
+    function handleKeyDown(event) {
+      if (event.key === "Escape") {
+        closeLightbox();
+      }
+
+      if (event.key === "ArrowRight") {
+        showNextImage();
+      }
+
+      if (event.key === "ArrowLeft") {
+        showPreviousImage();
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "auto";
+    };
+  }, [lightboxOpen, lightboxIndex]);
 
   async function loadProperty() {
     try {
@@ -44,6 +61,8 @@ function PropertyView() {
 
       if (data?.images?.length > 0) {
         setSelectedImage(data.images[0]);
+      } else if (data?.coverImage) {
+        setSelectedImage(data.coverImage);
       } else {
         setSelectedImage("");
       }
@@ -58,14 +77,47 @@ function PropertyView() {
 
   function getImageUrl(imagePath) {
     if (!imagePath) return "";
-    if (imagePath.startsWith("http://") || imagePath.startsWith("https://")) {
-      return imagePath;
+
+    if (typeof imagePath !== "string") return "";
+
+    const cleanPath = imagePath.trim();
+
+    if (!cleanPath) return "";
+
+    if (cleanPath.startsWith("http://") || cleanPath.startsWith("https://")) {
+      return cleanPath;
     }
-    return `${apiBaseUrl}${imagePath}`;
+
+    if (cleanPath.startsWith("/")) {
+      return `${apiBaseUrl}${cleanPath}`;
+    }
+
+    return `${apiBaseUrl}/${cleanPath}`;
   }
+
+  const galleryImages = useMemo(() => {
+    if (!property) return [];
+
+    const images = [];
+
+    if (property.coverImage) {
+      images.push(property.coverImage);
+    }
+
+    if (Array.isArray(property.images)) {
+      property.images.forEach((image) => {
+        if (image && !images.includes(image)) {
+          images.push(image);
+        }
+      });
+    }
+
+    return images.filter(Boolean);
+  }, [property]);
 
   const formattedPrice = useMemo(() => {
     if (!property?.price && property?.price !== 0) return "-";
+
     return Number(property.price).toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL"
@@ -74,11 +126,17 @@ function PropertyView() {
 
   const formattedRentPrice = useMemo(() => {
     if (!property?.rentPrice && property?.rentPrice !== 0) return null;
+
     return Number(property.rentPrice).toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL"
     });
   }, [property]);
+
+  function getPublicPropertyUrl() {
+    if (!property?.id) return `${siteBaseUrl}/site/imoveis`;
+    return `${siteBaseUrl}/site/imoveis/${property.id}`;
+  }
 
   function handleBack() {
     navigate("/imoveis");
@@ -92,12 +150,13 @@ function PropertyView() {
     if (!property) return;
 
     const text = `
-Imóvel: ${property.title}
+Imóvel: ${property.title || "-"}
 Código: ${property.code || "-"}
 Tipo: ${property.type || "-"}
 Cidade: ${property.city || "-"}
 Estado: ${property.state || "-"}
 Preço: ${formattedPrice}
+Link: ${getPublicPropertyUrl()}
     `.trim();
 
     try {
@@ -111,6 +170,64 @@ Preço: ${formattedPrice}
 
   function handlePrint() {
     window.print();
+  }
+
+  function openLightbox(imagePath = selectedImage) {
+    if (!galleryImages.length) return;
+
+    const index = galleryImages.findIndex((image) => image === imagePath);
+    setLightboxIndex(index >= 0 ? index : 0);
+    setZoom(1);
+    setLightboxOpen(true);
+  }
+
+  function closeLightbox() {
+    setLightboxOpen(false);
+    setZoom(1);
+  }
+
+  function showNextImage() {
+    if (!galleryImages.length) return;
+
+    setLightboxIndex((prev) => {
+      const next = prev + 1 >= galleryImages.length ? 0 : prev + 1;
+      setSelectedImage(galleryImages[next]);
+      setZoom(1);
+      return next;
+    });
+  }
+
+  function showPreviousImage() {
+    if (!galleryImages.length) return;
+
+    setLightboxIndex((prev) => {
+      const next = prev - 1 < 0 ? galleryImages.length - 1 : prev - 1;
+      setSelectedImage(galleryImages[next]);
+      setZoom(1);
+      return next;
+    });
+  }
+
+  function selectLightboxImage(index) {
+    setLightboxIndex(index);
+    setSelectedImage(galleryImages[index]);
+    setZoom(1);
+  }
+
+  function handleLightboxWheel(event) {
+    event.preventDefault();
+
+    setZoom((prev) => {
+      const next = event.deltaY < 0 ? prev + 0.12 : prev - 0.12;
+      return Math.min(2.4, Math.max(1, Number(next.toFixed(2))));
+    });
+  }
+
+  function copyPublicLink() {
+    navigator.clipboard
+      .writeText(getPublicPropertyUrl())
+      .then(() => alert("Link do imóvel copiado."))
+      .catch(() => alert("Não foi possível copiar o link."));
   }
 
   if (loading) {
@@ -159,29 +276,47 @@ Preço: ${formattedPrice}
         <div style={styles.galleryColumn}>
           <div style={styles.galleryHeader}>
             <span style={styles.galleryTitle}>
-              Fotos ({property.images?.length || 0})
+              Fotos ({galleryImages.length || 0})
             </span>
+
+            {galleryImages.length > 0 && (
+              <button
+                type="button"
+                style={styles.galleryOpenButton}
+                onClick={() => openLightbox(selectedImage || galleryImages[0])}
+              >
+                Ver galeria
+              </button>
+            )}
           </div>
 
-          <div style={styles.mainImageBox}>
+          <div
+            style={styles.mainImageBox}
+            onClick={() => openLightbox(selectedImage || galleryImages[0])}
+            title="Clique para abrir a galeria"
+          >
             {selectedImage ? (
-              <img
-                src={getImageUrl(selectedImage)}
-                alt={property.title}
-                style={styles.mainImage}
-              />
+              <>
+                <img
+                  src={getImageUrl(selectedImage)}
+                  alt={property.title || "Imóvel"}
+                  style={styles.mainImage}
+                />
+                <div style={styles.mainImageOverlay}>📷 Abrir galeria</div>
+              </>
             ) : (
               <div style={styles.noMainImage}>Sem imagem</div>
             )}
           </div>
 
-          {property.images?.length > 0 && (
+          {galleryImages.length > 0 && (
             <div style={styles.thumbnailGrid}>
-              {property.images.map((imagePath, index) => (
+              {galleryImages.map((imagePath, index) => (
                 <button
                   key={`${imagePath}-${index}`}
                   type="button"
                   onClick={() => setSelectedImage(imagePath)}
+                  onDoubleClick={() => openLightbox(imagePath)}
                   style={{
                     ...styles.thumbButton,
                     ...(selectedImage === imagePath ? styles.thumbButtonActive : {})
@@ -200,20 +335,35 @@ Preço: ${formattedPrice}
 
         <div style={styles.detailsColumn}>
           <div style={styles.heroCard}>
-            <div style={styles.heroImageArea}>
+            <div
+              style={styles.heroImageArea}
+              onClick={() => openLightbox(selectedImage || galleryImages[0])}
+              title="Clique para abrir a galeria"
+            >
               {selectedImage ? (
                 <img
                   src={getImageUrl(selectedImage)}
-                  alt={property.title}
+                  alt={property.title || "Imóvel"}
                   style={styles.heroImage}
                 />
               ) : (
                 <div style={styles.heroNoImage}>Sem imagem</div>
               )}
 
+              <button
+                type="button"
+                style={styles.viewPhotosButton}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openLightbox(selectedImage || galleryImages[0]);
+                }}
+              >
+                📷 Ver todas as fotos
+              </button>
+
               <div style={styles.heroOverlay}>
                 <div style={styles.heroTitle}>
-                  {property.title} - {property.city} - {property.state}
+                  {property.title || property.type || "Imóvel"} - {property.city || "-"} - {property.state || "-"}
                 </div>
 
                 <div style={styles.heroBadges}>
@@ -222,7 +372,7 @@ Preço: ${formattedPrice}
                   </span>
 
                   <span style={styles.badge}>
-                    📷 {property.images?.length || 0}
+                    📷 {galleryImages.length || 0}
                   </span>
                 </div>
               </div>
@@ -282,25 +432,26 @@ Preço: ${formattedPrice}
 
                 <div style={styles.descriptionBox}>
                   <div style={styles.descriptionHeader}>
-
-                  <a
-                    href={getPublicPropertyUrl()}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={styles.publicSiteLink}
-                  >
-                    Ver imóvel no site
-                  </a>
-
                     <h3 style={styles.descriptionTitle}>Descrição</h3>
 
-                    <button
-                      type="button"
-                      style={styles.editLink}
-                      onClick={handleEdit}
-                    >
-                      Editar imóvel
-                    </button>
+                    <div style={styles.descriptionActions}>
+                      <a
+                        href={getPublicPropertyUrl()}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={styles.publicSiteLink}
+                      >
+                        Ver imóvel no site
+                      </a>
+
+                      <button
+                        type="button"
+                        style={styles.editLink}
+                        onClick={handleEdit}
+                      >
+                        Editar imóvel
+                      </button>
+                    </div>
                   </div>
 
                   <div style={styles.descriptionText}>
@@ -343,6 +494,88 @@ Preço: ${formattedPrice}
         </div>
       </div>
 
+      {lightboxOpen && galleryImages.length > 0 && (
+        <div style={styles.lightboxOverlay} onClick={closeLightbox}>
+          <div style={styles.lightboxHeader} onClick={(event) => event.stopPropagation()}>
+            <div style={styles.lightboxTitle}>
+              {property.title || property.type || "Imóvel"} • {lightboxIndex + 1} / {galleryImages.length}
+            </div>
+
+            <div style={styles.lightboxActions}>
+              <button type="button" style={styles.lightboxSmallButton} onClick={() => setZoom((prev) => Math.min(2.4, prev + 0.2))}>
+                + Zoom
+              </button>
+              <button type="button" style={styles.lightboxSmallButton} onClick={() => setZoom(1)}>
+                Resetar
+              </button>
+              <button type="button" style={styles.lightboxSmallButton} onClick={copyPublicLink}>
+                Copiar link
+              </button>
+              <button type="button" style={styles.lightboxCloseButton} onClick={closeLightbox}>
+                ×
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            style={{ ...styles.lightboxArrow, ...styles.lightboxArrowLeft }}
+            onClick={(event) => {
+              event.stopPropagation();
+              showPreviousImage();
+            }}
+          >
+            ‹
+          </button>
+
+          <div
+            style={styles.lightboxImageStage}
+            onClick={(event) => event.stopPropagation()}
+            onWheel={handleLightboxWheel}
+          >
+            <img
+              src={getImageUrl(galleryImages[lightboxIndex])}
+              alt={`Foto ${lightboxIndex + 1}`}
+              style={{
+                ...styles.lightboxImage,
+                transform: `scale(${zoom})`
+              }}
+            />
+          </div>
+
+          <button
+            type="button"
+            style={{ ...styles.lightboxArrow, ...styles.lightboxArrowRight }}
+            onClick={(event) => {
+              event.stopPropagation();
+              showNextImage();
+            }}
+          >
+            ›
+          </button>
+
+          <div style={styles.lightboxThumbs} onClick={(event) => event.stopPropagation()}>
+            {galleryImages.map((image, index) => (
+              <button
+                key={`${image}-${index}`}
+                type="button"
+                style={{
+                  ...styles.lightboxThumbButton,
+                  ...(index === lightboxIndex ? styles.lightboxThumbButtonActive : {})
+                }}
+                onClick={() => selectLightboxImage(index)}
+              >
+                <img
+                  src={getImageUrl(image)}
+                  alt={`Miniatura ${index + 1}`}
+                  style={styles.lightboxThumbImage}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <button type="button" style={styles.floatingEditButton} onClick={handleEdit}>
         ✎
       </button>
@@ -351,12 +584,6 @@ Preço: ${formattedPrice}
 }
 
 const styles = {
-  publicSiteLink: {
-    color: "#2563eb",
-    textDecoration: "underline",
-    fontWeight: "700",
-    cursor: "pointer"
-  },
   page: {
     minHeight: "100vh",
     background: "#eef2f7",
@@ -417,15 +644,32 @@ const styles = {
     alignSelf: "start"
   },
   galleryHeader: {
-    marginBottom: "14px"
+    marginBottom: "14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "10px"
   },
   galleryTitle: {
     fontSize: "18px",
     fontWeight: "bold",
     color: "#2f86d6"
   },
+  galleryOpenButton: {
+    border: "none",
+    background: "#0f172a",
+    color: "#fff",
+    borderRadius: "999px",
+    padding: "8px 12px",
+    fontWeight: "700",
+    cursor: "pointer"
+  },
   mainImageBox: {
-    marginBottom: "14px"
+    position: "relative",
+    marginBottom: "14px",
+    cursor: "zoom-in",
+    overflow: "hidden",
+    borderRadius: "12px"
   },
   mainImage: {
     width: "100%",
@@ -433,6 +677,17 @@ const styles = {
     objectFit: "cover",
     borderRadius: "12px",
     display: "block"
+  },
+  mainImageOverlay: {
+    position: "absolute",
+    left: "12px",
+    bottom: "12px",
+    background: "rgba(15, 23, 42, 0.82)",
+    color: "#fff",
+    borderRadius: "999px",
+    padding: "8px 12px",
+    fontSize: "13px",
+    fontWeight: "800"
   },
   noMainImage: {
     width: "100%",
@@ -480,7 +735,8 @@ const styles = {
   heroImageArea: {
     position: "relative",
     height: "360px",
-    background: "#ddd"
+    background: "#ddd",
+    cursor: "zoom-in"
   },
   heroImage: {
     width: "100%",
@@ -496,6 +752,20 @@ const styles = {
     justifyContent: "center",
     color: "#666",
     background: "#ececec"
+  },
+  viewPhotosButton: {
+    position: "absolute",
+    right: "18px",
+    top: "18px",
+    zIndex: 5,
+    border: "none",
+    background: "rgba(15, 23, 42, 0.88)",
+    color: "#fff",
+    borderRadius: "999px",
+    padding: "10px 14px",
+    fontWeight: "800",
+    cursor: "pointer",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.28)"
   },
   heroOverlay: {
     position: "absolute",
@@ -551,23 +821,22 @@ const styles = {
     marginBottom: "18px"
   },
   addressBlock: {
-    borderTop: "1px solid #e5e5e5",
-    paddingTop: "18px"
+    paddingTop: "16px",
+    borderTop: "1px solid #ddd"
   },
   addressLine: {
     fontSize: "18px",
-    color: "#333",
-    marginBottom: "8px"
+    fontWeight: "bold",
+    color: "#333"
   },
   addressStrong: {
-    fontSize: "18px",
-    fontWeight: "bold",
-    color: "#333",
-    marginBottom: "6px"
+    marginTop: "8px",
+    fontSize: "16px",
+    color: "#444"
   },
   addressMuted: {
-    color: "#777",
-    fontSize: "17px"
+    marginTop: "6px",
+    color: "#777"
   },
   infoCard: {
     background: "#fafafa",
@@ -577,73 +846,207 @@ const styles = {
   },
   metricsGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr 1fr",
-    gap: "10px",
-    paddingBottom: "18px",
-    borderBottom: "1px solid #e4e4e4"
+    gridTemplateColumns: "repeat(4, 1fr)",
+    gap: "12px",
+    marginBottom: "18px"
   },
   metricItem: {
-    textAlign: "center"
+    textAlign: "center",
+    color: "#333"
   },
   metricIcon: {
-    fontSize: "28px",
-    marginBottom: "8px"
+    fontSize: "25px",
+    marginBottom: "6px"
   },
   metricLabel: {
-    color: "#777",
-    marginBottom: "8px",
-    fontSize: "16px"
+    fontSize: "13px",
+    color: "#777"
   },
   metricValue: {
-    fontSize: "18px",
+    marginTop: "8px",
+    fontSize: "20px",
     fontWeight: "bold",
-    color: "#222"
+    color: "#111"
   },
   descriptionBox: {
+    borderTop: "1px solid #ddd",
     paddingTop: "18px"
   },
   descriptionHeader: {
     display: "flex",
-    alignItems: "center",
     justifyContent: "space-between",
+    alignItems: "center",
     gap: "12px",
-    marginBottom: "12px"
+    marginBottom: "10px",
+    flexWrap: "wrap"
+  },
+  descriptionActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    flexWrap: "wrap"
   },
   descriptionTitle: {
     margin: 0,
-    fontSize: "22px",
-    fontWeight: "normal"
+    fontSize: "22px"
+  },
+  publicSiteLink: {
+    border: "none",
+    background: "transparent",
+    color: "#2563eb",
+    fontSize: "15px",
+    fontWeight: "800",
+    textDecoration: "underline",
+    cursor: "pointer"
   },
   editLink: {
     border: "none",
     background: "transparent",
     color: "#2f86d6",
-    cursor: "pointer",
-    fontSize: "16px",
-    textDecoration: "underline"
+    fontSize: "15px",
+    fontWeight: "bold",
+    cursor: "pointer"
   },
   descriptionText: {
-    fontSize: "18px",
     color: "#555",
-    lineHeight: 1.5,
-    whiteSpace: "pre-wrap"
+    lineHeight: 1.6
   },
   extraInfoGrid: {
     display: "grid",
-    gridTemplateColumns: "1fr 1fr 1fr",
+    gridTemplateColumns: "repeat(3, 1fr)",
     gap: "18px"
   },
   extraCard: {
     background: "#fff",
     borderRadius: "14px",
-    padding: "20px",
-    border: "1px solid #ddd"
+    border: "1px solid #ddd",
+    padding: "18px"
   },
   extraTitle: {
-    marginTop: 0,
-    marginBottom: "16px",
-    color: "#2f86d6",
-    fontSize: "20px"
+    margin: "0 0 12px",
+    color: "#2f86d6"
+  },
+  lightboxOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 9999,
+    background: "rgba(2, 6, 23, 0.96)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "82px 96px 130px"
+  },
+  lightboxHeader: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    minHeight: "70px",
+    padding: "14px 24px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "14px",
+    color: "#fff",
+    background: "linear-gradient(to bottom, rgba(0,0,0,0.75), rgba(0,0,0,0))"
+  },
+  lightboxTitle: {
+    fontSize: "18px",
+    fontWeight: "900"
+  },
+  lightboxActions: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+    flexWrap: "wrap"
+  },
+  lightboxSmallButton: {
+    minHeight: "38px",
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(255,255,255,0.12)",
+    color: "#fff",
+    borderRadius: "999px",
+    padding: "0 14px",
+    fontWeight: "800",
+    cursor: "pointer"
+  },
+  lightboxCloseButton: {
+    width: "44px",
+    height: "44px",
+    borderRadius: "50%",
+    border: "none",
+    background: "#fff",
+    color: "#111827",
+    fontSize: "32px",
+    lineHeight: 1,
+    cursor: "pointer"
+  },
+  lightboxImageStage: {
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden"
+  },
+  lightboxImage: {
+    maxWidth: "100%",
+    maxHeight: "100%",
+    objectFit: "contain",
+    transition: "transform 0.15s ease"
+  },
+  lightboxArrow: {
+    position: "absolute",
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: "58px",
+    height: "58px",
+    borderRadius: "50%",
+    border: "1px solid rgba(255,255,255,0.18)",
+    background: "rgba(255,255,255,0.12)",
+    color: "#fff",
+    fontSize: "48px",
+    lineHeight: 1,
+    cursor: "pointer",
+    zIndex: 10
+  },
+  lightboxArrowLeft: {
+    left: "24px"
+  },
+  lightboxArrowRight: {
+    right: "24px"
+  },
+  lightboxThumbs: {
+    position: "absolute",
+    left: "24px",
+    right: "24px",
+    bottom: "22px",
+    display: "flex",
+    gap: "10px",
+    overflowX: "auto",
+    padding: "10px",
+    background: "rgba(15, 23, 42, 0.72)",
+    borderRadius: "16px"
+  },
+  lightboxThumbButton: {
+    width: "96px",
+    height: "68px",
+    flex: "0 0 auto",
+    border: "2px solid transparent",
+    borderRadius: "10px",
+    overflow: "hidden",
+    padding: 0,
+    background: "transparent",
+    cursor: "pointer"
+  },
+  lightboxThumbButtonActive: {
+    borderColor: "#facc15"
+  },
+  lightboxThumbImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block"
   },
   floatingEditButton: {
     position: "fixed",
