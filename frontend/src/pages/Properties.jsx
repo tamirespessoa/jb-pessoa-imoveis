@@ -213,6 +213,7 @@ function Properties() {
     const images = getDetailsGalleryImages();
 
     if (images.length === 0) {
+      alert("Este imóvel ainda não possui fotos cadastradas.");
       return;
     }
 
@@ -1937,7 +1938,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
     const photoCount = selectedProperty.images?.length || 0;
     const titleLine = `${selectedProperty.type || "Imóvel"} - ${selectedProperty.city || "-"} / ${selectedProperty.state || "-"}`;
-    const siteUrl = selectedProperty.id ? `/site/imovel/${selectedProperty.id}` : "/site/imoveis";
+    const siteUrl = selectedProperty.id ? `/site/imoveis/${selectedProperty.id}` : "/site/imoveis";
 
     return (
       <div style={styles.premiumDetailsOverlay}>
@@ -1971,7 +1972,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
               >
                 📷 Ver todas as fotos
               </button>
-            )
+            )}
 
             <div
               style={styles.premiumHeroTopBar}
