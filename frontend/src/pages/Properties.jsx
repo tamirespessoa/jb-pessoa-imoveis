@@ -27,6 +27,8 @@ function Properties() {
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState("");
   const [selectedProperty, setSelectedProperty] = useState(null);
+  const [detailsGalleryOpen, setDetailsGalleryOpen] = useState(false);
+  const [detailsGalleryIndex, setDetailsGalleryIndex] = useState(0);
   const [showMenu, setShowMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [newImages, setNewImages] = useState([]);
@@ -197,6 +199,53 @@ function Properties() {
   function getMainImage(property) {
     if (!property?.images?.length) return "";
     return getImageUrl(property.images[0]);
+  }
+
+  function getDetailsGalleryImages() {
+    if (!selectedProperty?.images || !Array.isArray(selectedProperty.images)) {
+      return [];
+    }
+
+    return selectedProperty.images.filter(Boolean);
+  }
+
+  function openDetailsGallery(index = 0) {
+    const images = getDetailsGalleryImages();
+
+    if (images.length === 0) {
+      return;
+    }
+
+    setDetailsGalleryIndex(index >= 0 && index < images.length ? index : 0);
+    setDetailsGalleryOpen(true);
+  }
+
+  function closeDetailsGallery() {
+    setDetailsGalleryOpen(false);
+  }
+
+  function goToPreviousDetailsImage() {
+    const images = getDetailsGalleryImages();
+
+    if (images.length === 0) {
+      return;
+    }
+
+    setDetailsGalleryIndex((current) =>
+      current === 0 ? images.length - 1 : current - 1
+    );
+  }
+
+  function goToNextDetailsImage() {
+    const images = getDetailsGalleryImages();
+
+    if (images.length === 0) {
+      return;
+    }
+
+    setDetailsGalleryIndex((current) =>
+      current === images.length - 1 ? 0 : current + 1
+    );
   }
 
   function formatCurrency(value) {
@@ -466,6 +515,35 @@ function Properties() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!detailsGalleryOpen) {
+      return;
+    }
+
+    function handleGalleryKeyDown(event) {
+      if (event.key === "Escape") {
+        closeDetailsGallery();
+      }
+
+      if (event.key === "ArrowLeft") {
+        goToPreviousDetailsImage();
+      }
+
+      if (event.key === "ArrowRight") {
+        goToNextDetailsImage();
+      }
+    }
+
+    document.addEventListener("keydown", handleGalleryKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleGalleryKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [detailsGalleryOpen, detailsGalleryIndex, selectedProperty]);
+
+
   const filteredProperties = useMemo(() => {
     const orderedProperties = [...properties].sort((a, b) => {
       const dateA = new Date(a.createdAt || 0).getTime();
@@ -652,6 +730,8 @@ function Properties() {
   }
 
   function handleOpenDetails(property) {
+    setDetailsGalleryOpen(false);
+    setDetailsGalleryIndex(0);
     setSelectedProperty(property);
     setEditingId(property.id);
     setNewImages([]);
@@ -676,6 +756,7 @@ function Properties() {
   }
 
   function handleBackToList() {
+    setDetailsGalleryOpen(false);
     setViewMode("list");
     setShowMenu(false);
   }
@@ -1861,7 +1942,11 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
     return (
       <div style={styles.premiumDetailsOverlay}>
         <div style={styles.premiumDetailsModal}>
-          <div style={styles.premiumHero}>
+          <div
+            style={styles.premiumHero}
+            onClick={() => openDetailsGallery(0)}
+            title={photoCount > 0 ? "Clique para abrir a galeria de fotos" : ""}
+          >
             {getMainImage(selectedProperty) ? (
               <img
                 src={getMainImage(selectedProperty)}
@@ -1875,7 +1960,23 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
             <div style={styles.premiumHeroShade}></div>
 
-            <div style={styles.premiumHeroTopBar}>
+            {photoCount > 0 && (
+              <button
+                type="button"
+                style={styles.premiumOpenGalleryButton}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openDetailsGallery(0);
+                }}
+              >
+                📷 Ver todas as fotos
+              </button>
+            )
+
+            <div
+              style={styles.premiumHeroTopBar}
+              onClick={(event) => event.stopPropagation()}
+            >
               <button
                 type="button"
                 style={styles.premiumHeroBackButton}
@@ -1918,15 +2019,25 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
               </div>
             </div>
 
-            <div style={styles.premiumHeroBottomBar}>
+            <div
+              style={styles.premiumHeroBottomBar}
+              onClick={(event) => event.stopPropagation()}
+            >
               <div style={styles.premiumHeroBadge}>
                 <span style={styles.premiumStatusDot}></span>
                 {selectedProperty.type || "Imóvel"} | {selectedProperty.code || "Sem código"}
               </div>
 
-              <div style={styles.premiumPhotoBadge}>
-                📷 {photoCount}
-              </div>
+              <button
+                type="button"
+                style={styles.premiumPhotoBadgeButton}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  openDetailsGallery(0);
+                }}
+              >
+                📷 {photoCount} fotos
+              </button>
 
               <div style={styles.premiumCaptorBox}>
                 <div style={styles.premiumAvatar}>
@@ -2040,6 +2151,88 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
             </div>
           </div>
         </div>
+
+          {detailsGalleryOpen && (
+            <div style={styles.detailsGalleryOverlay} onClick={closeDetailsGallery}>
+              <button
+                type="button"
+                style={styles.detailsGalleryClose}
+                onClick={closeDetailsGallery}
+                title="Fechar"
+              >
+                ×
+              </button>
+
+              <button
+                type="button"
+                style={{
+                  ...styles.detailsGalleryArrow,
+                  ...styles.detailsGalleryArrowLeft
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  goToPreviousDetailsImage();
+                }}
+                title="Foto anterior"
+              >
+                ‹
+              </button>
+
+              <div
+                style={styles.detailsGalleryContent}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <img
+                  src={getImageUrl(getDetailsGalleryImages()[detailsGalleryIndex])}
+                  alt={`Foto ${detailsGalleryIndex + 1} do imóvel`}
+                  style={styles.detailsGalleryImage}
+                  onError={handleImageError}
+                />
+
+                <div style={styles.detailsGalleryCounter}>
+                  {detailsGalleryIndex + 1} / {getDetailsGalleryImages().length} fotos
+                </div>
+
+                <div style={styles.detailsGalleryThumbs}>
+                  {getDetailsGalleryImages().map((image, index) => (
+                    <button
+                      key={`${image}-${index}`}
+                      type="button"
+                      style={{
+                        ...styles.detailsGalleryThumbButton,
+                        ...(index === detailsGalleryIndex
+                          ? styles.detailsGalleryThumbButtonActive
+                          : {})
+                      }}
+                      onClick={() => setDetailsGalleryIndex(index)}
+                    >
+                      <img
+                        src={getImageUrl(image)}
+                        alt={`Miniatura ${index + 1}`}
+                        style={styles.detailsGalleryThumbImage}
+                        onError={handleImageError}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <button
+                type="button"
+                style={{
+                  ...styles.detailsGalleryArrow,
+                  ...styles.detailsGalleryArrowRight
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  goToNextDetailsImage();
+                }}
+                title="Próxima foto"
+              >
+                ›
+              </button>
+            </div>
+          )}
       </div>
     );
   }
@@ -3094,6 +3287,145 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
 const styles = {
 
+  premiumOpenGalleryButton: {
+    position: "absolute",
+    right: "34px",
+    bottom: "96px",
+    zIndex: 30,
+    border: "none",
+    background: "linear-gradient(135deg, #d4af37, #9b6b12)",
+    color: "#ffffff",
+    borderRadius: "14px",
+    padding: "13px 18px",
+    fontSize: "15px",
+    fontWeight: "900",
+    cursor: "pointer",
+    boxShadow: "0 14px 34px rgba(0,0,0,0.38)"
+  },
+
+  premiumPhotoBadgeButton: {
+    border: "none",
+    background: "rgba(0,0,0,0.70)",
+    color: "#ffffff",
+    borderRadius: "10px",
+    padding: "10px 16px",
+    fontSize: "15px",
+    fontWeight: "900",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "6px"
+  },
+
+  detailsGalleryOverlay: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 999999,
+    background: "rgba(0,0,0,0.94)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "28px",
+    boxSizing: "border-box"
+  },
+
+  detailsGalleryClose: {
+    position: "fixed",
+    top: "22px",
+    right: "28px",
+    width: "54px",
+    height: "54px",
+    borderRadius: "50%",
+    border: "none",
+    background: "rgba(255,255,255,0.18)",
+    color: "#ffffff",
+    fontSize: "38px",
+    fontWeight: "700",
+    cursor: "pointer",
+    zIndex: 1000001
+  },
+
+  detailsGalleryContent: {
+    width: "min(1120px, 86vw)",
+    maxHeight: "92vh",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "16px"
+  },
+
+  detailsGalleryImage: {
+    maxWidth: "100%",
+    maxHeight: "72vh",
+    objectFit: "contain",
+    borderRadius: "16px",
+    boxShadow: "0 24px 80px rgba(0,0,0,0.55)"
+  },
+
+  detailsGalleryCounter: {
+    color: "#ffffff",
+    fontSize: "16px",
+    fontWeight: "900"
+  },
+
+  detailsGalleryArrow: {
+    position: "fixed",
+    top: "50%",
+    transform: "translateY(-50%)",
+    width: "62px",
+    height: "62px",
+    borderRadius: "50%",
+    border: "none",
+    background: "rgba(255,255,255,0.18)",
+    color: "#ffffff",
+    fontSize: "50px",
+    lineHeight: "50px",
+    cursor: "pointer",
+    zIndex: 1000000
+  },
+
+  detailsGalleryArrowLeft: {
+    left: "28px"
+  },
+
+  detailsGalleryArrowRight: {
+    right: "28px"
+  },
+
+  detailsGalleryThumbs: {
+    width: "100%",
+    maxWidth: "980px",
+    display: "flex",
+    gap: "10px",
+    overflowX: "auto",
+    padding: "8px 4px 2px"
+  },
+
+  detailsGalleryThumbButton: {
+    width: "94px",
+    height: "70px",
+    minWidth: "94px",
+    border: "2px solid transparent",
+    borderRadius: "10px",
+    overflow: "hidden",
+    padding: 0,
+    background: "transparent",
+    cursor: "pointer"
+  },
+
+  detailsGalleryThumbButtonActive: {
+    borderColor: "#d4af37"
+  },
+
+  detailsGalleryThumbImage: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block"
+  },
+
+
   blueSectionTitle: {
     margin: "0 0 22px",
     color: "#1a73e8",
@@ -3152,6 +3484,7 @@ const styles = {
     flexDirection: "column"
   },
   premiumHero: {
+    cursor: "zoom-in",
     position: "relative",
     height: "330px",
     backgroundColor: "#111827",
