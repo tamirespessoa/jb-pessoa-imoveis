@@ -19,6 +19,7 @@ function Properties() {
     financeiro: useRef(null),
     internet: useRef(null),
     captacao: useRef(null),
+    documentacao: useRef(null),
     confidencial: useRef(null)
   };
 
@@ -32,6 +33,7 @@ function Properties() {
   const [showMenu, setShowMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [newImages, setNewImages] = useState([]);
+  const [propertyDocuments, setPropertyDocuments] = useState([]);
   const [viewMode, setViewMode] = useState("list");
   const [formMode, setFormMode] = useState("EXPRESS");
   const [activeSection, setActiveSection] = useState("cadastro");
@@ -130,13 +132,14 @@ function Properties() {
 
   const visibleSections =
     formMode === "EXPRESS"
-      ? ["cadastro", "localizacao", "detalhes", "internet", "captacao", "confidencial"]
+      ? ["cadastro", "localizacao", "detalhes", "internet", "captacao", "documentacao", "confidencial"]
       : [
           "cadastro",
           "localizacao",
           "detalhes",
           "internet",
           "captacao",
+          "documentacao",
           "confidencial"
         ];
 
@@ -213,7 +216,6 @@ function Properties() {
     const images = getDetailsGalleryImages();
 
     if (images.length === 0) {
-      alert("Este imóvel ainda não possui fotos cadastradas.");
       return;
     }
 
@@ -717,6 +719,7 @@ function Properties() {
     setSelectedProperty(property);
     setEditingId(property.id);
     setNewImages([]);
+    setPropertyDocuments([]);
     fillFormFromProperty(property);
 
     if (openForm) {
@@ -736,6 +739,7 @@ function Properties() {
     setSelectedProperty(property);
     setEditingId(property.id);
     setNewImages([]);
+    setPropertyDocuments([]);
     fillFormFromProperty(property);
     setViewMode("details");
   }
@@ -747,6 +751,7 @@ function Properties() {
     setEditingId(null);
     setShowMenu(false);
     setNewImages([]);
+    setPropertyDocuments([]);
     setViewMode("form");
     setActiveSection("cadastro");
     setCepError("");
@@ -984,6 +989,52 @@ function Properties() {
     );
   }
 
+
+  function handlePropertyDocumentsChange(e) {
+    const files = Array.from(e.target.files || []);
+    const maxSizeMB = 20;
+    const allowedTypes = ["application/pdf", "image/jpeg", "image/jpg", "image/png", "image/webp"];
+
+    const invalidType = files.find((file) => !allowedTypes.includes(file.type));
+    if (invalidType) {
+      alert(`O arquivo "${invalidType.name}" não é permitido. Use apenas PDF, JPG, PNG ou WEBP.`);
+      e.target.value = "";
+      return;
+    }
+
+    const invalidSize = files.find((file) => file.size > maxSizeMB * 1024 * 1024);
+    if (invalidSize) {
+      alert(`O arquivo "${invalidSize.name}" tem mais de ${maxSizeMB}MB.`);
+      e.target.value = "";
+      return;
+    }
+
+    const mappedFiles = files.map((file) => ({
+      id: `${file.name}-${file.size}-${Date.now()}-${Math.random()}`,
+      category: "Outros documentos",
+      file
+    }));
+
+    setPropertyDocuments((prev) => [...prev, ...mappedFiles]);
+    e.target.value = "";
+  }
+
+  function handlePropertyDocumentCategoryChange(documentId, category) {
+    setPropertyDocuments((prev) =>
+      prev.map((item) => item.id === documentId ? { ...item, category } : item)
+    );
+  }
+
+  function removePropertyDocument(documentId) {
+    setPropertyDocuments((prev) => prev.filter((item) => item.id !== documentId));
+  }
+
+  function formatFileSize(bytes) {
+    if (!bytes && bytes !== 0) return "-";
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
   function handleImagesChange(e) {
     const files = Array.from(e.target.files || []);
 
@@ -1160,6 +1211,13 @@ function Properties() {
 
     newImages.forEach((file) => {
       payload.append("images", file);
+    });
+
+    propertyDocuments.forEach((item) => {
+      if (item?.file) {
+        payload.append("propertyDocuments", item.file);
+        payload.append("propertyDocumentCategories", item.category || "Outros documentos");
+      }
     });
 
     try {
@@ -1730,6 +1788,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
       { key: "detalhes", label: "Detalhes" },
       { key: "internet", label: "Internet e Anúncios" },
       { key: "captacao", label: "Captação" },
+      { key: "documentacao", label: "Documentação" },
       { key: "confidencial", label: "Confidencial" }
     ];
 
@@ -1938,7 +1997,7 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 
     const photoCount = selectedProperty.images?.length || 0;
     const titleLine = `${selectedProperty.type || "Imóvel"} - ${selectedProperty.city || "-"} / ${selectedProperty.state || "-"}`;
-    const siteUrl = selectedProperty.id ? `/site/imoveis/${selectedProperty.id}` : "/site/imoveis";
+    const siteUrl = selectedProperty.id ? `/site/imovel/${selectedProperty.id}` : "/site/imoveis";
 
     return (
       <div style={styles.premiumDetailsOverlay}>
@@ -3013,6 +3072,100 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                 </section>
               )}
 
+
+              {visibleSections.includes("documentacao") && (
+                <section ref={sectionRefs.documentacao} style={styles.formSection}>
+                  <h2 style={styles.formSectionTitle}>Documentação do Imóvel</h2>
+
+                  <p style={styles.documentHelpText}>
+                    Anexe documentos importantes do imóvel: matrícula, IPTU,
+                    escritura, contrato, certidões, planta ou outros arquivos.
+                    Aceita PDF, JPG, PNG e WEBP até 20MB.
+                  </p>
+
+                  <div style={styles.documentUploadBox}>
+                    <div>
+                      <strong style={styles.documentUploadTitle}>Arquivos da documentação</strong>
+                      <p style={styles.documentUploadSubtitle}>Selecione um ou mais arquivos para anexar ao cadastro.</p>
+                    </div>
+
+                    <label style={styles.documentUploadButton}>
+                      + Selecionar documentos
+                      <input
+                        type="file"
+                        multiple
+                        accept=".pdf,.jpg,.jpeg,.png,.webp"
+                        onChange={handlePropertyDocumentsChange}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+                  </div>
+
+                  <div style={styles.documentTypesGrid}>
+                    {[
+                      "Matrícula atualizada",
+                      "IPTU",
+                      "Escritura",
+                      "Contrato de compra e venda",
+                      "Habite-se",
+                      "Planta do imóvel",
+                      "Convenção do condomínio",
+                      "Regulamento interno",
+                      "Certidão negativa de débitos",
+                      "Laudo de avaliação",
+                      "Outros documentos"
+                    ].map((item) => (
+                      <span key={item} style={styles.documentTypePill}>{item}</span>
+                    ))}
+                  </div>
+
+                  {propertyDocuments.length > 0 ? (
+                    <div style={styles.documentList}>
+                      {propertyDocuments.map((item, index) => (
+                        <div key={item.id} style={styles.documentItem}>
+                          <div style={styles.documentIcon}>📄</div>
+
+                          <div style={styles.documentInfo}>
+                            <strong style={styles.documentName}>{item.file.name}</strong>
+                            <span style={styles.documentMeta}>
+                              {formatFileSize(item.file.size)} • Documento {index + 1}
+                            </span>
+                          </div>
+
+                          <select
+                            style={styles.documentCategorySelect}
+                            value={item.category}
+                            onChange={(e) => handlePropertyDocumentCategoryChange(item.id, e.target.value)}
+                          >
+                            <option value="Matrícula atualizada">Matrícula atualizada</option>
+                            <option value="IPTU">IPTU</option>
+                            <option value="Escritura">Escritura</option>
+                            <option value="Contrato de compra e venda">Contrato de compra e venda</option>
+                            <option value="Habite-se">Habite-se</option>
+                            <option value="Planta do imóvel">Planta do imóvel</option>
+                            <option value="Convenção do condomínio">Convenção do condomínio</option>
+                            <option value="Regulamento interno">Regulamento interno</option>
+                            <option value="Certidão negativa de débitos">Certidão negativa de débitos</option>
+                            <option value="Laudo de avaliação">Laudo de avaliação</option>
+                            <option value="Outros documentos">Outros documentos</option>
+                          </select>
+
+                          <button
+                            type="button"
+                            style={styles.documentRemoveButton}
+                            onClick={() => removePropertyDocument(item.id)}
+                          >
+                            Remover
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div style={styles.documentEmptyBox}>Nenhum documento anexado ainda.</div>
+                  )}
+                </section>
+              )}
+
               {visibleSections.includes("confidencial") && (
                 <section ref={sectionRefs.confidencial} style={styles.formSection}>
                   <h2 style={styles.formSectionTitle}>Confidencial</h2>
@@ -3287,6 +3440,25 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 }
 
 const styles = {
+
+  documentHelpText: { margin: "0 0 18px", color: "#667085", fontSize: "15px", lineHeight: 1.6 },
+  documentUploadBox: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", padding: "20px", borderRadius: "18px", border: "1px dashed #98a2b3", background: "#f8fafc", marginBottom: "18px" },
+  documentUploadTitle: { display: "block", color: "#14213d", fontSize: "17px", marginBottom: "6px" },
+  documentUploadSubtitle: { margin: 0, color: "#667085", fontSize: "14px" },
+  documentUploadButton: { minHeight: "46px", padding: "0 18px", borderRadius: "12px", background: "#0b1324", color: "#ffffff", display: "inline-flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontWeight: "800", whiteSpace: "nowrap" },
+  documentTypesGrid: { display: "flex", flexWrap: "wrap", gap: "10px", marginBottom: "18px" },
+  documentTypePill: { padding: "8px 12px", borderRadius: "999px", background: "#eef2f7", color: "#475467", fontSize: "13px", fontWeight: "700" },
+  documentList: { display: "flex", flexDirection: "column", gap: "12px" },
+  documentItem: { display: "grid", gridTemplateColumns: "42px 1fr 240px auto", alignItems: "center", gap: "12px", padding: "14px", borderRadius: "14px", border: "1px solid #e4e7ec", background: "#ffffff" },
+  documentIcon: { width: "42px", height: "42px", borderRadius: "12px", background: "#eef2ff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px" },
+  documentInfo: { minWidth: 0, display: "flex", flexDirection: "column", gap: "4px" },
+  documentName: { color: "#14213d", fontSize: "15px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" },
+  documentMeta: { color: "#667085", fontSize: "13px" },
+  documentCategorySelect: { minHeight: "42px", borderRadius: "10px", border: "1px solid #d0d5dd", padding: "0 10px", background: "#ffffff", color: "#344054", fontSize: "14px" },
+  documentRemoveButton: { minHeight: "40px", padding: "0 12px", borderRadius: "10px", border: "1px solid #fecaca", background: "#fff5f5", color: "#b42318", fontWeight: "800", cursor: "pointer" },
+  documentEmptyBox: { padding: "18px", borderRadius: "14px", background: "#f8fafc", border: "1px solid #e4e7ec", color: "#667085", textAlign: "center" },
+
+
 
   premiumOpenGalleryButton: {
     position: "absolute",
