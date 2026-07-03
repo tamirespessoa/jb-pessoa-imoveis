@@ -1213,12 +1213,9 @@ function Properties() {
       payload.append("images", file);
     });
 
-    propertyDocuments.forEach((item) => {
-      if (item?.file) {
-        payload.append("propertyDocuments", item.file);
-        payload.append("propertyDocumentCategories", item.category || "Outros documentos");
-      }
-    });
+    // Documentos do imóvel ficam listados no frontend por enquanto.
+    // O backend ainda precisa ser preparado para receber "propertyDocuments".
+    // Quando o backend estiver pronto, este bloco pode ser ativado novamente.
 
     try {
       let response;
