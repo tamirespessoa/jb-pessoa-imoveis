@@ -92,7 +92,44 @@ function PropertiesList() {
         ? (property.status || "DISPONIVEL") !== "ARQUIVADO"
         : true;
 
-      return (
+    
+  function getStatusStyle(status) {
+    switch ((status || "").toUpperCase()) {
+      case "DISPONIVEL":
+        return { background: "#DCFCE7", color: "#15803D" };
+      case "VENDIDO":
+        return { background: "#FEE2E2", color: "#B91C1C" };
+      case "RESERVADO":
+        return { background: "#FEF3C7", color: "#B45309" };
+      case "INATIVO":
+      case "ARQUIVADO":
+        return { background: "#E5E7EB", color: "#4B5563" };
+      case "ALUGADO":
+      case "LOCADO":
+        return { background: "#DBEAFE", color: "#1D4ED8" };
+      case "EM_ANALISE":
+        return { background: "#EDE9FE", color: "#6D28D9" };
+      default:
+        return { background: "#F3F4F6", color: "#374151" };
+    }
+  }
+
+  function getStatusLabel(status) {
+    const normalized = (status || "DISPONIVEL").toUpperCase();
+    const labels = {
+      DISPONIVEL: "Disponível",
+      VENDIDO: "Vendido",
+      RESERVADO: "Reservado",
+      INATIVO: "Inativo",
+      ARQUIVADO: "Inativo",
+      ALUGADO: "Alugado",
+      LOCADO: "Locado",
+      EM_ANALISE: "Em análise"
+    };
+    return labels[normalized] || normalized.replaceAll("_", " ");
+  }
+
+  return (
         matchesSearch &&
         matchesCidade &&
         matchesValorMin &&
@@ -304,7 +341,15 @@ function PropertiesList() {
 
                       <div style={styles.colType}>
                         <div>{property.type || "-"}</div>
-                        <div style={styles.subText}>{property.status || "Normal"}</div>
+
+                        <div
+                          style={{
+                            ...styles.statusBadge,
+                            ...getStatusStyle(property.status)
+                          }}
+                        >
+                          {getStatusLabel(property.status)}
+                        </div>
                       </div>
 
                       <div style={styles.colValue}>
@@ -347,6 +392,21 @@ function PropertiesList() {
 }
 
 const styles = {
+  statusBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: "8px",
+    padding: "6px 12px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: "0.4px",
+    width: "fit-content",
+    lineHeight: 1
+  },
+
   page: {
     minHeight: "100vh",
     background: "#f2f2f2",
