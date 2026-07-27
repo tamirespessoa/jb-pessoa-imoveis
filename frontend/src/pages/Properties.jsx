@@ -1835,6 +1835,72 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
     );
   }
 
+
+  function getStatusStyle(status) {
+    switch ((status || "").toUpperCase()) {
+      case "DISPONIVEL":
+        return {
+          background: "#DCFCE7",
+          color: "#15803D"
+        };
+
+      case "VENDIDO":
+        return {
+          background: "#FEE2E2",
+          color: "#B91C1C"
+        };
+
+      case "RESERVADO":
+        return {
+          background: "#FEF3C7",
+          color: "#B45309"
+        };
+
+      case "INATIVO":
+      case "ARQUIVADO":
+        return {
+          background: "#E5E7EB",
+          color: "#4B5563"
+        };
+
+      case "ALUGADO":
+      case "LOCADO":
+        return {
+          background: "#DBEAFE",
+          color: "#1D4ED8"
+        };
+
+      case "EM_ANALISE":
+        return {
+          background: "#EDE9FE",
+          color: "#6D28D9"
+        };
+
+      default:
+        return {
+          background: "#F3F4F6",
+          color: "#374151"
+        };
+    }
+  }
+
+  function getStatusLabel(status) {
+    const normalized = (status || "DISPONIVEL").toUpperCase();
+
+    const labels = {
+      DISPONIVEL: "Disponível",
+      VENDIDO: "Vendido",
+      RESERVADO: "Reservado",
+      INATIVO: "Inativo",
+      ARQUIVADO: "Inativo",
+      ALUGADO: "Alugado",
+      LOCADO: "Locado",
+      EM_ANALISE: "Em análise"
+    };
+
+    return labels[normalized] || normalized.replaceAll("_", " ");
+  }
+
   function renderList() {
     return (
       <div style={styles.listPage}>
@@ -1922,7 +1988,15 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                     <td style={styles.tdStrong}>{property.code || "-"}</td>
                     <td style={styles.td}>
                       <div>{property.type || "-"}</div>
-                      <div style={styles.subText}>{property.status || "-"}</div>
+
+                      <span
+                        style={{
+                          ...styles.propertyStatusBadge,
+                          ...getStatusStyle(property.status)
+                        }}
+                      >
+                        {getStatusLabel(property.status)}
+                      </span>
                     </td>
                     <td style={styles.td}>
                       <strong style={styles.priceText}>{formatCurrency(property.price)}</strong>
@@ -3437,6 +3511,22 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
 }
 
 const styles = {
+
+  propertyStatusBadge: {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: "7px",
+    padding: "6px 12px",
+    borderRadius: "999px",
+    fontSize: "12px",
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: "0.4px",
+    lineHeight: 1,
+    whiteSpace: "nowrap"
+  },
+
 
   documentHelpText: { margin: "0 0 18px", color: "#667085", fontSize: "15px", lineHeight: 1.6 },
   documentUploadBox: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px", padding: "20px", borderRadius: "18px", border: "1px dashed #98a2b3", background: "#f8fafc", marginBottom: "18px" },
