@@ -4,16 +4,6 @@ const sharp = require("sharp");
 const fs = require("fs");
 const crypto = require("crypto");
 
-/*
-  PASTAS
-  - uploads: fotos processadas dos imóveis
-  - assets/watermark.png: logo padrão da imobiliária
-
-  IMPORTANTE:
-  Coloque o logo transparente em:
-  backend/src/assets/watermark.png
-*/
-
 const uploadPath =
   process.env.NODE_ENV === "production"
     ? "/opt/render/project/src/uploads"
@@ -28,25 +18,18 @@ if (!fs.existsSync(uploadPath)) {
 }
 
 function sanitizeFilename(filename) {
-  return String(filename || "imagem")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/\.[^/.]+$/, "")
-    .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-+/g, "-")
-    .toLowerCase() || "imagem";
+  return (
+    String(filename || "imagem")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\.[^/.]+$/, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .replace(/-+/g, "-")
+      .toLowerCase() || "imagem"
+  );
 }
 
-/*
-  O Multer salva primeiro um arquivo temporário.
-  Depois o Sharp:
-  1. gira conforme os metadados EXIF;
-  2. redimensiona, se necessário;
-  3. aplica o logo;
-  4. converte para WebP;
-  5. apaga o temporário.
-*/
 const storage = multer.diskStorage({
   destination(req, file, cb) {
     cb(null, uploadPath);
@@ -61,18 +44,20 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowedMimeTypes = new Set([
+  const allowedMimeTypes = [
     "image/jpeg",
     "image/jpg",
     "image/png",
     "image/webp"
-  ]);
+  ];
 
-  if (!allowedMimeTypes.has(file.mimetype)) {
-    return cb(new Error("Envie apenas imagens JPG, PNG ou WEBP."));
+  if (!allowedMimeTypes.includes(file.mimetype)) {
+    return cb(
+      new Error("Envie apenas imagens JPG, PNG ou WEBP.")
+    );
   }
 
-  return cb(null, true);
+  cb(null, true);
 };
 
 const upload = multer({
@@ -84,12 +69,21 @@ const upload = multer({
   }
 });
 
-function getWatermarkPosition() {
-  const position = String(
-    process.env.WATERMARK_POSITION || "southeast"
-  ).toLowerCase();
+function getNumberEnv(name, fallback, min, max) {
+  const value = Number(process.env[name]);
 
-  const allowed = new Set([
+  if (!Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(value, min), max);
+}
+
+function getWatermarkPosition() {
+  const position =
+    process.env.WATERMARK_POSITION || "southeast";
+
+  const allowed = [
     "northwest",
     "north",
     "northeast",
@@ -99,26 +93,21 @@ function getWatermarkPosition() {
     "southwest",
     "south",
     "southeast"
-  ]);
+  ];
 
-  return allowed.has(position) ? position : "southeast";
-}
-
-function getNumberEnv(name, fallback, min, max) {
-  const parsed = Number(process.env[name]);
-
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
-
-  return Math.min(Math.max(parsed, min), max);
+  return allowed.includes(position)
+    ? position
+    : "southeast";
 }
 
 async function createWatermarkBuffer(imageWidth) {
   if (!fs.existsSync(watermarkPath)) {
-    throw new Error(
-      `Logo da marca d'água não encontrado em: ${watermarkPath}`
+    console.warn(
+      "Marca d'água não encontrada:",
+      watermarkPath
     );
+
+    return null;
   }
 
   const widthPercent = getNumberEnv(
@@ -137,40 +126,59 @@ async function createWatermarkBuffer(imageWidth) {
 
   const watermarkWidth = Math.max(
     100,
-    Math.round(imageWidth * (widthPercent / 100))
+    Math.floor(imageWidth * (widthPercent / 100))
   );
 
-  /*
-    Modula apenas o canal alfa do PNG.
-    Por isso o logo deve ser PNG com fundo transparente.
-  */
-  return sharp(watermarkPath)
+  const originalLogo = await sharp(watermarkPath)
     .resize({
       width: watermarkWidth,
       withoutEnlargement: true,
       fit: "inside"
     })
     .ensureAlpha()
-    .linear([1, 1, 1, opacity], [0, 0, 0, 0])
+    .png()
+    .toBuffer();
+
+  const metadata = await sharp(originalLogo).metadata();
+
+  const alpha = await sharp({
+    create: {
+      width: metadata.width,
+      height: metadata.height,
+      channels: 1,
+      background: {
+        r: Math.round(255 * opacity)
+      }
+    }
+  })
+    .png()
+    .toBuffer();
+
+  return sharp(originalLogo)
+    .removeAlpha()
+    .joinChannel(alpha)
     .png()
     .toBuffer();
 }
 
 async function processPropertyImage(file) {
   const temporaryPath = file.path;
-  const outputFilename = temporaryPath.replace(/\.upload$/i, ".webp");
-  const outputPath = path.join(uploadPath, path.basename(outputFilename));
+
+  const finalFilename = `${Date.now()}-${crypto
+    .randomBytes(5)
+    .toString("hex")}.webp`;
+
+  const outputPath = path.join(
+    uploadPath,
+    finalFilename
+  );
 
   try {
-    const image = sharp(temporaryPath, {
-      failOn: "none"
-    }).rotate();
+    const metadata = await sharp(temporaryPath)
+      .rotate()
+      .metadata();
 
-    const metadata = await image.metadata();
-
-    if (!metadata.width || !metadata.height) {
-      throw new Error(`Não foi possível identificar a imagem ${file.originalname}.`);
-    }
+    const width = metadata.width || 1200;
 
     const maxWidth = getNumberEnv(
       "PROPERTY_IMAGE_MAX_WIDTH",
@@ -179,116 +187,125 @@ async function processPropertyImage(file) {
       5000
     );
 
-    const resizedWidth = Math.min(metadata.width, maxWidth);
-    const watermarkBuffer = await createWatermarkBuffer(resizedWidth);
-    const margin = getNumberEnv(
-      "WATERMARK_MARGIN",
-      28,
-      0,
-      300
+    const targetWidth = Math.min(
+      width,
+      maxWidth
     );
 
-    /*
-      A margem é criada dentro de uma camada transparente.
-      Isso permite usar qualquer gravity do Sharp.
-    */
-    const paddedWatermark = await sharp(watermarkBuffer)
-      .extend({
-        top: margin,
-        bottom: margin,
-        left: margin,
-        right: margin,
-        background: {
-          r: 0,
-          g: 0,
-          b: 0,
-          alpha: 0
-        }
-      })
-      .png()
-      .toBuffer();
+    const watermarkBuffer =
+      await createWatermarkBuffer(targetWidth);
 
-    await image
+    let processor = sharp(temporaryPath)
+      .rotate()
       .resize({
         width: maxWidth,
-        withoutEnlargement: true,
-        fit: "inside"
-      })
-      .composite([
+        withoutEnlargement: true
+      });
+
+    if (watermarkBuffer) {
+      processor = processor.composite([
         {
-          input: paddedWatermark,
+          input: watermarkBuffer,
           gravity: getWatermarkPosition()
         }
-      ])
+      ]);
+    }
+
+    await processor
       .webp({
-        quality: 88,
-        effort: 4
+        quality: 88
       })
       .toFile(outputPath);
 
-    await fs.promises.unlink(temporaryPath);
+    if (fs.existsSync(temporaryPath)) {
+      await fs.promises.unlink(temporaryPath);
+    }
 
-    file.filename = path.basename(outputPath);
+    file.filename = finalFilename;
     file.path = outputPath;
     file.destination = uploadPath;
     file.mimetype = "image/webp";
-    file.size = (await fs.promises.stat(outputPath)).size;
+
+    const stats =
+      await fs.promises.stat(outputPath);
+
+    file.size = stats.size;
+
+    console.log(
+      "Imagem processada:",
+      finalFilename
+    );
 
     return file;
   } catch (error) {
-    if (fs.existsSync(temporaryPath)) {
-      await fs.promises.unlink(temporaryPath).catch(() => {});
-    }
-
-    if (fs.existsSync(outputPath)) {
-      await fs.promises.unlink(outputPath).catch(() => {});
-    }
+    console.error(
+      "Erro ao processar imagem:",
+      error
+    );
 
     throw error;
   }
 }
 
-async function removeProcessedFiles(files) {
-  if (!Array.isArray(files)) return;
-
-  await Promise.all(
-    files.map((file) =>
-      fs.promises.unlink(file.path).catch(() => {})
-    )
-  );
-}
-
-function uploadArrayWithWatermark(fieldName, maxCount = 20) {
+function uploadArrayWithWatermark(
+  fieldName,
+  maxCount = 20
+) {
   return (req, res, next) => {
-    upload.array(fieldName, maxCount)(req, res, async (uploadError) => {
-      if (uploadError) {
-        return res.status(400).json({
-          error: "Erro ao enviar as imagens.",
-          details: uploadError.message
-        });
-      }
+    upload.array(fieldName, maxCount)(
+      req,
+      res,
+      async (uploadError) => {
+        if (uploadError) {
+          console.error(
+            "Erro Multer:",
+            uploadError
+          );
 
-      try {
-        if (!req.files?.length) {
-          return next();
+          return res.status(400).json({
+            error: "Erro ao enviar imagens.",
+            details: uploadError.message
+          });
         }
 
-        for (const file of req.files) {
-          await processPropertyImage(file);
+        try {
+          if (!req.files?.length) {
+            return next();
+          }
+
+          console.log(
+            `${req.files.length} imagem(ns) recebida(s).`
+          );
+
+          console.log(
+            "Watermark:",
+            watermarkPath
+          );
+
+          console.log(
+            "Watermark existe:",
+            fs.existsSync(watermarkPath)
+          );
+
+          for (const file of req.files) {
+            await processPropertyImage(file);
+          }
+
+          next();
+        } catch (error) {
+          console.error(
+            "ERRO MARCA D'ÁGUA:",
+            error
+          );
+
+          return res.status(500).json({
+            error:
+              "Erro ao processar imagem do imóvel.",
+            details: error.message
+          });
         }
-
-        return next();
-      } catch (error) {
-        console.error("Erro ao processar marca d'água:", error);
-
-        await removeProcessedFiles(req.files);
-
-        return res.status(500).json({
-          error: "Erro ao processar as imagens do imóvel.",
-          details: error.message
-        });
       }
-    });
+    );
   };
 }
 
