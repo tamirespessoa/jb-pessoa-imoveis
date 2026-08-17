@@ -26,21 +26,20 @@ const allowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "http://localhost:5175",
-
   "https://jb-pessoa-imoveis.vercel.app",
-
   "https://jbpessoaimoveis.com.br",
   "https://www.jbpessoaimoveis.com.br"
 ];
 
+function isAllowedOrigin(origin) {
+  if (!origin) return true;
+  if (allowedOrigins.includes(origin)) return true;
+  return /^https:\/\/jb-pessoa-imoveis(?:-[a-z0-9-]+)?\.vercel\.app$/i.test(origin);
+}
+
 const corsOptions = {
   origin(origin, callback) {
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
-      return callback(null, true);
-    }
-
+    if (isAllowedOrigin(origin)) return callback(null, true);
     console.log("CORS bloqueou a origem:", origin);
     return callback(new Error("Origem não permitida pelo CORS."));
   },
@@ -52,10 +51,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 app.use((req, res, next) => {
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(204);
-  }
-
+  if (req.method === "OPTIONS") return res.sendStatus(204);
   return next();
 });
 
@@ -70,7 +66,6 @@ const uploadDir =
     : path.join(__dirname, "uploads");
 
 console.log("Pasta de uploads:", uploadDir);
-
 app.use("/uploads", express.static(uploadDir));
 
 app.get("/", (req, res) => {
@@ -92,8 +87,7 @@ app.use("/site-visits", siteVisitRoutes);
 
 app.use((err, req, res, next) => {
   console.error("Erro global:", err);
-
-  res.status(500).json({
+  return res.status(500).json({
     error: "Erro interno do servidor.",
     details: err.message
   });
