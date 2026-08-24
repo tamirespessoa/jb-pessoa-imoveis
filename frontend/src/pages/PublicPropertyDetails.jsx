@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import publicApi from "../services/publicApi";
 import SiteLayout from "../components/SiteLayout";
+import logo from "../assets/logo-jb.png";
 import "./SitePropertyDetails.css";
 
 const API_BASE_URL =
@@ -201,7 +202,10 @@ export default function SitePropertyDetails() {
                 <div className="site-property-details-gallery">
                   <div
                     className="site-property-details-main-image-wrap"
-                    style={{ position: "relative" }}
+                    style={{
+                      position: "relative",
+                      overflow: "hidden"
+                    }}
                   >
                     <img
                       src={selectedImage}
@@ -210,29 +214,22 @@ export default function SitePropertyDetails() {
                     />
 
                     <img
-                      src="/logo-jb.png"
-                      alt=""
+                      src={logo}
+                      alt="JB Pessoa Imóveis"
                       aria-hidden="true"
                       draggable="false"
                       style={{
                         position: "absolute",
                         right: "24px",
                         bottom: "24px",
-                        width: "clamp(110px, 20%, 210px)",
-                        height: "auto",
-                        opacity: 0.42,
-                        zIndex: 10,
+                        zIndex: 999,
+                        width: "clamp(120px, 22%, 230px)",
+                        maxHeight: "35%",
+                        objectFit: "contain",
+                        opacity: 0.5,
                         pointerEvents: "none",
                         userSelect: "none",
-                        objectFit: "contain",
-                        filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.28))"
-                      }}
-                      onError={(e) => {
-                        console.error(
-                          "Não foi possível carregar /logo-jb.png",
-                          e.currentTarget.src
-                        );
-                        e.currentTarget.style.display = "none";
+                        filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.35))"
                       }}
                     />
                   </div>
