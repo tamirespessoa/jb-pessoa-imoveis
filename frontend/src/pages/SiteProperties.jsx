@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import publicApi from "../services/publicApi";
 import SiteLayout from "../components/SiteLayout";
 import "./SiteProperties.css";
+import SiteWatermark from "./components/site/SiteWatermark";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3001";
@@ -395,7 +396,7 @@ export default function SiteProperties() {
                           to={`/site/imoveis/${property.id}`}
                           className="site-properties-image-link"
                         >
-                          <div className="site-properties-image-wrap">
+                          <div className="site-properties-image-wrap" style={{ position: "relative" }}>
                             <img
                               src={image}
                               alt={property.title || "Imóvel"}
@@ -405,6 +406,8 @@ export default function SiteProperties() {
                                   "https://via.placeholder.com/800x500?text=Sem+Imagem";
                               }}
                             />
+
+                            <SiteWatermark size="22%" opacity={0.34} />
 
                             <div className="site-properties-card-badge">
                               {formatBusinessType(property.type)}

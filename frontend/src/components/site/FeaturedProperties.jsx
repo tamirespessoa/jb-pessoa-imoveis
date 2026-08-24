@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import publicApi from "../../services/publicApi";
 import "./FeaturedProperties.css";
+import SiteWatermark from "./SiteWatermark";
 
 function formatCurrency(value) {
   const number = Number(value || 0);
@@ -121,23 +122,14 @@ export default function FeaturedProperties() {
   }, []);
 
   const featuredProperties = useMemo(() => {
-  const highlighted = properties.filter(
-    (property) =>
-      property.featured ||
-      property.siteHighlight ||
-      property.highlightOnPortals
-  );
+    const highlighted = properties.filter((property) => property.featured);
 
-  if (highlighted.length >= 6) {
-    return highlighted.slice(0, 6);
-  }
+    if (highlighted.length > 0) {
+      return highlighted.slice(0, 3);
+    }
 
-  const remaining = properties.filter(
-    (property) => !highlighted.some((item) => item.id === property.id)
-  );
-
-  return [...highlighted, ...remaining].slice(0, 6);
-}, [properties]);
+    return properties.slice(0, 3);
+  }, [properties]);
 
   return (
     <section className="featured-properties-section">
@@ -170,7 +162,7 @@ export default function FeaturedProperties() {
           <div className="featured-properties-grid">
             {featuredProperties.map((property) => (
               <article className="featured-property-card" key={property.id}>
-                <div className="featured-property-image-wrap">
+                <div className="featured-property-image-wrap" style={{ position: "relative" }}>
                   <img
                     src={getMainImage(property)}
                     alt={property.title}
@@ -180,6 +172,8 @@ export default function FeaturedProperties() {
                         "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80";
                     }}
                   />
+
+                  <SiteWatermark size="24%" opacity={0.34} />
 
                   <span className="featured-property-badge">
                     {getTypeLabel(property)}
