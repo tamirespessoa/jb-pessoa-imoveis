@@ -199,11 +199,41 @@ export default function SitePropertyDetails() {
             <div className="site-property-details-grid">
               <div className="site-property-details-main">
                 <div className="site-property-details-gallery">
-                  <div className="site-property-details-main-image-wrap">
+                  <div
+                    className="site-property-details-main-image-wrap"
+                    style={{ position: "relative" }}
+                  >
                     <img
                       src={selectedImage}
                       alt={property.title}
                       className="site-property-details-main-image"
+                    />
+
+                    <img
+                      src="/logo-jb.png"
+                      alt=""
+                      aria-hidden="true"
+                      draggable="false"
+                      style={{
+                        position: "absolute",
+                        right: "24px",
+                        bottom: "24px",
+                        width: "clamp(110px, 20%, 210px)",
+                        height: "auto",
+                        opacity: 0.42,
+                        zIndex: 10,
+                        pointerEvents: "none",
+                        userSelect: "none",
+                        objectFit: "contain",
+                        filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.28))"
+                      }}
+                      onError={(e) => {
+                        console.error(
+                          "Não foi possível carregar /logo-jb.png",
+                          e.currentTarget.src
+                        );
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   </div>
 
