@@ -1,4 +1,4 @@
-import SiteWatermark from "./components/site/SiteWatermark";
+import SiteWatermark from "../components/SiteWatermark";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import publicApi from "../services/publicApi";
