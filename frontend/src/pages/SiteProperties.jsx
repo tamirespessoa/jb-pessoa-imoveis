@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import publicApi from "../services/publicApi";
 import SiteLayout from "../components/SiteLayout";
 import "./SiteProperties.css";
-import SiteWatermark from "./components/site/SiteWatermark";
+import SiteWatermark from "../components/SiteWatermark";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "http://localhost:3001";
