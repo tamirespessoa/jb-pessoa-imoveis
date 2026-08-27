@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Bath, BedDouble, CarFront, MapPin, MoveUpRight, Ruler } from "lucide-react";
 import publicApi from "../../services/publicApi";
-import SiteWatermark from "./SiteWatermark";
+import SiteWatermark from "../SiteWatermark";
 import "./FeaturedProperties.css";
 
 function formatCurrency(value) {
@@ -133,7 +133,7 @@ export default function FeaturedProperties() {
       <div className="modern-properties-grid">
         {featuredProperties.map((property) => (
           <article className="modern-property-card" key={property.id}>
-            <Link to={`/site/imoveis/${property.id}`} className="modern-property-image-wrap">
+            <Link to={`/site/imoveis/${property.id}`} className="modern-property-image-wrap" style={{ position: "relative", overflow: "hidden" }}>
               <img
                 src={getMainImage(property)}
                 alt={property.title || "Imóvel"}
@@ -144,7 +144,7 @@ export default function FeaturedProperties() {
                 }}
               />
 
-              <SiteWatermark />
+              <SiteWatermark size="30%" opacity={0.30} />
 
               <span className="modern-property-type">{getTypeLabel(property)}</span>
               {(property.featured || property.siteHighlight) && (

@@ -396,7 +396,7 @@ export default function SiteProperties() {
                           to={`/site/imoveis/${property.id}`}
                           className="site-properties-image-link"
                         >
-                          <div className="site-properties-image-wrap" style={{ position: "relative" }}>
+                          <div className="site-properties-image-wrap" style={{ position: "relative", overflow: "hidden" }}>
                             <img
                               src={image}
                               alt={property.title || "Imóvel"}
@@ -407,7 +407,7 @@ export default function SiteProperties() {
                               }}
                             />
 
-                            <SiteWatermark size="22%" opacity={0.34} />
+                            <SiteWatermark size="30%" opacity={0.30} />
 
                             <div className="site-properties-card-badge">
                               {formatBusinessType(property.type)}

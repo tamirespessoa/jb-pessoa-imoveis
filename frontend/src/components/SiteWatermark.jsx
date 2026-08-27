@@ -1,41 +1,30 @@
-import logo from "../assets/logo-jb.png";
+import watermarkLogo from "../assets/logo-jb-watermark.png";
 
 export default function SiteWatermark({
-  size = "24%",
-  opacity = 0.38,
-  center = false,
+  size = "30%",
+  opacity = 0.30,
 }) {
   return (
     <img
-      src={logo}
+      src={watermarkLogo}
       alt=""
       aria-hidden="true"
       draggable="false"
       style={{
         position: "absolute",
-
-        ...(center
-          ? {
-              left: "50%",
-              top: "50%",
-              transform: "translate(-50%, -50%)",
-            }
-          : {
-              right: "18px",
-              bottom: "18px",
-            }),
-
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
         zIndex: 20,
         width: size,
-        minWidth: "80px",
-        maxWidth: "220px",
-        maxHeight: "40%",
+        minWidth: "100px",
+        maxWidth: "260px",
+        maxHeight: "46%",
         height: "auto",
         objectFit: "contain",
-        opacity: opacity,
+        opacity,
         pointerEvents: "none",
         userSelect: "none",
-        filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.28))",
       }}
     />
   );

@@ -289,7 +289,7 @@ export default function SitePropertyDetails() {
           <div className="property-details-container property-details-grid">
             <div>
               <div className="property-details-gallery">
-                <div className="property-details-main-image">
+                <div className="property-details-main-image" style={{ position: "relative", overflow: "hidden" }}>
                   <img
                     src={selectedImage || images[0]}
                     alt={property.title || "Imóvel"}
@@ -298,6 +298,7 @@ export default function SitePropertyDetails() {
                         "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=1200&q=80";
                     }}
                   />
+                  <SiteWatermark size="30%" opacity={0.30} />
                 </div>
 
                 {images.length > 1 && (
