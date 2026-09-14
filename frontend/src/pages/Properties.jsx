@@ -1406,20 +1406,44 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
     if (!item) return;
 
     try {
-      const url = item.url;
-      const link = document.createElement("a");
+      // Foto nova que ainda não foi salva no servidor
+      if (item.kind === "new") {
+        const blobUrl = window.URL.createObjectURL(item.value);
+        const link = document.createElement("a");
 
-      link.href = url;
-      link.download =
-        item.kind === "new"
-          ? item.value.name || `${item.label}.jpg`
-          : `${selectedProperty?.code || "imovel"}-${item.label}.jpg`;
+        link.href = blobUrl;
+        link.download = item.value.name || `${item.label}.jpg`;
 
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        window.URL.revokeObjectURL(blobUrl);
+        return;
+      }
+
+      // Foto já salva no servidor: usa a rota de download do backend
+      const imageUrl = getImageUrl(item.value);
+      const parsedUrl = new URL(imageUrl);
+      const filename = decodeURIComponent(parsedUrl.pathname.split("/").pop());
+
+      if (!filename) {
+        throw new Error("Nome do arquivo da imagem não encontrado.");
+      }
+
+      const cleanBaseUrl = String(
+        apiBaseUrl || "http://localhost:3001"
+      ).replace(/\/$/, "");
+
+      const downloadUrl =
+        `${cleanBaseUrl}/api/download/${encodeURIComponent(filename)}`;
+
+      console.log("Baixando foto:", downloadUrl);
+
+      // A rota do backend responde com Content-Disposition: attachment
+      window.location.href = downloadUrl;
     } catch (error) {
-      console.error(error);
+      console.error("Erro ao baixar foto:", error);
       alert("Não foi possível baixar esta foto.");
     }
   }
