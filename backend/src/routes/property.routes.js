@@ -8,6 +8,7 @@ const {
   createProperty,
   listProperties,
   getPropertyById,
+  downloadPropertyImagesZip,
   updateProperty,
   deleteProperty,
   listPublicProperties,
@@ -27,6 +28,7 @@ router.post(
 );
 
 router.get("/", authMiddleware, listProperties);
+router.get("/:id/images.zip", authMiddleware, downloadPropertyImagesZip);
 router.get("/:id", authMiddleware, getPropertyById);
 
 router.put(

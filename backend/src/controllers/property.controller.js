@@ -1,4 +1,6 @@
 const prisma = require("../config/prisma");
+const path = require("path");
+const { writeZipResponse, resolveUploadImage } = require("../utils/zipImages");
 
 function parseImages(images) {
   if (!images) return [];
@@ -571,6 +573,82 @@ async function getPropertyById(req, res) {
   }
 }
 
+
+async function downloadPropertyImagesZip(req, res) {
+  try {
+    const { id } = req.params;
+
+    const property = await prisma.property.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        code: true,
+        title: true,
+        images: true
+      }
+    });
+
+    if (!property) {
+      return res.status(404).json({ error: "Imóvel não encontrado." });
+    }
+
+    const images = parseImages(property.images);
+    if (images.length === 0) {
+      return res.status(404).json({ error: "Este imóvel não possui fotos." });
+    }
+
+    const uploadDir =
+      process.env.NODE_ENV === "production"
+        ? "/opt/render/project/src/uploads"
+        : path.join(__dirname, "../../uploads");
+
+    const files = images
+      .map((image, index) => {
+        const absolutePath = resolveUploadImage(image, uploadDir);
+        if (!absolutePath) return null;
+
+        const extension = path.extname(absolutePath).toLowerCase() || ".jpg";
+        return {
+          absolutePath,
+          zipName: `${String(index + 1).padStart(2, "0")}${extension}`
+        };
+      })
+      .filter(Boolean);
+
+    if (files.length === 0) {
+      return res.status(404).json({
+        error: "As fotos deste imóvel não foram encontradas no servidor."
+      });
+    }
+
+    const baseName = String(property.code || property.title || `imovel-${property.id}`)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-zA-Z0-9_-]+/g, "-")
+      .replace(/^-+|-+$/g, "") || `imovel-${property.id}`;
+
+    res.status(200);
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${baseName}-fotos.zip"`
+    );
+    res.setHeader("Cache-Control", "private, no-store");
+
+    await writeZipResponse(res, files);
+  } catch (error) {
+    console.error("Erro ao gerar ZIP das fotos do imóvel:", error);
+
+    if (!res.headersSent) {
+      return res.status(500).json({
+        error: "Erro ao preparar o download das fotos."
+      });
+    }
+
+    res.end();
+  }
+}
+
 async function updateProperty(req, res) {
   try {
     const { id } = req.params;
@@ -1138,6 +1216,7 @@ module.exports = {
   createProperty,
   listProperties,
   getPropertyById,
+  downloadPropertyImagesZip,
   updateProperty,
   deleteProperty,
   listPublicProperties,

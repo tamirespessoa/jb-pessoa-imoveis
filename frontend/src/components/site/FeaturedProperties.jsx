@@ -133,7 +133,7 @@ export default function FeaturedProperties() {
       <div className="modern-properties-grid">
         {featuredProperties.map((property) => (
           <article className="modern-property-card" key={property.id}>
-            <Link to={`/site/imoveis/${property.id}`} className="modern-property-image-wrap" style={{ position: "relative", overflow: "hidden" }}>
+            <Link to={`/site/imoveis/${property.id}`} className="modern-property-image-wrap">
               <img
                 src={getMainImage(property)}
                 alt={property.title || "Imóvel"}
@@ -144,7 +144,7 @@ export default function FeaturedProperties() {
                 }}
               />
 
-              <SiteWatermark size="30%" opacity={0.30} />
+              <SiteWatermark />
 
               <span className="modern-property-type">{getTypeLabel(property)}</span>
               {(property.featured || property.siteHighlight) && (
