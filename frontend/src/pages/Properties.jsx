@@ -1779,8 +1779,8 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
                     <button
                       type="button"
                       style={styles.photoFooterIcon}
-                      onClick={() => handleDownloadPhoto(item)}
-                      title="Baixar foto"
+                      onClick={handleDownloadAllPhotos}
+                      title="Baixar todas as fotos em ZIP"
                     >
                       ⬇
                     </button>
