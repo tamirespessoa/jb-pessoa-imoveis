@@ -1424,6 +1424,43 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
     }
   }
 
+  async function handleDownloadAllPhotos() {
+    if (!editingId) {
+      alert("Salve o imóvel antes de baixar as fotos.");
+      return;
+    }
+
+    try {
+      const response = await api.get(`/properties/${editingId}/images.zip`, {
+        responseType: "blob"
+      });
+
+      const contentDisposition = response.headers?.["content-disposition"] || "";
+      const utf8Name = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+      const simpleName = contentDisposition.match(/filename="?([^";]+)"?/i);
+      const fallbackName = `${selectedProperty?.code || "imovel"}-fotos.zip`;
+      const fileName = decodeURIComponent(utf8Name?.[1] || simpleName?.[1] || fallbackName);
+
+      const blobUrl = window.URL.createObjectURL(
+        new Blob([response.data], { type: "application/zip" })
+      );
+      const link = document.createElement("a");
+
+      link.href = blobUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (error) {
+      console.error(error);
+      const message = error.response?.status === 404
+        ? "Este imóvel não possui fotos salvas para baixar."
+        : "Não foi possível baixar todas as fotos do imóvel.";
+      alert(message);
+    }
+  }
+
   async function handleRefreshPhotos() {
     if (editingId) {
       await loadProperties(editingId);
@@ -1656,10 +1693,8 @@ Pagamento IPTU: ${selectedProperty.iptuPayment || "-"}
             <button
               type="button"
               style={styles.photoTopIconButton}
-              onClick={() => {
-                if (photoItems[0]) handleDownloadPhoto(photoItems[0]);
-              }}
-              title="Baixar foto principal"
+              onClick={handleDownloadAllPhotos}
+              title="Baixar todas as fotos (.zip)"
             >
               ⬇
             </button>
