@@ -20,6 +20,7 @@ const leadRoutes = require("./src/routes/lead.routes");
 const chatRoutes = require("./src/routes/chat.routes");
 const portalRoutes = require("./src/routes/portal.routes");
 const siteVisitRoutes = require("./src/routes/siteVisit.routes");
+const trafficRoutes = require("./src/routes/traffic.routes");
 
 const app = express();
 const server = http.createServer(app);
@@ -282,6 +283,11 @@ app.use(
 app.use(
   "/site-visits",
   siteVisitRoutes
+);
+
+app.use(
+  "/traffic",
+  trafficRoutes
 );
 
 /* =========================================================

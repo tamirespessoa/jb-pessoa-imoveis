@@ -11,6 +11,7 @@ function Sidebar({ open = true }) {
     crm: true,
     imoveis: true,
     operacao: true,
+    marketing: true,
     administracao: true,
     configuracoes: false
   });
@@ -156,6 +157,32 @@ function Sidebar({ open = true }) {
               />
             </MenuGroup>
 
+            {["ADMIN", "GERENTE"].includes(user.role) && (
+              <>
+                <SectionTitle title="Marketing" />
+
+                <MenuGroup
+                  icon="📣"
+                  label="Tráfego e campanhas"
+                  open={openGroups.marketing}
+                  onToggle={() => toggleGroup("marketing")}
+                >
+                  <MenuLink
+                    to="/trafego"
+                    label="Central de Tráfego"
+                    active={isActive("/trafego")}
+                    icon="📊"
+                  />
+                  <MenuLink
+                    to="/campanhas"
+                    label="Campanhas"
+                    active={isActive("/campanhas")}
+                    icon="📣"
+                  />
+                </MenuGroup>
+              </>
+            )}
+
             <SectionTitle title="Operação" />
 
             <MenuGroup
@@ -178,7 +205,7 @@ function Sidebar({ open = true }) {
               />
               <MenuLink
                 to="/leads"
-                label="Leads e WhatsApp"
+                label="Central de Leads"
                 active={isActive("/leads")}
                 icon="💬"
               />

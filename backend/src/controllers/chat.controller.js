@@ -78,7 +78,17 @@ async function getNextBrokerByRotation() {
 
 async function createConversation(req, res) {
   try {
-    const { name, phone, email, message } = req.body;
+    const {
+      name,
+      phone,
+      email,
+      message,
+      propertyId,
+      campaignId,
+      campaignName,
+      source,
+      sourceDetail
+    } = req.body;
 
     if (!name || !message) {
       return res.status(400).json({
@@ -94,30 +104,54 @@ async function createConversation(req, res) {
       });
     }
 
-    const conversation = await prisma.conversation.create({
-      data: {
-        visitorName: name,
-        visitorPhone: phone || null,
-        visitorEmail: email || null,
-        assignedToId: broker.id,
-        messages: {
-          create: {
-            senderType: "CLIENTE",
-            senderName: name,
-            text: message
-          }
+    const result = await prisma.$transaction(async (tx) => {
+      const lead = await tx.lead.create({
+        data: {
+          name: name.trim(),
+          phone: phone?.trim() || null,
+          email: email?.trim() || null,
+          message: message.trim(),
+          source: source || "SITE_CHAT",
+          sourceDetail: sourceDetail || "Corretor Online",
+          status: "NOVO",
+          assignedToId: broker.id,
+          propertyId: propertyId || null,
+          campaignId: campaignId || null,
+          campaignName: campaignName || null
         }
-      },
-      include: {
-        messages: true,
-        assignedTo: true
-      }
+      });
+
+      const conversation = await tx.conversation.create({
+        data: {
+          visitorName: name.trim(),
+          visitorPhone: phone?.trim() || null,
+          visitorEmail: email?.trim() || null,
+          leadId: lead.id,
+          assignedToId: broker.id,
+          messages: {
+            create: {
+              sender: "CLIENTE",
+              senderType: "CLIENTE",
+              senderName: name.trim(),
+              text: message.trim()
+            }
+          }
+        },
+        include: {
+          messages: true,
+          assignedTo: true,
+          lead: true
+        }
+      });
+
+      return { lead, conversation };
     });
 
     const io = getIO();
-    io.emit("newConversation", conversation);
+    io.emit("newConversation", result.conversation);
+    io.emit("newLead", result.lead);
 
-    return res.status(201).json(conversation);
+    return res.status(201).json(result.conversation);
   } catch (err) {
     console.error("Erro ao criar chat:", err);
     return res.status(500).json({
@@ -133,7 +167,8 @@ async function getMyConversations(req, res) {
         assignedToId: req.user.id
       },
       include: {
-        messages: true
+        messages: true,
+        lead: true
       },
       orderBy: {
         createdAt: "desc"
@@ -154,7 +189,7 @@ async function sendMessage(req, res) {
     const { id } = req.params;
     const { text } = req.body;
 
-    if (!text) {
+    if (!text?.trim()) {
       return res.status(400).json({
         error: "Texto é obrigatório."
       });
@@ -170,12 +205,15 @@ async function sendMessage(req, res) {
       });
     }
 
+    const senderType = req.user.role === "ADMIN" ? "ADMIN" : "CORRETOR";
+
     const message = await prisma.message.create({
       data: {
         conversationId: id,
-        senderType: req.user.role === "ADMIN" ? "ADMIN" : "CORRETOR",
+        sender: senderType,
+        senderType,
         senderName: req.user.name,
-        text
+        text: text.trim()
       }
     });
 

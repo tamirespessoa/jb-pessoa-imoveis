@@ -27,9 +27,29 @@ enum PropertyStatus {
 
 enum LeadStatus {
   NOVO
+  CONTATO_REALIZADO
   EM_ATENDIMENTO
+  QUALIFICADO
+  SIMULACAO
+  VISITA_AGENDADA
+  VISITA_REALIZADA
+  PROPOSTA
+  DOCUMENTACAO
+  ATENDIDO
   CONVERTIDO
+  SEM_RESPOSTA
+  SEM_RENDA
+  SEM_ENTRADA
+  NAO_INTERESSADO
+  INVALIDO
+  DESCARTADO
   PERDIDO
+}
+
+enum LeadTemperature {
+  FRIO
+  MORNO
+  QUENTE
 }
 
 enum ConversationStatus {
@@ -211,6 +231,8 @@ model Property {
   proposals          Proposal[]
   medias             PropertyMedia[]
   portalPublications PropertyPortalPublication[]
+  leads              Lead[]
+  marketingCampaigns MarketingCampaign[]
 
   @@index([status])
   @@index([type])
@@ -326,40 +348,99 @@ model Lead {
   phone     String?
   message   String?
   source    String?
+  sourceDetail String?
   status    LeadStatus @default(NOVO)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  temperature LeadTemperature @default(FRIO)
+
+  // Qualificação financeira
+  monthlyIncome      Float?
+  familyIncome       Float?
+  downPayment        Float?
+  hasFgts            Boolean?
+  fgtsValue          Float?
+  needsFinancing     Boolean?
+  financingApproved  Boolean?
+
+  // Interesse do cliente
+  desiredRegion String?
+  desiredCity   String?
+  purchaseTime  String?
+  notes         String?
+  lossReason    String?
+
+  // Rastreamento de campanhas
+  campaignId    String?
+  campaignName  String?
+  adSetId       String?
+  adSetName     String?
+  adId          String?
+  adName        String?
+
+  metaLeadId     String?
+  metaCampaignId String?
+  metaAdSetId    String?
+  metaAdId       String?
+
+  utmSource   String?
+  utmMedium   String?
+  utmCampaign String?
+  utmContent  String?
+  utmTerm     String?
+
+  // Datas importantes do funil
+  firstContactAt DateTime?
+  qualifiedAt    DateTime?
+  visitAt        DateTime?
+  proposalAt     DateTime?
+  convertedAt    DateTime?
+  lostAt         DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   assignedToId String?
   assignedTo   User?   @relation("LeadAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
 
   conversations Conversation[]
 
   @@index([status])
   @@index([source])
+  @@index([temperature])
   @@index([assignedToId])
+  @@index([propertyId])
+  @@index([campaignId])
+  @@index([metaCampaignId])
+  @@index([createdAt])
   @@map("leads")
 }
 
 model LeadDistribution {
-  id         String   @id @default(cuid())
-  brokerId   String?
-  brokerName String?
-  active     Boolean  @default(true)
-  position   Int      @default(0)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  brokerId           String?
+  brokerName         String?
+  lastAssignedUserId String?
+  active             Boolean  @default(true)
+  position           Int      @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@index([active])
   @@index([position])
+  @@index([lastAssignedUserId])
   @@map("lead_distribution")
 }
 
 model Conversation {
-  id        String             @id @default(cuid())
-  status    ConversationStatus @default(ABERTA)
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  id           String             @id @default(cuid())
+  visitorName  String?
+  visitorPhone String?
+  visitorEmail String?
+  status       ConversationStatus @default(ABERTA)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   leadId String?
   lead   Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
@@ -376,10 +457,12 @@ model Conversation {
 }
 
 model Message {
-  id        String   @id @default(cuid())
-  text      String
-  sender    String
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  text       String
+  sender     String
+  senderType String?
+  senderName String?
+  createdAt  DateTime @default(now())
 
   conversationId String
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -508,4 +591,32 @@ model SiteVisit {
   @@index([source])
   @@index([createdAt])
   @@map("site_visits")
+}
+
+model MarketingCampaign {
+  id                  String   @id @default(cuid())
+  name                String
+  platform            String   @default("META_ADS")
+  objective           String?
+  status              String   @default("RASCUNHO")
+  budget              Float?   @default(0)
+  spent               Float    @default(0)
+  revenueGenerated    Float    @default(0)
+  commissionGenerated Float    @default(0)
+  startDate           DateTime?
+  endDate             DateTime?
+  notes               String?
+  externalCampaignId  String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  propertyId String?
+  property   Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+
+  @@index([platform])
+  @@index([status])
+  @@index([propertyId])
+  @@index([startDate])
+  @@index([createdAt])
+  @@map("marketing_campaigns")
 }

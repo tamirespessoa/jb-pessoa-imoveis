@@ -1,0 +1,2 @@
+-- Migration histórica recuperada apenas para reconciliar o histórico do Prisma.
+-- A estrutura correspondente já existe no banco de dados.

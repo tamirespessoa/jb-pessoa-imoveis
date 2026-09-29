@@ -189,7 +189,10 @@ export default function SitePropertyDetails() {
         message:
           leadForm.message.trim() ||
           `Tenho interesse no imóvel ${property?.code || property?.title || id}.`,
-        propertyId: property?.id || id
+        propertyId: property?.id || id,
+        source: "SITE_IMOVEL",
+        sourceDetail: property?.code || property?.title || id,
+        needsFinancing: property?.financed ?? null
       });
 
       setLeadStatus("Contato enviado com sucesso. Um corretor falará com você em breve.");

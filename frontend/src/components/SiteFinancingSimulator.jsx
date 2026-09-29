@@ -161,7 +161,19 @@ export default function SiteFinancingSimulator() {
         name: form.name,
         phone: form.phone,
         email: form.email || null,
-        message
+        message,
+        source: "SIMULADOR_FINANCIAMENTO",
+        sourceDetail: "Simulador do site",
+        desiredCity: form.city || null,
+        monthlyIncome: form.monthlyIncome || null,
+        downPayment: form.downPayment || null,
+        needsFinancing: true,
+        temperature:
+          bankAnalysis.status?.includes("Boa chance")
+            ? "QUENTE"
+            : bankAnalysis.status?.includes("Atenção")
+              ? "MORNO"
+              : "FRIO"
       });
 
       console.log("Lead criado com sucesso:", response.data);

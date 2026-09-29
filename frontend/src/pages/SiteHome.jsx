@@ -83,7 +83,9 @@ export default function SiteHome() {
         email: leadForm.email.trim() || null,
         message:
           leadForm.message.trim() ||
-          "Lead enviado pelo formulário da página inicial."
+          "Lead enviado pelo formulário da página inicial.",
+        source: "SITE_HOME",
+        sourceDetail: "Formulário da página inicial"
       });
 
       setLeadStatus("Contato enviado. Nossa equipe falará com você em breve.");

@@ -1,0 +1,99 @@
+-- Expansão segura do CRM de leads para funil comercial e rastreamento de marketing.
+-- Migration aditiva: não remove colunas nem dados existentes.
+
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'CONTATO_REALIZADO';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'QUALIFICADO';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'SIMULACAO';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'VISITA_AGENDADA';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'VISITA_REALIZADA';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'PROPOSTA';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'DOCUMENTACAO';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'ATENDIDO';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'SEM_RESPOSTA';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'SEM_RENDA';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'SEM_ENTRADA';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'NAO_INTERESSADO';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'INVALIDO';
+ALTER TYPE "LeadStatus" ADD VALUE IF NOT EXISTS 'DESCARTADO';
+
+DO $$
+BEGIN
+  CREATE TYPE "LeadTemperature" AS ENUM ('FRIO', 'MORNO', 'QUENTE');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
+
+ALTER TABLE "leads"
+  ADD COLUMN IF NOT EXISTS "sourceDetail" TEXT,
+  ADD COLUMN IF NOT EXISTS "temperature" "LeadTemperature" NOT NULL DEFAULT 'FRIO',
+  ADD COLUMN IF NOT EXISTS "monthlyIncome" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "familyIncome" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "downPayment" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "hasFgts" BOOLEAN,
+  ADD COLUMN IF NOT EXISTS "fgtsValue" DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS "needsFinancing" BOOLEAN,
+  ADD COLUMN IF NOT EXISTS "financingApproved" BOOLEAN,
+  ADD COLUMN IF NOT EXISTS "desiredRegion" TEXT,
+  ADD COLUMN IF NOT EXISTS "desiredCity" TEXT,
+  ADD COLUMN IF NOT EXISTS "purchaseTime" TEXT,
+  ADD COLUMN IF NOT EXISTS "notes" TEXT,
+  ADD COLUMN IF NOT EXISTS "lossReason" TEXT,
+  ADD COLUMN IF NOT EXISTS "campaignId" TEXT,
+  ADD COLUMN IF NOT EXISTS "campaignName" TEXT,
+  ADD COLUMN IF NOT EXISTS "adSetId" TEXT,
+  ADD COLUMN IF NOT EXISTS "adSetName" TEXT,
+  ADD COLUMN IF NOT EXISTS "adId" TEXT,
+  ADD COLUMN IF NOT EXISTS "adName" TEXT,
+  ADD COLUMN IF NOT EXISTS "metaLeadId" TEXT,
+  ADD COLUMN IF NOT EXISTS "metaCampaignId" TEXT,
+  ADD COLUMN IF NOT EXISTS "metaAdSetId" TEXT,
+  ADD COLUMN IF NOT EXISTS "metaAdId" TEXT,
+  ADD COLUMN IF NOT EXISTS "utmSource" TEXT,
+  ADD COLUMN IF NOT EXISTS "utmMedium" TEXT,
+  ADD COLUMN IF NOT EXISTS "utmCampaign" TEXT,
+  ADD COLUMN IF NOT EXISTS "utmContent" TEXT,
+  ADD COLUMN IF NOT EXISTS "utmTerm" TEXT,
+  ADD COLUMN IF NOT EXISTS "firstContactAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "qualifiedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "visitAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "proposalAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "convertedAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "lostAt" TIMESTAMP(3),
+  ADD COLUMN IF NOT EXISTS "propertyId" TEXT;
+
+ALTER TABLE "lead_distribution"
+  ADD COLUMN IF NOT EXISTS "lastAssignedUserId" TEXT;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_constraint
+    WHERE conname = 'leads_propertyId_fkey'
+  ) THEN
+    ALTER TABLE "leads"
+      ADD CONSTRAINT "leads_propertyId_fkey"
+      FOREIGN KEY ("propertyId")
+      REFERENCES "properties"("id")
+      ON DELETE SET NULL
+      ON UPDATE CASCADE;
+  END IF;
+END $$;
+
+CREATE INDEX IF NOT EXISTS "leads_temperature_idx"
+  ON "leads"("temperature");
+
+CREATE INDEX IF NOT EXISTS "leads_propertyId_idx"
+  ON "leads"("propertyId");
+
+CREATE INDEX IF NOT EXISTS "leads_campaignId_idx"
+  ON "leads"("campaignId");
+
+CREATE INDEX IF NOT EXISTS "leads_metaCampaignId_idx"
+  ON "leads"("metaCampaignId");
+
+CREATE INDEX IF NOT EXISTS "leads_createdAt_idx"
+  ON "leads"("createdAt");
+
+CREATE INDEX IF NOT EXISTS "lead_distribution_lastAssignedUserId_idx"
+  ON "lead_distribution"("lastAssignedUserId");

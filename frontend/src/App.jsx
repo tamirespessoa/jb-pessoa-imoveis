@@ -22,6 +22,8 @@ import Chat from "./pages/Chat";
 import DadosEmpresa from "./pages/DadosEmpresa";
 import Financiamentos from "./pages/Financiamentos";
 import Portals from "./pages/Portals";
+import TrafficDashboard from "./pages/TrafficDashboard";
+import Campaigns from "./pages/Campaigns";
 
 // SITE PÚBLICO
 import SiteHome from "./pages/SiteHome";
@@ -97,6 +99,8 @@ function AppRoutes({ logged, setLogged }) {
         <Route path="/dados-empresa" element={<DadosEmpresa />} />
         <Route path="/financiamentos" element={<Financiamentos />} />
         <Route path="/portais" element={<Portals />} />
+        <Route path="/trafego" element={<TrafficDashboard />} />
+        <Route path="/campanhas" element={<Campaigns />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/site" replace />} />
