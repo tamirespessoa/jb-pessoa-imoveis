@@ -30,7 +30,34 @@ async function getAvailableBrokers() {
 
 async function createLeadWithRotation(req, res) {
   try {
-    const { name, phone, email, message, propertyId } = req.body;
+    const {
+      name,
+      phone,
+      email,
+      message,
+      propertyId,
+      source,
+      sourceDetail,
+      campaignId,
+      campaignName,
+      temperature,
+      monthlyIncome,
+      familyIncome,
+      downPayment,
+      hasFgts,
+      fgtsValue,
+      needsFinancing,
+      financingApproved,
+      desiredRegion,
+      desiredCity,
+      purchaseTime,
+      notes,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmContent,
+      utmTerm
+    } = req.body;
 
     if (!name || !phone) {
       return res.status(400).json({
@@ -40,16 +67,72 @@ async function createLeadWithRotation(req, res) {
 
     const onlineBrokers = await getAvailableBrokers();
 
+    const leadData = {
+      name: String(name).trim(),
+      phone: String(phone).trim(),
+      email: email ? String(email).trim() : null,
+      message: message ? String(message).trim() : null,
+      propertyId: propertyId || null,
+      source: source || null,
+      sourceDetail: sourceDetail || null,
+      campaignId: campaignId || null,
+      campaignName: campaignName || null,
+      temperature: temperature || "FRIO",
+      monthlyIncome:
+        monthlyIncome !== undefined && monthlyIncome !== null
+          ? Number(monthlyIncome)
+          : null,
+      familyIncome:
+        familyIncome !== undefined && familyIncome !== null
+          ? Number(familyIncome)
+          : null,
+      downPayment:
+        downPayment !== undefined && downPayment !== null
+          ? Number(downPayment)
+          : null,
+      hasFgts:
+        typeof hasFgts === "boolean"
+          ? hasFgts
+          : hasFgts === "true"
+          ? true
+          : hasFgts === "false"
+          ? false
+          : null,
+      fgtsValue:
+        fgtsValue !== undefined && fgtsValue !== null
+          ? Number(fgtsValue)
+          : null,
+      needsFinancing:
+        typeof needsFinancing === "boolean"
+          ? needsFinancing
+          : needsFinancing === "true"
+          ? true
+          : needsFinancing === "false"
+          ? false
+          : null,
+      financingApproved:
+        typeof financingApproved === "boolean"
+          ? financingApproved
+          : financingApproved === "true"
+          ? true
+          : financingApproved === "false"
+          ? false
+          : null,
+      desiredRegion: desiredRegion || null,
+      desiredCity: desiredCity || null,
+      purchaseTime: purchaseTime || null,
+      notes: notes || null,
+      utmSource: utmSource || null,
+      utmMedium: utmMedium || null,
+      utmCampaign: utmCampaign || null,
+      utmContent: utmContent || null,
+      utmTerm: utmTerm || null,
+      status: "NOVO"
+    };
+
     if (onlineBrokers.length === 0) {
       const leadWithoutBroker = await prisma.lead.create({
-        data: {
-          name: String(name).trim(),
-          phone: String(phone).trim(),
-          email: email ? String(email).trim() : null,
-          message: message ? String(message).trim() : null,
-          propertyId: propertyId || null,
-          status: "NOVO"
-        },
+        data: leadData,
         include: {
           assignedTo: {
             select: {
@@ -59,7 +142,8 @@ async function createLeadWithRotation(req, res) {
               role: true,
               online: true
             }
-          }
+          },
+          property: true
         }
       });
 
@@ -100,12 +184,7 @@ async function createLeadWithRotation(req, res) {
 
     const createdLead = await prisma.lead.create({
       data: {
-        name: String(name).trim(),
-        phone: String(phone).trim(),
-        email: email ? String(email).trim() : null,
-        message: message ? String(message).trim() : null,
-        propertyId: propertyId || null,
-        status: "NOVO",
+        ...leadData,
         assignedToId: selectedBroker.id
       },
       include: {
@@ -117,7 +196,8 @@ async function createLeadWithRotation(req, res) {
             role: true,
             online: true
           }
-        }
+        },
+        property: true
       }
     });
 
@@ -167,7 +247,8 @@ async function listLeads(req, res) {
             role: true,
             online: true
           }
-        }
+        },
+        property: true
       },
       orderBy: {
         createdAt: "desc"
@@ -190,7 +271,26 @@ async function updateLeadStatus(req, res) {
     const { id } = req.params;
     const { status } = req.body;
 
-    const allowedStatus = ["NOVO", "EM_ATENDIMENTO", "ATENDIDO", "DESCARTADO"];
+    const allowedStatus = [
+      "NOVO",
+      "CONTATO_REALIZADO",
+      "EM_ATENDIMENTO",
+      "QUALIFICADO",
+      "SIMULACAO",
+      "VISITA_AGENDADA",
+      "VISITA_REALIZADA",
+      "PROPOSTA",
+      "DOCUMENTACAO",
+      "ATENDIDO",
+      "CONVERTIDO",
+      "SEM_RESPOSTA",
+      "SEM_RENDA",
+      "SEM_ENTRADA",
+      "NAO_INTERESSADO",
+      "INVALIDO",
+      "DESCARTADO",
+      "PERDIDO"
+    ];
 
     if (!allowedStatus.includes(status)) {
       return res.status(400).json({
@@ -208,15 +308,80 @@ async function updateLeadStatus(req, res) {
       });
     }
 
-    if (req.user.role !== "ADMIN" && existingLead.assignedToId !== req.user.id) {
+    if (
+      req.user.role !== "ADMIN" &&
+      existingLead.assignedToId !== req.user.id
+    ) {
       return res.status(403).json({
         error: "Você não tem permissão para alterar este lead."
       });
     }
 
+    const updateData = {
+      status
+    };
+
+    if (
+      status === "CONTATO_REALIZADO" ||
+      status === "EM_ATENDIMENTO"
+    ) {
+      if (!existingLead.firstContactAt) {
+        updateData.firstContactAt = new Date();
+      }
+    }
+
+    if (status === "QUALIFICADO") {
+      if (!existingLead.qualifiedAt) {
+        updateData.qualifiedAt = new Date();
+      }
+    }
+
+    if (
+      status === "VISITA_AGENDADA" ||
+      status === "VISITA_REALIZADA"
+    ) {
+      if (!existingLead.visitAt) {
+        updateData.visitAt = new Date();
+      }
+    }
+
+    if (status === "PROPOSTA") {
+      if (!existingLead.proposalAt) {
+        updateData.proposalAt = new Date();
+      }
+    }
+
+    if (status === "CONVERTIDO") {
+      if (!existingLead.convertedAt) {
+        updateData.convertedAt = new Date();
+      }
+
+      updateData.lostAt = null;
+    }
+
+    const lostStatuses = [
+      "SEM_RESPOSTA",
+      "SEM_RENDA",
+      "SEM_ENTRADA",
+      "NAO_INTERESSADO",
+      "INVALIDO",
+      "DESCARTADO",
+      "PERDIDO"
+    ];
+
+    if (lostStatuses.includes(status)) {
+      if (!existingLead.lostAt) {
+        updateData.lostAt = new Date();
+      }
+    }
+
+    if (!lostStatuses.includes(status) && status !== "CONVERTIDO") {
+      updateData.lostAt = null;
+    }
+
     const updatedLead = await prisma.lead.update({
       where: { id },
-      data: { status },
+      data: updateData,
       include: {
         assignedTo: {
           select: {
@@ -226,7 +391,8 @@ async function updateLeadStatus(req, res) {
             role: true,
             online: true
           }
-        }
+        },
+        property: true
       }
     });
 
@@ -277,7 +443,8 @@ async function assignLeadBroker(req, res) {
               role: true,
               online: true
             }
-          }
+          },
+          property: true
         }
       });
 
@@ -321,7 +488,8 @@ async function assignLeadBroker(req, res) {
             role: true,
             online: true
           }
-        }
+        },
+        property: true
       }
     });
 
