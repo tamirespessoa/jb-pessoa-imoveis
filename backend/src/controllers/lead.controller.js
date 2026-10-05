@@ -73,23 +73,36 @@ async function createLeadWithRotation(req, res) {
       email: email ? String(email).trim() : null,
       message: message ? String(message).trim() : null,
       propertyId: propertyId || null,
+
       source: source || null,
       sourceDetail: sourceDetail || null,
+
       campaignId: campaignId || null,
       campaignName: campaignName || null,
+
       temperature: temperature || "FRIO",
+
       monthlyIncome:
-        monthlyIncome !== undefined && monthlyIncome !== null
+        monthlyIncome !== undefined &&
+        monthlyIncome !== null &&
+        monthlyIncome !== ""
           ? Number(monthlyIncome)
           : null,
+
       familyIncome:
-        familyIncome !== undefined && familyIncome !== null
+        familyIncome !== undefined &&
+        familyIncome !== null &&
+        familyIncome !== ""
           ? Number(familyIncome)
           : null,
+
       downPayment:
-        downPayment !== undefined && downPayment !== null
+        downPayment !== undefined &&
+        downPayment !== null &&
+        downPayment !== ""
           ? Number(downPayment)
           : null,
+
       hasFgts:
         typeof hasFgts === "boolean"
           ? hasFgts
@@ -98,10 +111,14 @@ async function createLeadWithRotation(req, res) {
           : hasFgts === "false"
           ? false
           : null,
+
       fgtsValue:
-        fgtsValue !== undefined && fgtsValue !== null
+        fgtsValue !== undefined &&
+        fgtsValue !== null &&
+        fgtsValue !== ""
           ? Number(fgtsValue)
           : null,
+
       needsFinancing:
         typeof needsFinancing === "boolean"
           ? needsFinancing
@@ -110,6 +127,7 @@ async function createLeadWithRotation(req, res) {
           : needsFinancing === "false"
           ? false
           : null,
+
       financingApproved:
         typeof financingApproved === "boolean"
           ? financingApproved
@@ -118,15 +136,18 @@ async function createLeadWithRotation(req, res) {
           : financingApproved === "false"
           ? false
           : null,
+
       desiredRegion: desiredRegion || null,
       desiredCity: desiredCity || null,
       purchaseTime: purchaseTime || null,
       notes: notes || null,
+
       utmSource: utmSource || null,
       utmMedium: utmMedium || null,
       utmCampaign: utmCampaign || null,
       utmContent: utmContent || null,
       utmTerm: utmTerm || null,
+
       status: "NOVO"
     };
 
@@ -321,6 +342,39 @@ async function updateLeadStatus(req, res) {
       status
     };
 
+    // =====================================================
+    // PRIORIDADE AUTOMÁTICA
+    // =====================================================
+
+    if (
+      status === "NOVO" ||
+      status === "CONTATO_REALIZADO" ||
+      status === "EM_ATENDIMENTO"
+    ) {
+      updateData.temperature = "FRIO";
+    }
+
+    if (
+      status === "QUALIFICADO" ||
+      status === "SIMULACAO"
+    ) {
+      updateData.temperature = "MORNO";
+    }
+
+    if (
+      status === "VISITA_AGENDADA" ||
+      status === "VISITA_REALIZADA" ||
+      status === "PROPOSTA" ||
+      status === "DOCUMENTACAO" ||
+      status === "CONVERTIDO"
+    ) {
+      updateData.temperature = "QUENTE";
+    }
+
+    // =====================================================
+    // DATA DO PRIMEIRO CONTATO
+    // =====================================================
+
     if (
       status === "CONTATO_REALIZADO" ||
       status === "EM_ATENDIMENTO"
@@ -330,11 +384,19 @@ async function updateLeadStatus(req, res) {
       }
     }
 
+    // =====================================================
+    // DATA DE QUALIFICAÇÃO
+    // =====================================================
+
     if (status === "QUALIFICADO") {
       if (!existingLead.qualifiedAt) {
         updateData.qualifiedAt = new Date();
       }
     }
+
+    // =====================================================
+    // DATA DA VISITA
+    // =====================================================
 
     if (
       status === "VISITA_AGENDADA" ||
@@ -345,11 +407,19 @@ async function updateLeadStatus(req, res) {
       }
     }
 
+    // =====================================================
+    // DATA DA PROPOSTA
+    // =====================================================
+
     if (status === "PROPOSTA") {
       if (!existingLead.proposalAt) {
         updateData.proposalAt = new Date();
       }
     }
+
+    // =====================================================
+    // DATA DA CONVERSÃO / VENDA
+    // =====================================================
 
     if (status === "CONVERTIDO") {
       if (!existingLead.convertedAt) {
@@ -358,6 +428,10 @@ async function updateLeadStatus(req, res) {
 
       updateData.lostAt = null;
     }
+
+    // =====================================================
+    // STATUS DE PERDA
+    // =====================================================
 
     const lostStatuses = [
       "SEM_RESPOSTA",
@@ -452,7 +526,9 @@ async function assignLeadBroker(req, res) {
     }
 
     const broker = await prisma.user.findUnique({
-      where: { id: String(brokerId) },
+      where: {
+        id: String(brokerId)
+      },
       select: {
         id: true,
         name: true,
@@ -504,9 +580,252 @@ async function assignLeadBroker(req, res) {
   }
 }
 
+async function updateLeadDetails(req, res) {
+  try {
+    const { id } = req.params;
+
+    const existingLead = await prisma.lead.findUnique({
+      where: { id }
+    });
+
+    if (!existingLead) {
+      return res.status(404).json({
+        error: "Lead não encontrado."
+      });
+    }
+
+    if (
+      req.user.role !== "ADMIN" &&
+      existingLead.assignedToId !== req.user.id
+    ) {
+      return res.status(403).json({
+        error: "Você não tem permissão para alterar este lead."
+      });
+    }
+
+    const {
+      temperature,
+
+      monthlyIncome,
+      familyIncome,
+      downPayment,
+      hasFgts,
+      fgtsValue,
+      needsFinancing,
+      financingApproved,
+
+      desiredRegion,
+      desiredCity,
+      purchaseTime,
+
+      notes,
+      lossReason,
+
+      campaignId,
+      campaignName,
+
+      adSetId,
+      adSetName,
+
+      adId,
+      adName,
+
+      metaLeadId,
+      metaCampaignId,
+      metaAdSetId,
+      metaAdId,
+
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmContent,
+      utmTerm,
+
+      propertyId,
+      sourceDetail
+    } = req.body;
+
+    const data = {};
+
+    if (temperature !== undefined) {
+      data.temperature = temperature || "FRIO";
+    }
+
+    if (monthlyIncome !== undefined) {
+      data.monthlyIncome =
+        monthlyIncome === "" || monthlyIncome === null
+          ? null
+          : Number(monthlyIncome);
+    }
+
+    if (familyIncome !== undefined) {
+      data.familyIncome =
+        familyIncome === "" || familyIncome === null
+          ? null
+          : Number(familyIncome);
+    }
+
+    if (downPayment !== undefined) {
+      data.downPayment =
+        downPayment === "" || downPayment === null
+          ? null
+          : Number(downPayment);
+    }
+
+    if (hasFgts !== undefined) {
+      data.hasFgts =
+        hasFgts === "" || hasFgts === null
+          ? null
+          : typeof hasFgts === "boolean"
+          ? hasFgts
+          : String(hasFgts).toLowerCase() === "true";
+    }
+
+    if (fgtsValue !== undefined) {
+      data.fgtsValue =
+        fgtsValue === "" || fgtsValue === null
+          ? null
+          : Number(fgtsValue);
+    }
+
+    if (needsFinancing !== undefined) {
+      data.needsFinancing =
+        needsFinancing === "" || needsFinancing === null
+          ? null
+          : typeof needsFinancing === "boolean"
+          ? needsFinancing
+          : String(needsFinancing).toLowerCase() === "true";
+    }
+
+    if (financingApproved !== undefined) {
+      data.financingApproved =
+        financingApproved === "" || financingApproved === null
+          ? null
+          : typeof financingApproved === "boolean"
+          ? financingApproved
+          : String(financingApproved).toLowerCase() === "true";
+    }
+
+    if (desiredRegion !== undefined) {
+      data.desiredRegion = desiredRegion || null;
+    }
+
+    if (desiredCity !== undefined) {
+      data.desiredCity = desiredCity || null;
+    }
+
+    if (purchaseTime !== undefined) {
+      data.purchaseTime = purchaseTime || null;
+    }
+
+    if (notes !== undefined) {
+      data.notes = notes || null;
+    }
+
+    if (lossReason !== undefined) {
+      data.lossReason = lossReason || null;
+    }
+
+    if (campaignId !== undefined) {
+      data.campaignId = campaignId || null;
+    }
+
+    if (campaignName !== undefined) {
+      data.campaignName = campaignName || null;
+    }
+
+    if (adSetId !== undefined) {
+      data.adSetId = adSetId || null;
+    }
+
+    if (adSetName !== undefined) {
+      data.adSetName = adSetName || null;
+    }
+
+    if (adId !== undefined) {
+      data.adId = adId || null;
+    }
+
+    if (adName !== undefined) {
+      data.adName = adName || null;
+    }
+
+    if (metaLeadId !== undefined) {
+      data.metaLeadId = metaLeadId || null;
+    }
+
+    if (metaCampaignId !== undefined) {
+      data.metaCampaignId = metaCampaignId || null;
+    }
+
+    if (metaAdSetId !== undefined) {
+      data.metaAdSetId = metaAdSetId || null;
+    }
+
+    if (metaAdId !== undefined) {
+      data.metaAdId = metaAdId || null;
+    }
+
+    if (utmSource !== undefined) {
+      data.utmSource = utmSource || null;
+    }
+
+    if (utmMedium !== undefined) {
+      data.utmMedium = utmMedium || null;
+    }
+
+    if (utmCampaign !== undefined) {
+      data.utmCampaign = utmCampaign || null;
+    }
+
+    if (utmContent !== undefined) {
+      data.utmContent = utmContent || null;
+    }
+
+    if (utmTerm !== undefined) {
+      data.utmTerm = utmTerm || null;
+    }
+
+    if (propertyId !== undefined) {
+      data.propertyId = propertyId || null;
+    }
+
+    if (sourceDetail !== undefined) {
+      data.sourceDetail = sourceDetail || null;
+    }
+
+    const updatedLead = await prisma.lead.update({
+      where: { id },
+      data,
+      include: {
+        assignedTo: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true,
+            online: true
+          }
+        },
+        property: true
+      }
+    });
+
+    return res.json(updatedLead);
+  } catch (error) {
+    console.error("Erro ao salvar dados do lead:", error);
+
+    return res.status(500).json({
+      error: "Erro ao salvar dados do lead.",
+      details: error.message
+    });
+  }
+}
+
 module.exports = {
   createLeadWithRotation,
   listLeads,
   updateLeadStatus,
-  assignLeadBroker
+  assignLeadBroker,
+  updateLeadDetails
 };

@@ -21,6 +21,7 @@ const chatRoutes = require("./src/routes/chat.routes");
 const portalRoutes = require("./src/routes/portal.routes");
 const siteVisitRoutes = require("./src/routes/siteVisit.routes");
 const trafficRoutes = require("./src/routes/traffic.routes");
+const metaRoutes = require("./src/routes/meta.routes");
 
 const app = express();
 const server = http.createServer(app);
@@ -288,6 +289,11 @@ app.use(
 app.use(
   "/traffic",
   trafficRoutes
+);
+
+app.use(
+  "/meta",
+  metaRoutes
 );
 
 /* =========================================================
