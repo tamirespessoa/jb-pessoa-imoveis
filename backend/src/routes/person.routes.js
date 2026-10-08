@@ -8,7 +8,11 @@ const {
   listPersons,
   getPersonById,
   updatePerson,
-  deletePerson
+  deletePerson,
+  updateClientPropertyNegotiation,
+  listLinkedProperties,
+  linkPropertyToClient,
+  unlinkPropertyFromClient
 } = require("../controllers/person.controller");
 
 // ===============================
@@ -20,6 +24,12 @@ router.post("/", authMiddleware, createPerson);
 
 // LISTAR
 router.get("/", authMiddleware, listPersons);
+
+// VINCULOS DE IMOVEIS DO CLIENTE
+router.get("/:id/properties", authMiddleware, listLinkedProperties);
+router.post("/:id/properties", authMiddleware, linkPropertyToClient);
+router.delete("/:id/properties/:propertyId", authMiddleware, unlinkPropertyFromClient);
+router.patch("/:id/properties/:propertyId/negotiation", authMiddleware, updateClientPropertyNegotiation);
 
 // BUSCAR POR ID
 router.get("/:id", authMiddleware, getPersonById);

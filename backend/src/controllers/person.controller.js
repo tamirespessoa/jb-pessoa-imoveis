@@ -541,7 +541,95 @@ async function deletePerson(req, res) {
   }
 }
 
+
+async function listLinkedProperties(req, res) {
+  try {
+    const person = await getAuthorizedClient(req, res);
+    if (!person) return;
+    const links = await prisma.propertyClient.findMany({
+      where: { clientId: person.id },
+      include: { property: true, history: { orderBy: { createdAt: "desc" }, take: 30 } },
+      orderBy: { createdAt: "desc" }
+    });
+    return res.json(links.map(link => ({ ...link.property, negotiation: { status: link.status, notes: link.notes, updatedAt: link.updatedAt, history: link.history } })));
+  } catch (error) { return handlePrismaError(error, res, "Erro ao listar imóveis vinculados."); }
+}
+
+async function getAuthorizedClient(req, res) {
+  const person = await prisma.person.findUnique({ where: { id: req.params.id } });
+  if (!person || person.type !== "CLIENTE") {
+    res.status(404).json({ error: "Cliente não encontrado." }); return null;
+  }
+  const authUser = getAuthUser(req);
+  if (authUser.id && !canManageAllPersons(authUser) && person.createdById && person.createdById !== authUser.id) {
+    res.status(403).json({ error: "Você não tem permissão para acessar este cliente." }); return null;
+  }
+  return person;
+}
+
+async function linkPropertyToClient(req, res) {
+  try {
+    const person = await getAuthorizedClient(req, res);
+    if (!person) return;
+    const propertyId = String(req.body?.propertyId || "").trim();
+    if (!propertyId) return res.status(400).json({ error: "Selecione um imóvel." });
+    const property = await prisma.property.findUnique({ where: { id: propertyId } });
+    if (!property) return res.status(404).json({ error: "Imóvel não encontrado." });
+    const existing = await prisma.propertyClient.findUnique({
+      where: { clientId_propertyId: { clientId: person.id, propertyId } }
+    });
+    if (existing) return res.status(409).json({ error: "Este imóvel já está vinculado ao cliente." });
+    await prisma.propertyClient.create({ data: { clientId: person.id, propertyId } });
+    return res.status(201).json({ message: "Imóvel vinculado com sucesso." });
+  } catch (error) { return handlePrismaError(error, res, "Erro ao vincular imóvel."); }
+}
+
+async function unlinkPropertyFromClient(req, res) {
+  try {
+    const person = await getAuthorizedClient(req, res);
+    if (!person) return;
+    const result = await prisma.propertyClient.deleteMany({
+      where: { clientId: person.id, propertyId: req.params.propertyId }
+    });
+    if (!result.count) return res.status(404).json({ error: "Vínculo não encontrado." });
+    return res.json({ message: "Imóvel desvinculado com sucesso." });
+  } catch (error) { return handlePrismaError(error, res, "Erro ao desvincular imóvel."); }
+}
+
+
+const NEGOTIATION_STATUSES = [
+  "INTERESSADO", "VISITA_AGENDADA", "VISITA_REALIZADA", "EM_NEGOCIACAO",
+  "PROPOSTA_ENVIADA", "EM_PROCESSO_FINANCIAMENTO", "FINANCIAMENTO_APROVADO",
+  "CONTRATO_EM_ELABORACAO", "VENDA_CONCLUIDA", "NEGOCIACAO_CANCELADA"
+];
+
+async function updateClientPropertyNegotiation(req, res) {
+  try {
+    const person = await getAuthorizedClient(req, res);
+    if (!person) return;
+    const { propertyId } = req.params;
+    const status = String(req.body?.status || "").trim();
+    const notes = typeof req.body?.notes === "string" ? req.body.notes.trim() : "";
+    if (!NEGOTIATION_STATUSES.includes(status)) return res.status(400).json({ error: "Status de negociação inválido." });
+    if (notes.length > 3000) return res.status(400).json({ error: "Observação muito longa (máximo 3000 caracteres)." });
+    const link = await prisma.propertyClient.findUnique({ where: { clientId_propertyId: { clientId: person.id, propertyId } } });
+    if (!link) return res.status(404).json({ error: "Vincule o imóvel ao comprador antes de alterar o status." });
+    const updated = await prisma.$transaction(async tx => {
+      const result = await tx.propertyClient.update({ where: { id: link.id }, data: { status, notes: notes || null } });
+      if (link.status !== status || (link.notes || "") !== notes) {
+        await tx.propertyClientHistory.create({ data: { linkId: link.id, previousStatus: link.status, newStatus: status, notes: notes || null } });
+      }
+      return result;
+    });
+    return res.json({ message: "Negociação atualizada.", negotiation: updated });
+  } catch (error) { return handlePrismaError(error, res, "Erro ao atualizar negociação."); }
+}
+
 module.exports = {
+  updateClientPropertyNegotiation,
+  listLinkedProperties,
+  linkPropertyToClient,
+  unlinkPropertyFromClient,
   createPerson,
   listPersons,
   getPersonById,

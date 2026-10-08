@@ -119,6 +119,7 @@ model Person {
   updatedAt        DateTime @updatedAt
 
   properties   Property[]
+  interestedProperties PropertyClient[]
   documents    Document[]
   appointments Appointment[]
   proposals    Proposal[]
@@ -230,6 +231,7 @@ model Property {
   documents          Document[]
   proposals          Proposal[]
   medias             PropertyMedia[]
+  interestedClients PropertyClient[]
   portalPublications PropertyPortalPublication[]
   leads              Lead[]
   marketingCampaigns MarketingCampaign[]
@@ -243,6 +245,35 @@ model Property {
   @@index([createdById])
   @@index([updatedById])
   @@map("properties")
+}
+
+model PropertyClient {
+  id String @id @default(cuid())
+  clientId String
+  propertyId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  status String @default("INTERESSADO")
+  notes String?
+  history PropertyClientHistory[]
+  client Person @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([clientId, propertyId])
+  @@index([propertyId])
+  @@map("property_clients")
+}
+
+model PropertyClientHistory {
+  id String @id @default(cuid())
+  linkId String
+  previousStatus String?
+  newStatus String
+  notes String?
+  createdAt DateTime @default(now())
+  link PropertyClient @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  @@index([linkId, createdAt])
+  @@map("property_client_history")
 }
 
 model PropertyMedia {

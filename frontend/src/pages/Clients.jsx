@@ -10,6 +10,11 @@ function Clients() {
   const [clients, setClients] = useState([]);
   const [users, setUsers] = useState([]);
   const [properties, setProperties] = useState([]);
+  const [linkedProperties, setLinkedProperties] = useState([]);
+  const [linkModalOpen, setLinkModalOpen] = useState(false);
+  const [propertySearch, setPropertySearch] = useState("");
+  const [selectedPropertyId, setSelectedPropertyId] = useState("");
+  const [linkSaving, setLinkSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
   const [viewClient, setViewClient] = useState(null);
@@ -273,9 +278,44 @@ function Clients() {
     });
   }
 
+  async function loadLinkedProperties(clientId) {
+    if (!clientId) { setLinkedProperties([]); return; }
+    try {
+      const response = await api.get(`/persons/${clientId}/properties`);
+      setLinkedProperties(Array.isArray(response.data) ? response.data : []);
+    } catch (error) {
+      console.error("Erro ao carregar vínculos:", error);
+      setLinkedProperties([]);
+      alert(error.response?.data?.error || "Não foi possível carregar os imóveis vinculados.");
+    }
+  }
+
+  async function handleLinkProperty() {
+    if (!editingId || !selectedPropertyId || linkSaving) return;
+    setLinkSaving(true);
+    try {
+      await api.post(`/persons/${editingId}/properties`, { propertyId: selectedPropertyId });
+      await loadLinkedProperties(editingId);
+      setLinkModalOpen(false);
+      setSelectedPropertyId("");
+      setPropertySearch("");
+    } catch (error) {
+      alert(error.response?.data?.error || "Não foi possível vincular o imóvel.");
+    } finally { setLinkSaving(false); }
+  }
+
+  async function handleUnlinkProperty(propertyId) {
+    if (!editingId || !window.confirm("Deseja desvincular este imóvel do cliente?")) return;
+    try {
+      await api.delete(`/persons/${editingId}/properties/${propertyId}`);
+      await loadLinkedProperties(editingId);
+    } catch (error) { alert(error.response?.data?.error || "Não foi possível desvincular."); }
+  }
+
   function handleSelectClient(client) {
     setSelectedClient(client);
     setEditingId(client.id);
+    loadLinkedProperties(client.id);
     fillFormFromClient(client);
     setScreenMode("form");
   }
@@ -299,6 +339,7 @@ function Clients() {
   function handleNewClient() {
     setSelectedClient(null);
     setEditingId(null);
+    setLinkedProperties([]);
     setShowMenu(false);
     setScreenMode("form");
 
@@ -585,7 +626,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
 
   function handleOpenClientProperties() {
     setShowMenu(false);
-    navigate("/imoveis");
+    document.getElementById("imoveis-cliente")?.scrollIntoView({ behavior: "smooth" });
   }
 
   function handleSelectTemperature(value) {
@@ -635,21 +676,7 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
   }
 
   function getClientProperties() {
-    if (!selectedClient) return [];
-    return properties.filter((property) => {
-      const ids = [
-        property.clientId,
-        property.buyerId,
-        property.personId,
-        property.ownerId,
-        property.owner?.id,
-        property.client?.id,
-        property.person?.id
-      ].filter(Boolean).map(String);
-
-      const ownerName = property.ownerName || property.owner?.fullName || property.person?.fullName || "";
-      return ids.includes(String(selectedClient.id)) || ownerName.toLowerCase() === String(selectedClient.fullName || "").toLowerCase();
-    });
+    return linkedProperties;
   }
 
   function renderTopBar() {
@@ -1318,7 +1345,42 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
             </div>
 
             <div style={styles.cleanSection} id="imoveis-cliente">
-              <h2 style={styles.cleanSectionTitle}>Imóveis do cliente</h2>
+              <h2 style={styles.cleanSectionTitle}>Imóveis vinculados ao cliente</h2>
+              <button type="button" style={styles.propertyActionButton} onClick={() => {
+                if (!editingId) { alert("Salve o cliente antes de vincular imóveis."); return; }
+                setLinkModalOpen(true);
+                setSelectedPropertyId("");
+                setPropertySearch("");
+                loadProperties();
+              }}>+ VINCULAR IMÓVEL</button>
+
+              {linkModalOpen && (
+                <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+                  <div style={{ background: "white", borderRadius: 12, padding: 24, width: "min(620px,100%)", maxHeight: "85vh", overflowY: "auto", boxShadow: "0 12px 40px #0003" }}>
+                    <h3>Vincular imóvel ao cliente</h3>
+                    <p>Pesquise um imóvel já cadastrado e selecione-o.</p>
+                    <input value={propertySearch} onChange={e => setPropertySearch(e.target.value)}
+                      placeholder="Código, endereço, bairro ou tipo" style={{ width: "100%", padding: 12, boxSizing: "border-box", marginBottom: 12 }} />
+                    <div style={{ maxHeight: 280, overflowY: "auto" }}>
+                      {properties.filter(p => !linkedProperties.some(lp => lp.id === p.id))
+                        .filter(p => [p.code, p.reference, p.title, p.type, p.street, p.district, p.city, p.number].filter(Boolean).join(" ").toLowerCase().includes(propertySearch.toLowerCase()))
+                        .map(p => (
+                          <label key={p.id} style={{ display: "block", padding: 12, borderBottom: "1px solid #eee", cursor: "pointer", background: selectedPropertyId === p.id ? "#eef6ff" : "white" }}>
+                            <input type="radio" checked={selectedPropertyId === p.id} onChange={() => setSelectedPropertyId(p.id)} />{" "}
+                            <strong>{p.code || p.reference || p.id.slice(0, 8)}</strong> — {p.title || p.type || "Imóvel"}
+                            <div style={{ marginLeft: 22, color: "#555", fontSize: 13 }}>{getPropertyAddress(p)}</div>
+                          </label>
+                        ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 12, justifyContent: "flex-end", marginTop: 18 }}>
+                      <button type="button" onClick={() => setLinkModalOpen(false)} disabled={linkSaving}>Cancelar</button>
+                      <button type="button" onClick={handleLinkProperty} disabled={!selectedPropertyId || linkSaving}>
+                        {linkSaving ? "Vinculando..." : "Confirmar vínculo"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {getClientProperties().length === 0 ? (
                 <div style={styles.emptyPropertyBox}>
@@ -1352,6 +1414,8 @@ Captador: ${selectedClient.createdBy?.name || selectedClient.createdBy?.email ||
                           {property.parkingSpaces || property.garage ? `  ${property.parkingSpaces || property.garage} Vaga(s)` : ""}
                         </p>
                       </div>
+                      <button type="button" onClick={() => handleUnlinkProperty(property.id)}
+                        style={{ ...styles.propertyActionButton, color: "#b91c1c" }}>DESVINCULAR</button>
                       <span style={styles.propertyCodeBadge}>
                         🏠 {property.reference || property.code || property.id?.slice(0, 6)}
                       </span>
