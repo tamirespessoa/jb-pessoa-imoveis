@@ -267,6 +267,8 @@ export default function SiteHome() {
             
            <div
               className="modern-about-image"
+              role="img"
+              aria-label="Fachada da JB Pessoa Imóveis"
               style={{
                 backgroundImage: "url('/images/fachada-jb.png')",
                 backgroundSize: "contain",
@@ -274,8 +276,8 @@ export default function SiteHome() {
                 backgroundRepeat: "no-repeat",
                 backgroundColor: "#f5f3ef",
                 borderRadius: "28px",
-                overflow: "hidden"
-                minHeight: "500px"
+                overflow: "hidden",
+                minHeight: "500px",
   }}
 >
   <div className="modern-about-badge">
