@@ -264,15 +264,29 @@ export default function SiteHome() {
 
         <section className="modern-about" id="sobre">
           <div className="modern-shell modern-about-grid">
-            <div className="modern-about-image" aria-hidden="true">
-              <div className="modern-about-badge">
-                <Building2 size={21} />
-                <span>
-                  <strong>JB Pessoa Imóveis</strong>
-                  Atendimento que acompanha você do início ao fim.
-                </span>
-              </div>
-            </div>
+            
+           <div
+              className="modern-about-image"
+              aria-label="Fachada da JB Pessoa Imóveis"
+              role="img"
+              style={{
+                backgroundImage: "url('/images/fachada-jb.png')",
+                backgroundSize: "cover",
+                backgroundPosition: "center center",
+                backgroundRepeat: "no-repeat",
+                borderRadius: "28px",
+                overflow: "hidden"
+  }}
+>
+  <div className="modern-about-badge">
+    <Building2 size={21} />
+    <span>
+      <strong>JB Pessoa Imóveis</strong>
+      Atendimento que acompanha você do início ao fim.
+    </span>
+  </div>
+</div>
+
 
             <div className="modern-about-copy">
               <span className="modern-section-label">Sobre a JB Pessoa</span>
