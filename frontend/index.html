@@ -1,20 +1,46 @@
+
 <!doctype html>
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-   <link rel="icon" type="image/png" href="/logo-jb.png" />
+
+    <!-- Ícone da JB Pessoa Imóveis -->
+    <link rel="icon" type="image/png" href="/logo-jb.png" />
+
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
+    <!-- Título do site -->
     <title>JB Pessoa Imóveis | Compra, Venda e Locação</title>
 
+    <!-- Descrição do site -->
     <meta
       name="description"
       content="Encontre os melhores imóveis para compra, venda e locação com a JB Pessoa Imóveis."
     />
+
+    <!-- Google Analytics 4 -->
+    <script
+      async
+      src="https://www.googletagmanager.com/gtag/js?id=G-6BEGLWRHQ5"
+    ></script>
+
+    <script>
+      window.dataLayer = window.dataLayer || [];
+
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+
+      gtag('js', new Date());
+
+      gtag('config', 'G-6BEGLWRHQ5');
+    </script>
   </head>
 
   <body>
     <div id="root"></div>
+
+    <!-- Inicialização do React -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
