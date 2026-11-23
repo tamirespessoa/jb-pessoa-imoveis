@@ -1,6 +1,7 @@
 import { useState } from "react";
 import SiteLayout from "../components/SiteLayout";
 import publicApi from "../services/publicApi";
+import { trackPropertyRegistration } from "../services/analytics";
 import "./SiteRegisterProperty.css";
 
 const initialForm = {
@@ -74,6 +75,8 @@ export default function SiteRegisterProperty() {
       };
 
       await publicApi.post("/property-requests", payload);
+
+      trackPropertyRegistration({ purpose: formData.type });
 
       setSuccessMessage(
         "Seu imóvel foi enviado com sucesso. Nossa equipe entrará em contato em breve."

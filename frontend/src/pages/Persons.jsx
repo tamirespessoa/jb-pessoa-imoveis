@@ -1,25 +1,83 @@
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
+const NEGOTIATION_STATUSES = [
+  { value: "INTERESSADO", label: "Interessado" },
+  { value: "VISITA_AGENDADA", label: "Visita agendada" },
+  { value: "VISITA_REALIZADA", label: "Visita realizada" },
+  { value: "EM_NEGOCIACAO", label: "Em negociação" },
+  { value: "PROPOSTA_ENVIADA", label: "Proposta enviada" },
+  {
+    value: "EM_PROCESSO_FINANCIAMENTO",
+    label: "Em processo de financiamento"
+  },
+  {
+    value: "FINANCIAMENTO_APROVADO",
+    label: "Financiamento aprovado"
+  },
+  {
+    value: "CONTRATO_EM_ELABORACAO",
+    label: "Contrato em elaboração"
+  },
+  { value: "VENDA_CONCLUIDA", label: "Venda concluída" },
+  {
+    value: "NEGOCIACAO_CANCELADA",
+    label: "Negociação cancelada"
+  }
+];
+
 function Persons() {
   const navigate = useNavigate();
   const menuRef = useRef(null);
+
   const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  // ========================================
+  // ESTADOS ORIGINAIS
+  // ========================================
 
   const [persons, setPersons] = useState([]);
   const [users, setUsers] = useState([]);
   const [properties, setProperties] = useState([]);
+
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("TODOS");
+
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [viewPerson, setViewPerson] = useState(null);
+
   const [showMenu, setShowMenu] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [screenMode, setScreenMode] = useState("list");
+
   const [showOnlyActive, setShowOnlyActive] = useState(true);
   const [showArchived, setShowArchived] = useState(false);
+
   const [newActivityText, setNewActivityText] = useState("");
+
+  // ========================================
+  // NOVOS ESTADOS — IMÓVEIS E NEGOCIAÇÕES
+  // ========================================
+
+  const [buyerProperties, setBuyerProperties] = useState([]);
+  const [loadingBuyerProperties, setLoadingBuyerProperties] =
+    useState(false);
+
+  const [showLinkProperty, setShowLinkProperty] = useState(false);
+  const [propertyToLink, setPropertyToLink] = useState("");
+
+  const [linkingProperty, setLinkingProperty] = useState(false);
+  const [savingNegotiationId, setSavingNegotiationId] =
+    useState(null);
+
+  const [negotiationDrafts, setNegotiationDrafts] = useState({});
+  const [expandedHistory, setExpandedHistory] = useState({});
+
+  // ========================================
+  // FORMULÁRIO ORIGINAL
+  // ========================================
 
   const [form, setForm] = useState({
     type: "CLIENTE",
@@ -67,8 +125,13 @@ function Persons() {
     };
   }
 
+  // ========================================
+  // FUNÇÕES AUXILIARES
+  // ========================================
+
   function normalizeString(value) {
     if (value === undefined || value === null) return null;
+
     const text = String(value).trim();
     return text === "" ? null : text;
   }
@@ -86,14 +149,24 @@ function Persons() {
 
   function getInitials(name) {
     const value = String(name || "").trim();
+
     if (!value) return "?";
+
     const parts = value.split(" ").filter(Boolean);
-    if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
-    return `${parts[0].slice(0, 1)}${parts[parts.length - 1].slice(0, 1)}`.toUpperCase();
+
+    if (parts.length === 1) {
+      return parts[0].slice(0, 1).toUpperCase();
+    }
+
+    return (
+      `${parts[0].slice(0, 1)}` +
+      `${parts[parts.length - 1].slice(0, 1)}`
+    ).toUpperCase();
   }
 
   function formatDate(value) {
     if (!value) return "-";
+
     try {
       return new Date(value).toLocaleDateString("pt-BR");
     } catch {
@@ -103,6 +176,7 @@ function Persons() {
 
   function formatDateTime(value) {
     if (!value) return "-";
+
     try {
       return new Date(value).toLocaleString("pt-BR");
     } catch {
@@ -112,7 +186,9 @@ function Persons() {
 
   function formatCurrency(value) {
     const number = Number(value || 0);
+
     if (!number) return "Valor não informado";
+
     return number.toLocaleString("pt-BR", {
       style: "currency",
       currency: "BRL"
@@ -121,8 +197,13 @@ function Persons() {
 
   function getWhatsAppLink(phone) {
     const numbers = String(phone || "").replace(/\D/g, "");
+
     if (!numbers) return "";
-    const finalNumber = numbers.startsWith("55") ? numbers : `55${numbers}`;
+
+    const finalNumber = numbers.startsWith("55")
+      ? numbers
+      : `55${numbers}`;
+
     return `https://wa.me/${finalNumber}`;
   }
 
@@ -130,6 +211,7 @@ function Persons() {
     if (type === "CLIENTE") return "Cliente";
     if (type === "PROPRIETARIO") return "Proprietário";
     if (type === "AMBOS") return "Cliente + Proprietário";
+
     return "Não informado";
   }
 
@@ -137,13 +219,16 @@ function Persons() {
     if (type === "CLIENTE") return styles.clientBadge;
     if (type === "PROPRIETARIO") return styles.ownerBadge;
     if (type === "AMBOS") return styles.bothBadge;
+
     return styles.neutralBadge;
   }
 
   function getTemperatureStyle(value) {
     const temperature = String(value || "FRIO").toUpperCase();
+
     if (temperature === "QUENTE") return styles.tempHot;
     if (temperature === "MORNO") return styles.tempWarm;
+
     return styles.tempCold;
   }
 
@@ -155,7 +240,9 @@ function Persons() {
       person?.captorId ||
       "";
 
-    const captadorFromUsers = users.find((item) => item.id === captadorId);
+    const captadorFromUsers = users.find(
+      (item) => item.id === captadorId
+    );
 
     return (
       person?.createdBy?.name ||
@@ -169,7 +256,10 @@ function Persons() {
   }
 
   function getSelectedCaptadorName() {
-    const selected = users.find((item) => item.id === form.createdById);
+    const selected = users.find(
+      (item) => item.id === form.createdById
+    );
+
     return (
       selected?.name ||
       selected?.email ||
@@ -194,6 +284,25 @@ function Persons() {
       .filter(Boolean)
       .join(", ");
   }
+
+  function getNegotiationStatusLabel(status) {
+    return (
+      NEGOTIATION_STATUSES.find(
+        (item) => item.value === status
+      )?.label || status || "Interessado"
+    );
+  }
+
+  function canBuyProperties(person) {
+    return (
+      person?.type === "CLIENTE" ||
+      person?.type === "AMBOS"
+    );
+  }
+
+  // ========================================
+  // IMÓVEIS DO PROPRIETÁRIO
+  // ========================================
 
   function getLinkedProperties(person = selectedPerson) {
     if (!person) return [];
@@ -222,20 +331,31 @@ function Persons() {
 
       return (
         ids.includes(String(person.id)) ||
-        ownerName.toLowerCase() === String(person.fullName || "").toLowerCase()
+        ownerName.toLowerCase() ===
+          String(person.fullName || "").toLowerCase()
       );
     });
   }
 
+  // ========================================
+  // CARREGAMENTO DOS DADOS
+  // ========================================
+
   async function loadUsers() {
     try {
       const response = await api.get("/users");
+
       const data = Array.isArray(response.data)
         ? response.data
         : response.data?.users || [];
+
       setUsers(data);
     } catch (error) {
-      console.error("Erro ao carregar captadores:", error.response?.data || error.message);
+      console.error(
+        "Erro ao carregar captadores:",
+        error.response?.data || error.message
+      );
+
       setUsers([]);
     }
   }
@@ -243,12 +363,18 @@ function Persons() {
   async function loadProperties() {
     try {
       const response = await api.get("/properties");
+
       const data = Array.isArray(response.data)
         ? response.data
         : response.data?.properties || [];
+
       setProperties(data);
     } catch (error) {
-      console.error("Erro ao carregar imóveis:", error.response?.data || error.message);
+      console.error(
+        "Erro ao carregar imóveis:",
+        error.response?.data || error.message
+      );
+
       setProperties([]);
     }
   }
@@ -256,6 +382,7 @@ function Persons() {
   async function loadPersons(selectId = null) {
     try {
       const response = await api.get("/persons");
+
       const data = Array.isArray(response.data)
         ? response.data
         : response.data?.persons || [];
@@ -263,15 +390,219 @@ function Persons() {
       setPersons(data);
 
       if (selectId) {
-        const found = data.find((item) => item.id === selectId);
-        if (found) handleSelectPerson(found);
+        const found = data.find(
+          (item) => item.id === selectId
+        );
+
+        if (found) {
+          handleSelectPerson(found);
+        }
       }
     } catch (error) {
-      console.error("Erro ao carregar pessoas:", error.response?.data || error.message);
+      console.error(
+        "Erro ao carregar pessoas:",
+        error.response?.data || error.message
+      );
+
       alert("Erro ao carregar clientes e proprietários.");
       setPersons([]);
     }
   }
+
+  // ========================================
+  // CARREGAR IMÓVEIS DO COMPRADOR
+  // ========================================
+
+  async function loadBuyerProperties(personId) {
+    if (!personId) {
+      setBuyerProperties([]);
+      setNegotiationDrafts({});
+      return;
+    }
+
+    setLoadingBuyerProperties(true);
+
+    try {
+      const response = await api.get(
+        `/persons/${personId}/properties`
+      );
+
+      const data = Array.isArray(response.data)
+        ? response.data
+        : response.data?.properties || [];
+
+      setBuyerProperties(data);
+
+      const drafts = {};
+
+      data.forEach((property) => {
+        drafts[property.id] = {
+          status:
+            property.negotiation?.status || "INTERESSADO",
+          notes: property.negotiation?.notes || ""
+        };
+      });
+
+      setNegotiationDrafts(drafts);
+    } catch (error) {
+      console.error(
+        "Erro ao carregar imóveis do comprador:",
+        error.response?.data || error.message
+      );
+
+      setBuyerProperties([]);
+      setNegotiationDrafts({});
+    } finally {
+      setLoadingBuyerProperties(false);
+    }
+  }
+
+  // ========================================
+  // VINCULAR IMÓVEL EXISTENTE
+  // ========================================
+
+  async function handleLinkProperty() {
+    if (!selectedPerson?.id) {
+      alert("Salve o cadastro do cliente primeiro.");
+      return;
+    }
+
+    if (!canBuyProperties(selectedPerson)) {
+      alert(
+        "O cadastro precisa ser do tipo Cliente ou Cliente + Proprietário."
+      );
+      return;
+    }
+
+    if (!propertyToLink) {
+      alert("Selecione um imóvel.");
+      return;
+    }
+
+    setLinkingProperty(true);
+
+    try {
+      await api.post(
+        `/persons/${selectedPerson.id}/properties`,
+        { propertyId: propertyToLink }
+      );
+
+      await loadBuyerProperties(selectedPerson.id);
+
+      setPropertyToLink("");
+      setShowLinkProperty(false);
+
+      alert("Imóvel vinculado ao comprador com sucesso.");
+    } catch (error) {
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message;
+
+      alert(`Erro ao vincular imóvel: ${message}`);
+    } finally {
+      setLinkingProperty(false);
+    }
+  }
+
+  // ========================================
+  // DESVINCULAR IMÓVEL
+  // ========================================
+
+  async function handleUnlinkProperty(propertyId) {
+    if (!selectedPerson?.id || !propertyId) return;
+
+    const confirmed = window.confirm(
+      "Deseja desvincular este imóvel do comprador? " +
+      "O imóvel continuará cadastrado no sistema."
+    );
+
+    if (!confirmed) return;
+
+    try {
+      await api.delete(
+        `/persons/${selectedPerson.id}/properties/${propertyId}`
+      );
+
+      await loadBuyerProperties(selectedPerson.id);
+
+      alert("Imóvel desvinculado com sucesso.");
+    } catch (error) {
+      const message =
+        error.response?.data?.error ||
+        error.message;
+
+      alert(`Erro ao desvincular imóvel: ${message}`);
+    }
+  }
+
+  // ========================================
+  // ALTERAR STATUS E OBSERVAÇÕES
+  // ========================================
+
+  function updateNegotiationDraft(propertyId, field, value) {
+    setNegotiationDrafts((prev) => ({
+      ...prev,
+      [propertyId]: {
+        ...(prev[propertyId] || {
+          status: "INTERESSADO",
+          notes: ""
+        }),
+        [field]: value
+      }
+    }));
+  }
+
+  async function handleSaveNegotiation(propertyId) {
+    if (!selectedPerson?.id || !propertyId) return;
+
+    const draft = negotiationDrafts[propertyId];
+
+    if (!draft) {
+      alert("Dados da negociação não encontrados.");
+      return;
+    }
+
+    setSavingNegotiationId(propertyId);
+
+    try {
+      await api.patch(
+        `/persons/${selectedPerson.id}/properties/${propertyId}/negotiation`,
+        {
+          status: draft.status,
+          notes: draft.notes || ""
+        }
+      );
+
+      await loadBuyerProperties(selectedPerson.id);
+
+      alert("Negociação atualizada com sucesso.");
+    } catch (error) {
+      const message =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message;
+
+      alert(`Erro ao atualizar negociação: ${message}`);
+    } finally {
+      setSavingNegotiationId(null);
+    }
+  }
+
+  // ========================================
+  // EXPANDIR HISTÓRICO
+  // ========================================
+
+  function toggleNegotiationHistory(propertyId) {
+    setExpandedHistory((prev) => ({
+      ...prev,
+      [propertyId]: !prev[propertyId]
+    }));
+  }
+
+  // ========================================
+  // EFEITOS
+  // ========================================
 
   useEffect(() => {
     loadUsers();
@@ -281,41 +612,79 @@ function Persons() {
 
   useEffect(() => {
     function handleClickOutside(event) {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
+      if (
+        menuRef.current &&
+        !menuRef.current.contains(event.target)
+      ) {
         setShowMenu(false);
       }
     }
 
     if (showMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener(
+        "mousedown",
+        handleClickOutside
+      );
     }
 
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
     };
   }, [showMenu]);
+
+  // ========================================
+  // CONTADORES
+  // ========================================
 
   const counters = useMemo(() => {
     return {
       total: persons.length,
-      clients: persons.filter((item) => item.type === "CLIENTE" || item.type === "AMBOS").length,
-      owners: persons.filter((item) => item.type === "PROPRIETARIO" || item.type === "AMBOS").length,
-      both: persons.filter((item) => item.type === "AMBOS").length
+      clients: persons.filter(
+        (item) =>
+          item.type === "CLIENTE" ||
+          item.type === "AMBOS"
+      ).length,
+      owners: persons.filter(
+        (item) =>
+          item.type === "PROPRIETARIO" ||
+          item.type === "AMBOS"
+      ).length,
+      both: persons.filter(
+        (item) => item.type === "AMBOS"
+      ).length
     };
   }, [persons]);
+
+  // ========================================
+  // FILTROS
+  // ========================================
 
   const filteredPersons = useMemo(() => {
     return persons
       .filter((person) => {
-        if (showOnlyActive && person.isActive === false) return false;
-        if (!showArchived && person.archived === true) return false;
+        if (showOnlyActive && person.isActive === false) {
+          return false;
+        }
+
+        if (!showArchived && person.archived === true) {
+          return false;
+        }
 
         if (typeFilter === "CLIENTES") {
-          return person.type === "CLIENTE" || person.type === "AMBOS";
+          return (
+            person.type === "CLIENTE" ||
+            person.type === "AMBOS"
+          );
         }
 
         if (typeFilter === "PROPRIETARIOS") {
-          return person.type === "PROPRIETARIO" || person.type === "AMBOS";
+          return (
+            person.type === "PROPRIETARIO" ||
+            person.type === "AMBOS"
+          );
         }
 
         if (typeFilter === "AMBOS") {
@@ -325,15 +694,27 @@ function Persons() {
         return true;
       })
       .filter((person) =>
-        `${person.fullName || ""} ${person.cpf || ""} ${person.email || ""} ${
-          person.phone || ""
-        } ${person.createdBy?.name || ""} ${person.category || ""} ${
+        `${person.fullName || ""} ${person.cpf || ""} ${
+          person.email || ""
+        } ${person.phone || ""} ${
+          person.createdBy?.name || ""
+        } ${person.category || ""} ${
           person.firstContact || ""
         } ${person.type || ""}`
           .toLowerCase()
           .includes(search.toLowerCase())
       );
-  }, [persons, search, showOnlyActive, showArchived, typeFilter]);
+  }, [
+    persons,
+    search,
+    showOnlyActive,
+    showArchived,
+    typeFilter
+  ]);
+
+  // ========================================
+  // PREENCHER FORMULÁRIO
+  // ========================================
 
   function fillFormFromPerson(person) {
     setForm({
@@ -351,24 +732,47 @@ function Persons() {
       category: person.category || "",
       firstContact: person.firstContact || "",
       isActive:
-        person.isActive !== undefined && person.isActive !== null
+        person.isActive !== undefined &&
+        person.isActive !== null
           ? Boolean(person.isActive)
           : true,
       notes: person.notes || "",
       createReminder:
-        person.createReminder !== undefined && person.createReminder !== null
+        person.createReminder !== undefined &&
+        person.createReminder !== null
           ? Boolean(person.createReminder)
           : false,
-      businessTemperature: person.businessTemperature || "FRIO",
-      activities: Array.isArray(person.activities) ? person.activities : [],
-      createdById: person.createdById || person.createdBy?.id || user.id || user.userId || ""
+      businessTemperature:
+        person.businessTemperature || "FRIO",
+      activities: Array.isArray(person.activities)
+        ? person.activities
+        : [],
+      createdById:
+        person.createdById ||
+        person.createdBy?.id ||
+        user.id ||
+        user.userId ||
+        ""
     });
   }
 
   function handleSelectPerson(person) {
     setSelectedPerson(person);
     setEditingId(person.id);
+
     fillFormFromPerson(person);
+
+    setShowLinkProperty(false);
+    setPropertyToLink("");
+    setExpandedHistory({});
+
+    if (canBuyProperties(person)) {
+      loadBuyerProperties(person.id);
+    } else {
+      setBuyerProperties([]);
+      setNegotiationDrafts({});
+    }
+
     setScreenMode("form");
   }
 
@@ -378,6 +782,7 @@ function Persons() {
 
   function handleEditFromQuickView() {
     if (!viewPerson) return;
+
     handleSelectPerson(viewPerson);
     setViewPerson(null);
   }
@@ -392,7 +797,14 @@ function Persons() {
     setEditingId(null);
     setShowMenu(false);
     setScreenMode("form");
+
     setForm(emptyForm(defaultType));
+
+    setBuyerProperties([]);
+    setNegotiationDrafts({});
+    setExpandedHistory({});
+    setShowLinkProperty(false);
+    setPropertyToLink("");
   }
 
   function handleChange(e) {
@@ -403,6 +815,10 @@ function Persons() {
       [name]: type === "checkbox" ? checked : value
     }));
   }
+
+  // ========================================
+  // SALVAR CADASTRO
+  // ========================================
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -430,26 +846,50 @@ function Persons() {
         isActive: Boolean(form.isActive),
         notes: normalizeString(form.notes),
         createReminder: Boolean(form.createReminder),
-        businessTemperature: normalizeString(form.businessTemperature) || "FRIO",
-        activities: Array.isArray(form.activities) ? form.activities : [],
+        businessTemperature:
+          normalizeString(form.businessTemperature) || "FRIO",
+        activities: Array.isArray(form.activities)
+          ? form.activities
+          : [],
         createdById: normalizeString(form.createdById)
       };
 
       if (editingId) {
-        const response = await api.put(`/persons/${editingId}`, payload);
-        const updatedPerson = response.data?.person || response.data || null;
+        const response = await api.put(
+          `/persons/${editingId}`,
+          payload
+        );
+
+        const updatedPerson =
+          response.data?.person ||
+          response.data ||
+          null;
+
         alert("Cadastro atualizado com sucesso.");
+
         await loadPersons(updatedPerson?.id || editingId);
       } else {
-        const response = await api.post("/persons", payload);
-        const createdId = response.data?.person?.id || response.data?.id || null;
+        const response = await api.post(
+          "/persons",
+          payload
+        );
+
+        const createdId =
+          response.data?.person?.id ||
+          response.data?.id ||
+          null;
+
         alert("Cadastro criado com sucesso.");
+
         await loadPersons(createdId);
       }
 
       await loadProperties();
     } catch (error) {
-      console.error("Erro ao salvar cadastro:", error.response?.data || error.message);
+      console.error(
+        "Erro ao salvar cadastro:",
+        error.response?.data || error.message
+      );
 
       const apiMessage =
         error.response?.data?.error ||
@@ -462,27 +902,49 @@ function Persons() {
     }
   }
 
+  // ========================================
+  // EXCLUIR CADASTRO
+  // ========================================
+
   async function handleDelete() {
     if (!editingId) {
       alert("Selecione um cadastro para excluir.");
       return;
     }
 
-    const confirmed = window.confirm("Deseja excluir este cadastro?");
+    const confirmed = window.confirm(
+      "Deseja excluir este cadastro?"
+    );
+
     if (!confirmed) return;
 
     try {
       await api.delete(`/persons/${editingId}`);
+
       alert("Cadastro excluído com sucesso.");
+
       setSelectedPerson(null);
       setEditingId(null);
+      setBuyerProperties([]);
       setScreenMode("list");
+
       await loadPersons();
     } catch (error) {
-      console.error("Erro ao excluir cadastro:", error.response?.data || error.message);
-      alert("Erro ao excluir cadastro.");
+      console.error(
+        "Erro ao excluir cadastro:",
+        error.response?.data || error.message
+      );
+
+      alert(
+        error.response?.data?.error ||
+        "Erro ao excluir cadastro."
+      );
     }
   }
+
+  // ========================================
+  // NAVEGAÇÃO E ATUALIZAÇÃO
+  // ========================================
 
   function handleBack() {
     if (screenMode === "form") {
@@ -497,6 +959,10 @@ function Persons() {
     await loadUsers();
     await loadPersons(editingId || null);
     await loadProperties();
+
+    if (selectedPerson?.id && canBuyProperties(selectedPerson)) {
+      await loadBuyerProperties(selectedPerson.id);
+    }
   }
 
   function handleCreateFinancing() {
@@ -516,8 +982,11 @@ function Persons() {
           phone: selectedPerson.phone || "",
           email: selectedPerson.email || "",
           createdByName:
-            selectedPerson.createdBy?.name || selectedPerson.createdBy?.email || "",
-          createdById: selectedPerson.createdBy?.id || null
+            selectedPerson.createdBy?.name ||
+            selectedPerson.createdBy?.email ||
+            "",
+          createdById:
+            selectedPerson.createdBy?.id || null
         }
       }
     });
@@ -536,7 +1005,9 @@ function Persons() {
       return;
     }
 
-    alert(`Histórico de atendimentos: ${selectedPerson.fullName}`);
+    alert(
+      `Histórico de atendimentos: ${selectedPerson.fullName}`
+    );
   }
 
   function handleOpenVisits() {
@@ -581,6 +1052,10 @@ Captador: ${getCaptadorName(selectedPerson)}
     window.print();
   }
 
+  // ========================================
+  // ATIVIDADES
+  // ========================================
+
   function addActivity() {
     const text = newActivityText.trim();
     if (!text) return;
@@ -594,7 +1069,12 @@ Captador: ${getCaptadorName(selectedPerson)}
 
     setForm((prev) => ({
       ...prev,
-      activities: [activity, ...(Array.isArray(prev.activities) ? prev.activities : [])]
+      activities: [
+        activity,
+        ...(Array.isArray(prev.activities)
+          ? prev.activities
+          : [])
+      ]
     }));
 
     setNewActivityText("");
@@ -603,18 +1083,32 @@ Captador: ${getCaptadorName(selectedPerson)}
   function removeActivity(activityId) {
     setForm((prev) => ({
       ...prev,
-      activities: (prev.activities || []).filter((item) => item.id !== activityId)
+      activities: (prev.activities || []).filter(
+        (item) => item.id !== activityId
+      )
     }));
   }
+
+  // CONTINUA NA PARTE 2
+
+  // ========================================
+  // BARRA SUPERIOR
+  // ========================================
 
   function renderTopBar() {
     return (
       <div style={styles.topBar}>
-        <button type="button" style={styles.backButton} onClick={handleBack}>
+        <button
+          type="button"
+          style={styles.backButton}
+          onClick={handleBack}
+        >
           ←
         </button>
 
-        <h1 style={styles.topTitle}>Clientes e Proprietários</h1>
+        <h1 style={styles.topTitle}>
+          Clientes e Proprietários
+        </h1>
 
         <div ref={menuRef} style={styles.menuWrapper}>
           <button
@@ -627,31 +1121,59 @@ Captador: ${getCaptadorName(selectedPerson)}
 
           {showMenu && (
             <div style={styles.dropdownMenu}>
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenHistory}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenHistory}
+              >
                 Histórico
               </button>
 
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenVisits}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenVisits}
+              >
                 Visitas
               </button>
 
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenProposals}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenProposals}
+              >
                 Propostas
               </button>
 
-              <button type="button" style={styles.dropdownItem} onClick={handleCreateFinancing}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleCreateFinancing}
+              >
                 Financiamento
               </button>
 
-              <button type="button" style={styles.dropdownItem} onClick={handleOpenLinkedProperties}>
-                Imóveis vinculados
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleOpenLinkedProperties}
+              >
+                Imóveis cadastrados
               </button>
 
-              <button type="button" style={styles.dropdownItem} onClick={handleShare}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handleShare}
+              >
                 Compartilhar
               </button>
 
-              <button type="button" style={styles.dropdownItem} onClick={handlePrint}>
+              <button
+                type="button"
+                style={styles.dropdownItem}
+                onClick={handlePrint}
+              >
                 Imprimir
               </button>
             </div>
@@ -661,6 +1183,10 @@ Captador: ${getCaptadorName(selectedPerson)}
     );
   }
 
+  // ========================================
+  // LISTAGEM DE CLIENTES E PROPRIETÁRIOS
+  // ========================================
+
   function renderList() {
     return (
       <div style={styles.page}>
@@ -669,11 +1195,18 @@ Captador: ${getCaptadorName(selectedPerson)}
         <div style={styles.listContent}>
           <div style={styles.heroCard}>
             <div>
-              <span style={styles.heroBadge}>CRM Imobiliário • JB Pessoa</span>
-              <h2 style={styles.heroTitle}>Clientes e proprietários em uma única tela</h2>
+              <span style={styles.heroBadge}>
+                CRM Imobiliário • JB Pessoa
+              </span>
+
+              <h2 style={styles.heroTitle}>
+                Clientes e proprietários em uma única tela
+              </h2>
+
               <p style={styles.heroText}>
-                Cadastro único no padrão Univem: tipo flexível, captador, atividades,
-                termômetro e imóveis vinculados.
+                Cadastro único com captador, atividades,
+                termômetro de negócios, imóveis vinculados
+                e acompanhamento de negociações.
               </p>
             </div>
 
@@ -702,14 +1235,22 @@ Captador: ${getCaptadorName(selectedPerson)}
 
           <div style={styles.listHeader}>
             <div>
-              <h2 style={styles.pageTitle}>Cadastros</h2>
+              <h2 style={styles.pageTitle}>
+                Cadastros
+              </h2>
+
               <p style={styles.pageSubtitle}>
-                Clique no cadastro para editar ou na foto para abrir a visualização rápida.
+                Clique no cadastro para editar ou na foto
+                para abrir a visualização rápida.
               </p>
             </div>
 
             <div style={styles.listHeaderActions}>
-              <button type="button" style={styles.secondaryButton} onClick={handleRefresh}>
+              <button
+                type="button"
+                style={styles.secondaryButton}
+                onClick={handleRefresh}
+              >
                 Atualizar
               </button>
 
@@ -740,56 +1281,35 @@ Captador: ${getCaptadorName(selectedPerson)}
             />
 
             <div style={styles.typeFilterGroup}>
-              <button
-                type="button"
-                style={{
-                  ...styles.typeFilterButton,
-                  ...(typeFilter === "TODOS" ? styles.typeFilterButtonActive : {})
-                }}
-                onClick={() => setTypeFilter("TODOS")}
-              >
-                Todos
-              </button>
-
-              <button
-                type="button"
-                style={{
-                  ...styles.typeFilterButton,
-                  ...(typeFilter === "CLIENTES" ? styles.typeFilterButtonActive : {})
-                }}
-                onClick={() => setTypeFilter("CLIENTES")}
-              >
-                Clientes
-              </button>
-
-              <button
-                type="button"
-                style={{
-                  ...styles.typeFilterButton,
-                  ...(typeFilter === "PROPRIETARIOS" ? styles.typeFilterButtonActive : {})
-                }}
-                onClick={() => setTypeFilter("PROPRIETARIOS")}
-              >
-                Proprietários
-              </button>
-
-              <button
-                type="button"
-                style={{
-                  ...styles.typeFilterButton,
-                  ...(typeFilter === "AMBOS" ? styles.typeFilterButtonActive : {})
-                }}
-                onClick={() => setTypeFilter("AMBOS")}
-              >
-                Ambos
-              </button>
+              {[
+                ["TODOS", "Todos"],
+                ["CLIENTES", "Clientes"],
+                ["PROPRIETARIOS", "Proprietários"],
+                ["AMBOS", "Ambos"]
+              ].map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  style={{
+                    ...styles.typeFilterButton,
+                    ...(typeFilter === value
+                      ? styles.typeFilterButtonActive
+                      : {})
+                  }}
+                  onClick={() => setTypeFilter(value)}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
 
             <label style={styles.checkboxSmall}>
               <input
                 type="checkbox"
                 checked={showOnlyActive}
-                onChange={(e) => setShowOnlyActive(e.target.checked)}
+                onChange={(e) =>
+                  setShowOnlyActive(e.target.checked)
+                }
               />
               Somente ativos
             </label>
@@ -798,7 +1318,9 @@ Captador: ${getCaptadorName(selectedPerson)}
               <input
                 type="checkbox"
                 checked={showArchived}
-                onChange={(e) => setShowArchived(e.target.checked)}
+                onChange={(e) =>
+                  setShowArchived(e.target.checked)
+                }
               />
               Mostrar arquivados
             </label>
@@ -815,14 +1337,18 @@ Captador: ${getCaptadorName(selectedPerson)}
             </div>
 
             {filteredPersons.length === 0 ? (
-              <div style={styles.emptyState}>Nenhum cadastro encontrado.</div>
+              <div style={styles.emptyState}>
+                Nenhum cadastro encontrado.
+              </div>
             ) : (
               filteredPersons.map((person) => (
                 <div
                   key={person.id}
                   style={{
                     ...styles.personRow,
-                    ...(selectedPerson?.id === person.id ? styles.personRowActive : {})
+                    ...(selectedPerson?.id === person.id
+                      ? styles.personRowActive
+                      : {})
                   }}
                   onClick={() => handleSelectPerson(person)}
                 >
@@ -839,9 +1365,13 @@ Captador: ${getCaptadorName(selectedPerson)}
                     </button>
 
                     <div>
-                      <strong style={styles.personName}>{person.fullName || "Sem nome"}</strong>
+                      <strong style={styles.personName}>
+                        {person.fullName || "Sem nome"}
+                      </strong>
+
                       <span style={styles.personSub}>
-                        CPF: {person.cpf || "-"} • Cadastro: {formatDate(person.createdAt)}
+                        CPF: {person.cpf || "-"} • Cadastro:{" "}
+                        {formatDate(person.createdAt)}
                       </span>
                     </div>
                   </div>
@@ -858,12 +1388,20 @@ Captador: ${getCaptadorName(selectedPerson)}
                   </div>
 
                   <div style={styles.contactCell}>
-                    <span>{person.phone || person.contactPhone || "-"}</span>
+                    <span>
+                      {person.phone ||
+                        person.contactPhone ||
+                        "-"}
+                    </span>
                     <span>{person.email || "-"}</span>
                   </div>
 
                   <div style={styles.captorCell}>
-                    <span style={styles.captorAvatar}>{getInitials(getCaptadorName(person))}</span>
+                    <span style={styles.captorAvatar}>
+                      {getInitials(
+                        getCaptadorName(person)
+                      )}
+                    </span>
                     <span>{getCaptadorName(person)}</span>
                   </div>
 
@@ -871,7 +1409,9 @@ Captador: ${getCaptadorName(selectedPerson)}
                     <span
                       style={{
                         ...styles.temperatureBadge,
-                        ...getTemperatureStyle(person.businessTemperature)
+                        ...getTemperatureStyle(
+                          person.businessTemperature
+                        )
                       }}
                     >
                       {person.businessTemperature || "FRIO"}
@@ -894,23 +1434,43 @@ Captador: ${getCaptadorName(selectedPerson)}
     );
   }
 
+  // ========================================
+  // VISUALIZAÇÃO RÁPIDA
+  // ========================================
+
   function renderQuickView() {
     const linkedProperties = getLinkedProperties(viewPerson);
 
     return (
-      <div style={styles.modalOverlay} onClick={() => setViewPerson(null)}>
-        <div style={styles.quickViewModal} onClick={(event) => event.stopPropagation()}>
-          <button type="button" style={styles.modalCloseButton} onClick={() => setViewPerson(null)}>
+      <div
+        style={styles.modalOverlay}
+        onClick={() => setViewPerson(null)}
+      >
+        <div
+          style={styles.quickViewModal}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            style={styles.modalCloseButton}
+            onClick={() => setViewPerson(null)}
+          >
             ×
           </button>
 
           <div style={styles.quickHeader}>
-            <div style={styles.quickAvatar}>{getInitials(viewPerson.fullName)}</div>
+            <div style={styles.quickAvatar}>
+              {getInitials(viewPerson.fullName)}
+            </div>
 
             <div>
-              <h2 style={styles.quickTitle}>{viewPerson.fullName}</h2>
+              <h2 style={styles.quickTitle}>
+                {viewPerson.fullName}
+              </h2>
+
               <p style={styles.quickSub}>
-                {getPersonTypeLabel(viewPerson.type)} • Captador: {getCaptadorName(viewPerson)}
+                {getPersonTypeLabel(viewPerson.type)} •
+                Captador: {getCaptadorName(viewPerson)}
               </p>
             </div>
           </div>
@@ -918,7 +1478,11 @@ Captador: ${getCaptadorName(selectedPerson)}
           <div style={styles.quickInfoGrid}>
             <div>
               <span>Telefone</span>
-              <strong>{viewPerson.phone || viewPerson.contactPhone || "-"}</strong>
+              <strong>
+                {viewPerson.phone ||
+                  viewPerson.contactPhone ||
+                  "-"}
+              </strong>
             </div>
 
             <div>
@@ -933,24 +1497,45 @@ Captador: ${getCaptadorName(selectedPerson)}
 
             <div>
               <span>Termômetro</span>
-              <strong>{viewPerson.businessTemperature || "FRIO"}</strong>
+              <strong>
+                {viewPerson.businessTemperature || "FRIO"}
+              </strong>
             </div>
           </div>
 
           <div style={styles.quickSection}>
-            <h3>Imóveis vinculados</h3>
+            <h3>Imóveis relacionados</h3>
 
             {linkedProperties.length === 0 ? (
-              <p style={styles.emptyLinkedText}>Nenhum imóvel vinculado.</p>
+              <p style={styles.emptyLinkedText}>
+                Nenhum imóvel encontrado.
+              </p>
             ) : (
               linkedProperties.slice(0, 4).map((property) => (
-                <div key={property.id} style={styles.linkedPropertyItem}>
+                <div
+                  key={property.id}
+                  style={styles.linkedPropertyItem}
+                >
                   <div>
-                    <strong>{property.title || property.type || "Imóvel"}</strong>
-                    <span>{getPropertyAddress(property) || "Endereço não informado"}</span>
+                    <strong>
+                      {property.title ||
+                        property.type ||
+                        "Imóvel"}
+                    </strong>
+
+                    <span>
+                      {getPropertyAddress(property) ||
+                        "Endereço não informado"}
+                    </span>
                   </div>
 
-                  <span>{formatCurrency(property.price || property.salePrice || property.value)}</span>
+                  <span>
+                    {formatCurrency(
+                      property.price ||
+                        property.salePrice ||
+                        property.value
+                    )}
+                  </span>
                 </div>
               ))
             )}
@@ -968,7 +1553,11 @@ Captador: ${getCaptadorName(selectedPerson)}
               </a>
             )}
 
-            <button type="button" style={styles.primaryButton} onClick={handleEditFromQuickView}>
+            <button
+              type="button"
+              style={styles.primaryButton}
+              onClick={handleEditFromQuickView}
+            >
               Editar cadastro
             </button>
           </div>
@@ -976,6 +1565,404 @@ Captador: ${getCaptadorName(selectedPerson)}
       </div>
     );
   }
+
+  // ========================================
+  // IMÓVEIS DO COMPRADOR E NEGOCIAÇÕES
+  // ========================================
+
+  function renderBuyerProperties() {
+    const availableProperties = properties.filter(
+      (property) =>
+        !buyerProperties.some(
+          (linked) => String(linked.id) === String(property.id)
+        )
+    );
+
+    return (
+      <section style={styles.formSection}>
+        <div style={styles.sectionHeader}>
+          <h2>Imóveis de interesse do comprador</h2>
+          <p>
+            Vincule imóveis já cadastrados e acompanhe
+            cada negociação individualmente.
+          </p>
+        </div>
+
+        {!editingId ? (
+          <div style={styles.emptyPropertyBox}>
+            <div style={styles.propertyIconLarge}>⌂</div>
+            <div>
+              <strong>Salve o cadastro primeiro</strong>
+              <p>
+                Depois de salvar o cliente, você poderá
+                vincular imóveis existentes.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <>
+            <div style={styles.propertyActionsClean}>
+              <button
+                type="button"
+                style={styles.propertyActionButton}
+                onClick={() =>
+                  setShowLinkProperty((prev) => !prev)
+                }
+              >
+                + Vincular imóvel existente
+              </button>
+            </div>
+
+            {showLinkProperty && (
+              <div
+                style={{
+                  padding: "18px",
+                  backgroundColor: "#f9fafb",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: "12px",
+                  marginTop: "16px"
+                }}
+              >
+                <label style={styles.label}>
+                  Selecione o imóvel
+                </label>
+
+                <select
+                  style={styles.lineSelect}
+                  value={propertyToLink}
+                  onChange={(event) =>
+                    setPropertyToLink(event.target.value)
+                  }
+                >
+                  <option value="">
+                    Selecione um imóvel cadastrado
+                  </option>
+
+                  {availableProperties.map((property) => (
+                    <option
+                      key={property.id}
+                      value={property.id}
+                    >
+                      {property.reference ||
+                        property.code ||
+                        property.id}{" "}
+                      —{" "}
+                      {property.title ||
+                        getPropertyAddress(property) ||
+                        property.type ||
+                        "Imóvel"}
+                    </option>
+                  ))}
+                </select>
+
+                {availableProperties.length === 0 && (
+                  <p style={styles.emptyLinkedText}>
+                    Não há outros imóveis disponíveis
+                    para vinculação.
+                  </p>
+                )}
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "10px",
+                    marginTop: "14px"
+                  }}
+                >
+                  <button
+                    type="button"
+                    style={styles.saveButton}
+                    disabled={
+                      linkingProperty || !propertyToLink
+                    }
+                    onClick={handleLinkProperty}
+                  >
+                    {linkingProperty
+                      ? "Vinculando..."
+                      : "Confirmar vínculo"}
+                  </button>
+
+                  <button
+                    type="button"
+                    style={styles.secondaryButton}
+                    onClick={() => {
+                      setShowLinkProperty(false);
+                      setPropertyToLink("");
+                    }}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {loadingBuyerProperties ? (
+              <div style={styles.emptyStateSmall}>
+                Carregando imóveis vinculados...
+              </div>
+            ) : buyerProperties.length === 0 ? (
+              <div
+                style={{
+                  ...styles.emptyPropertyBox,
+                  marginTop: "16px"
+                }}
+              >
+                <div style={styles.propertyIconLarge}>⌂</div>
+
+                <div>
+                  <strong>
+                    Nenhum imóvel de interesse vinculado
+                  </strong>
+                  <p>
+                    Clique em "+ Vincular imóvel existente"
+                    para iniciar o acompanhamento.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginTop: "18px" }}>
+                {buyerProperties.map((property) => {
+                  const draft = negotiationDrafts[property.id] || {
+                    status: "INTERESSADO",
+                    notes: ""
+                  };
+
+                  const history = Array.isArray(
+                    property.negotiation?.history
+                  )
+                    ? property.negotiation.history
+                    : [];
+
+                  return (
+                    <div
+                      key={property.id}
+                      style={{
+                        backgroundColor: "#fff",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "14px",
+                        padding: "20px",
+                        marginBottom: "16px"
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "flex-start",
+                          gap: "14px",
+                          flexWrap: "wrap"
+                        }}
+                      >
+                        <div>
+                          <strong
+                            style={styles.propertyCleanTitle}
+                          >
+                            {property.title ||
+                              property.type ||
+                              "Imóvel"}
+                          </strong>
+
+                          <p style={styles.propertyAddress}>
+                            {getPropertyAddress(property) ||
+                              "Endereço não informado"}
+                          </p>
+
+                          <p>
+                            <strong>
+                              {formatCurrency(
+                                property.price ||
+                                  property.salePrice ||
+                                  property.value
+                              )}
+                            </strong>
+                          </p>
+
+                          <span style={styles.propertyCodeBadge}>
+                            🏠{" "}
+                            {property.reference ||
+                              property.code ||
+                              property.id?.slice(0, 6)}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          style={styles.deleteButton}
+                          onClick={() =>
+                            handleUnlinkProperty(property.id)
+                          }
+                        >
+                          Desvincular
+                        </button>
+                      </div>
+
+                      <div
+                        style={{
+                          marginTop: "20px",
+                          display: "grid",
+                          gap: "14px"
+                        }}
+                      >
+                        <div style={styles.fieldContent}>
+                          <label style={styles.label}>
+                            Status da negociação
+                          </label>
+
+                          <select
+                            style={styles.lineSelect}
+                            value={draft.status}
+                            onChange={(event) =>
+                              updateNegotiationDraft(
+                                property.id,
+                                "status",
+                                event.target.value
+                              )
+                            }
+                          >
+                            {NEGOTIATION_STATUSES.map(
+                              (status) => (
+                                <option
+                                  key={status.value}
+                                  value={status.value}
+                                >
+                                  {status.label}
+                                </option>
+                              )
+                            )}
+                          </select>
+                        </div>
+
+                        <div style={styles.fieldContent}>
+                          <label style={styles.label}>
+                            Observações da negociação
+                          </label>
+
+                          <textarea
+                            style={styles.textarea}
+                            value={draft.notes}
+                            onChange={(event) =>
+                              updateNegotiationDraft(
+                                property.id,
+                                "notes",
+                                event.target.value
+                              )
+                            }
+                            placeholder="Ex.: Cliente visitou o imóvel, gostou e está aguardando análise de financiamento..."
+                          />
+                        </div>
+
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "10px",
+                            flexWrap: "wrap"
+                          }}
+                        >
+                          <button
+                            type="button"
+                            style={styles.saveButton}
+                            disabled={
+                              savingNegotiationId === property.id
+                            }
+                            onClick={() =>
+                              handleSaveNegotiation(property.id)
+                            }
+                          >
+                            {savingNegotiationId === property.id
+                              ? "Salvando..."
+                              : "Salvar negociação"}
+                          </button>
+
+                          <button
+                            type="button"
+                            style={styles.secondaryButton}
+                            onClick={() =>
+                              toggleNegotiationHistory(property.id)
+                            }
+                          >
+                            {expandedHistory[property.id]
+                              ? "Ocultar histórico"
+                              : "Ver histórico"}
+                          </button>
+                        </div>
+
+                        {expandedHistory[property.id] && (
+                          <div
+                            style={{
+                              padding: "16px",
+                              borderRadius: "12px",
+                              backgroundColor: "#f9fafb",
+                              border: "1px solid #e5e7eb"
+                            }}
+                          >
+                            <h4
+                              style={{
+                                marginTop: 0
+                              }}
+                            >
+                              Histórico da negociação
+                            </h4>
+
+                            {history.length === 0 ? (
+                              <p style={styles.emptyLinkedText}>
+                                Nenhuma alteração registrada.
+                              </p>
+                            ) : (
+                              history.map((entry, index) => (
+                                <div
+                                  key={entry.id || index}
+                                  style={{
+                                    padding: "12px 0",
+                                    borderBottom:
+                                      "1px solid #e5e7eb"
+                                  }}
+                                >
+                                  <strong>
+                                    {getNegotiationStatusLabel(
+                                      entry.previousStatus
+                                    )}{" "}
+                                    →{" "}
+                                    {getNegotiationStatusLabel(
+                                      entry.newStatus
+                                    )}
+                                  </strong>
+
+                                  <p
+                                    style={{
+                                      margin: "6px 0",
+                                      fontSize: "13px"
+                                    }}
+                                  >
+                                    {entry.notes ||
+                                      "Sem observações"}
+                                  </p>
+
+                                  <small>
+                                    {formatDateTime(
+                                      entry.createdAt ||
+                                        entry.updatedAt
+                                    )}
+                                  </small>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+    );
+  }
+
+  // ========================================
+  // FORMULÁRIO DE CLIENTE / PROPRIETÁRIO
+  // ========================================
 
   function renderForm() {
     const linkedProperties = getLinkedProperties(selectedPerson);
@@ -986,12 +1973,18 @@ Captador: ${getCaptadorName(selectedPerson)}
 
         <div style={styles.formShell}>
           <div style={styles.formSidebar}>
-            <button type="button" style={styles.backListButton} onClick={handleBackToList}>
+            <button
+              type="button"
+              style={styles.backListButton}
+              onClick={handleBackToList}
+            >
               ← Voltar para lista
             </button>
 
             <div style={styles.profileCard}>
-              <div style={styles.profileAvatar}>{getInitials(form.fullName)}</div>
+              <div style={styles.profileAvatar}>
+                {getInitials(form.fullName)}
+              </div>
 
               <h2>{form.fullName || "Novo cadastro"}</h2>
 
@@ -1004,51 +1997,83 @@ Captador: ${getCaptadorName(selectedPerson)}
                 {getPersonTypeLabel(form.type)}
               </span>
 
-              <p>Captador: {getSelectedCaptadorName()}</p>
+              <p>
+                Captador: {getSelectedCaptadorName()}
+              </p>
             </div>
 
             <div style={styles.sidebarSummary}>
               <div>
-                <span>Imóveis vinculados</span>
-                <strong>{linkedProperties.length}</strong>
+                <span>Imóveis relacionados</span>
+                <strong>
+                  {linkedProperties.length +
+                    buyerProperties.filter(
+                      (property) =>
+                        !linkedProperties.some(
+                          (linked) => linked.id === property.id
+                        )
+                    ).length}
+                </strong>
               </div>
 
               <div>
                 <span>Atividades</span>
-                <strong>{form.activities?.length || 0}</strong>
+                <strong>
+                  {form.activities?.length || 0}
+                </strong>
               </div>
 
               <div>
                 <span>Situação</span>
-                <strong>{form.isActive ? "Ativo" : "Inativo"}</strong>
+                <strong>
+                  {form.isActive ? "Ativo" : "Inativo"}
+                </strong>
               </div>
             </div>
           </div>
 
-          <form style={styles.formContent} onSubmit={handleSubmit}>
+          <form
+            style={styles.formContent}
+            onSubmit={handleSubmit}
+          >
             <section style={styles.formSection}>
               <div style={styles.sectionHeader}>
                 <h2>Dados principais</h2>
-                <p>Cadastro único para cliente, proprietário ou ambos.</p>
+                <p>
+                  Cadastro único para cliente,
+                  proprietário ou ambos.
+                </p>
               </div>
 
               <div style={styles.rowTriple}>
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Tipo de cadastro</label>
+                  <label style={styles.label}>
+                    Tipo de cadastro
+                  </label>
+
                   <select
                     style={styles.lineSelect}
                     name="type"
                     value={form.type}
                     onChange={handleChange}
                   >
-                    <option value="CLIENTE">Cliente</option>
-                    <option value="PROPRIETARIO">Proprietário</option>
-                    <option value="AMBOS">Cliente + Proprietário</option>
+                    <option value="CLIENTE">
+                      Cliente
+                    </option>
+                    <option value="PROPRIETARIO">
+                      Proprietário
+                    </option>
+                    <option value="AMBOS">
+                      Cliente + Proprietário
+                    </option>
                   </select>
                 </div>
 
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Nome / Empresa</label>
+                  <label style={styles.label}>
+                    Nome / Empresa
+                  </label>
+
                   <input
                     style={styles.lineInput}
                     name="fullName"
@@ -1059,30 +2084,50 @@ Captador: ${getCaptadorName(selectedPerson)}
                 </div>
 
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Categoria</label>
+                  <label style={styles.label}>
+                    Categoria
+                  </label>
+
                   <input
                     style={styles.lineInput}
                     name="category"
                     value={form.category}
                     onChange={handleChange}
-                    placeholder="Ex: Comprador, Proprietário, Investidor"
+                    placeholder="Ex.: Comprador, Proprietário, Investidor"
                   />
                 </div>
               </div>
 
               <div style={styles.rowTriple}>
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>CPF / CNPJ</label>
-                  <input style={styles.lineInput} name="cpf" value={form.cpf} onChange={handleChange} />
+                  <label style={styles.label}>
+                    CPF / CNPJ
+                  </label>
+
+                  <input
+                    style={styles.lineInput}
+                    name="cpf"
+                    value={form.cpf}
+                    onChange={handleChange}
+                  />
                 </div>
 
                 <div style={styles.fieldContent}>
                   <label style={styles.label}>RG</label>
-                  <input style={styles.lineInput} name="rg" value={form.rg} onChange={handleChange} />
+
+                  <input
+                    style={styles.lineInput}
+                    name="rg"
+                    value={form.rg}
+                    onChange={handleChange}
+                  />
                 </div>
 
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Primeiro contato</label>
+                  <label style={styles.label}>
+                    Primeiro contato
+                  </label>
+
                   <input
                     style={styles.lineInput}
                     type="date"
@@ -1097,29 +2142,58 @@ Captador: ${getCaptadorName(selectedPerson)}
             <section style={styles.formSection}>
               <div style={styles.sectionHeader}>
                 <h2>Contato</h2>
-                <p>Telefones, e-mail e WhatsApp.</p>
+                <p>
+                  Telefones, e-mail e WhatsApp.
+                </p>
               </div>
 
               <div style={styles.rowTriple}>
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Telefone principal</label>
-                  <input style={styles.lineInput} name="phone" value={form.phone} onChange={handleChange} />
+                  <label style={styles.label}>
+                    Telefone principal
+                  </label>
+
+                  <input
+                    style={styles.lineInput}
+                    name="phone"
+                    value={form.phone}
+                    onChange={handleChange}
+                  />
                 </div>
 
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>E-mail</label>
-                  <input style={styles.lineInput} name="email" value={form.email} onChange={handleChange} />
+                  <label style={styles.label}>
+                    E-mail
+                  </label>
+
+                  <input
+                    style={styles.lineInput}
+                    name="email"
+                    value={form.email}
+                    onChange={handleChange}
+                  />
                 </div>
 
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Empresa</label>
-                  <input style={styles.lineInput} name="company" value={form.company} onChange={handleChange} />
+                  <label style={styles.label}>
+                    Empresa
+                  </label>
+
+                  <input
+                    style={styles.lineInput}
+                    name="company"
+                    value={form.company}
+                    onChange={handleChange}
+                  />
                 </div>
               </div>
 
               <div style={styles.rowTriple}>
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Telefone comercial</label>
+                  <label style={styles.label}>
+                    Telefone comercial
+                  </label>
+
                   <input
                     style={styles.lineInput}
                     name="commercialPhone"
@@ -1129,7 +2203,10 @@ Captador: ${getCaptadorName(selectedPerson)}
                 </div>
 
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Telefone residencial</label>
+                  <label style={styles.label}>
+                    Telefone residencial
+                  </label>
+
                   <input
                     style={styles.lineInput}
                     name="residentialPhone"
@@ -1139,7 +2216,10 @@ Captador: ${getCaptadorName(selectedPerson)}
                 </div>
 
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Telefone contato</label>
+                  <label style={styles.label}>
+                    Telefone contato
+                  </label>
+
                   <input
                     style={styles.lineInput}
                     name="contactPhone"
@@ -1163,44 +2243,67 @@ Captador: ${getCaptadorName(selectedPerson)}
             <section style={styles.formSection}>
               <div style={styles.sectionHeader}>
                 <h2>Gestão comercial</h2>
-                <p>Captador, termômetro, situação e observações.</p>
+                <p>
+                  Captador, termômetro, situação e observações.
+                </p>
               </div>
 
               <div style={styles.rowTriple}>
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Captador</label>
+                  <label style={styles.label}>
+                    Captador
+                  </label>
+
                   <select
                     name="createdById"
                     value={form.createdById || ""}
                     onChange={handleChange}
                     style={styles.lineSelect}
                   >
-                    <option value="">{getSelectedCaptadorName()}</option>
+                    <option value="">
+                      {getSelectedCaptadorName()}
+                    </option>
 
                     {users.map((captador) => (
-                      <option key={captador.id} value={captador.id}>
-                        {captador.name || captador.email}
+                      <option
+                        key={captador.id}
+                        value={captador.id}
+                      >
+                        {captador.name ||
+                          captador.email}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Termômetro de negócio</label>
+                  <label style={styles.label}>
+                    Termômetro de negócio
+                  </label>
+
                   <select
                     style={styles.lineSelect}
                     name="businessTemperature"
                     value={form.businessTemperature}
                     onChange={handleChange}
                   >
-                    <option value="FRIO">Frio</option>
-                    <option value="MORNO">Morno</option>
-                    <option value="QUENTE">Quente</option>
+                    <option value="FRIO">
+                      Frio
+                    </option>
+                    <option value="MORNO">
+                      Morno
+                    </option>
+                    <option value="QUENTE">
+                      Quente
+                    </option>
                   </select>
                 </div>
 
                 <div style={styles.fieldContent}>
-                  <label style={styles.label}>Situação</label>
+                  <label style={styles.label}>
+                    Situação
+                  </label>
+
                   <select
                     style={styles.lineSelect}
                     name="isActive"
@@ -1208,12 +2311,17 @@ Captador: ${getCaptadorName(selectedPerson)}
                     onChange={(event) =>
                       setForm((prev) => ({
                         ...prev,
-                        isActive: event.target.value === "true"
+                        isActive:
+                          event.target.value === "true"
                       }))
                     }
                   >
-                    <option value="true">Ativo</option>
-                    <option value="false">Inativo</option>
+                    <option value="true">
+                      Ativo
+                    </option>
+                    <option value="false">
+                      Inativo
+                    </option>
                   </select>
                 </div>
               </div>
@@ -1229,7 +2337,10 @@ Captador: ${getCaptadorName(selectedPerson)}
               </label>
 
               <div style={styles.fieldContent}>
-                <label style={styles.label}>Anotações</label>
+                <label style={styles.label}>
+                  Anotações
+                </label>
+
                 <textarea
                   style={styles.textarea}
                   name="notes"
@@ -1243,39 +2354,62 @@ Captador: ${getCaptadorName(selectedPerson)}
             <section style={styles.formSection}>
               <div style={styles.sectionHeader}>
                 <h2>Atividades</h2>
-                <p>Histórico rápido de contatos e atendimentos.</p>
+                <p>
+                  Histórico rápido de contatos e atendimentos.
+                </p>
               </div>
 
               <div style={styles.activityInputRow}>
                 <input
                   style={styles.lineInput}
                   value={newActivityText}
-                  onChange={(event) => setNewActivityText(event.target.value)}
+                  onChange={(event) =>
+                    setNewActivityText(event.target.value)
+                  }
                   placeholder="Digite uma nova atividade..."
                 />
 
-                <button type="button" style={styles.secondaryButton} onClick={addActivity}>
+                <button
+                  type="button"
+                  style={styles.secondaryButton}
+                  onClick={addActivity}
+                >
                   Adicionar
                 </button>
               </div>
 
               <div style={styles.activitiesBox}>
                 {(form.activities || []).length === 0 ? (
-                  <div style={styles.emptyStateSmall}>Nenhuma atividade cadastrada.</div>
+                  <div style={styles.emptyStateSmall}>
+                    Nenhuma atividade cadastrada.
+                  </div>
                 ) : (
                   form.activities.map((activity) => (
-                    <div key={activity.id || activity.date || activity.text} style={styles.activityItem}>
+                    <div
+                      key={
+                        activity.id ||
+                        activity.date ||
+                        activity.text
+                      }
+                      style={styles.activityItem}
+                    >
                       <div>
-                        <strong>{activity.text}</strong>
+                        <strong>
+                          {activity.text}
+                        </strong>
+
                         <span>
-                          {activity.user || "Usuário"} • {formatDateTime(activity.date)}
+                          {activity.user || "Usuário"} •{" "}
+                          {formatDateTime(activity.date)}
                         </span>
                       </div>
 
                       <button
                         type="button"
                         style={styles.removeActivityButton}
-                        onClick={() => removeActivity(activity.id)}
+                        onClick={() =>
+                          removeActivity(activity.id)
+                        }
                       >
                         Remover
                       </button>
@@ -1287,39 +2421,68 @@ Captador: ${getCaptadorName(selectedPerson)}
 
             <section style={styles.formSection}>
               <div style={styles.sectionHeader}>
-                <h2>Imóveis vinculados</h2>
-                <p>Imóveis relacionados a este cadastro.</p>
+                <h2>Imóveis relacionados ao cadastro</h2>
+                <p>
+                  Imóveis identificados nos dados de
+                  proprietário ou outros vínculos existentes.
+                </p>
               </div>
 
               {linkedProperties.length === 0 ? (
                 <div style={styles.emptyPropertyBox}>
-                  <div style={styles.propertyIconLarge}>⌂</div>
+                  <div style={styles.propertyIconLarge}>
+                    ⌂
+                  </div>
+
                   <div>
-                    <strong>Nenhum imóvel vinculado</strong>
-                    <p>Você pode cadastrar ou vincular um imóvel para este cadastro.</p>
+                    <strong>
+                      Nenhum imóvel encontrado
+                    </strong>
+                    <p>
+                      Você pode cadastrar um imóvel
+                      para este cadastro.
+                    </p>
                   </div>
                 </div>
               ) : (
                 <div style={styles.propertyListClean}>
                   {linkedProperties.map((property) => (
-                    <div key={property.id} style={styles.propertyCleanItem}>
-                      <div style={styles.propertyIconLarge}>⌂</div>
+                    <div
+                      key={property.id}
+                      style={styles.propertyCleanItem}
+                    >
+                      <div style={styles.propertyIconLarge}>
+                        ⌂
+                      </div>
 
                       <div style={styles.propertyCleanInfo}>
-                        <strong style={styles.propertyCleanTitle}>
-                          {String(property.type || "IMÓVEL").toUpperCase()} -{" "}
+                        <strong
+                          style={styles.propertyCleanTitle}
+                        >
+                          {String(
+                            property.type || "IMÓVEL"
+                          ).toUpperCase()}{" "}
+                          -{" "}
                           <span style={styles.propertyPrice}>
-                            {formatCurrency(property.price || property.salePrice || property.value)}
+                            {formatCurrency(
+                              property.price ||
+                                property.salePrice ||
+                                property.value
+                            )}
                           </span>
                         </strong>
 
                         <p style={styles.propertyAddress}>
-                          {getPropertyAddress(property) || "Endereço não informado"}
+                          {getPropertyAddress(property) ||
+                            "Endereço não informado"}
                         </p>
                       </div>
 
                       <span style={styles.propertyCodeBadge}>
-                        🏠 {property.reference || property.code || property.id?.slice(0, 6)}
+                        🏠{" "}
+                        {property.reference ||
+                          property.code ||
+                          property.id?.slice(0, 6)}
                       </span>
                     </div>
                   ))}
@@ -1337,13 +2500,24 @@ Captador: ${getCaptadorName(selectedPerson)}
               </div>
             </section>
 
+            {canBuyProperties({
+              type: form.type
+            }) && renderBuyerProperties()}
+
             <div style={styles.formActions}>
-              <button type="submit" style={styles.saveButton}>
+              <button
+                type="submit"
+                style={styles.saveButton}
+              >
                 Salvar cadastro
               </button>
 
               {editingId && (
-                <button type="button" style={styles.deleteButton} onClick={handleDelete}>
+                <button
+                  type="button"
+                  style={styles.deleteButton}
+                  onClick={handleDelete}
+                >
                   Excluir
                 </button>
               )}
@@ -1354,8 +2528,16 @@ Captador: ${getCaptadorName(selectedPerson)}
     );
   }
 
-  return screenMode === "list" ? renderList() : renderForm();
+  // ========================================
+  // FINAL DO COMPONENTE
+  // ========================================
+
+  return screenMode === "list"
+    ? renderList()
+    : renderForm();
 }
+
+// CONTINUA NA PARTE 3: const styles = { ... }
 
 const styles = {
   page: {
@@ -1363,6 +2545,7 @@ const styles = {
     backgroundColor: "#f3f4f6",
     color: "#111827"
   },
+
   topBar: {
     height: "58px",
     backgroundColor: "#1e88e5",
@@ -1376,6 +2559,7 @@ const styles = {
     top: 0,
     zIndex: 30
   },
+
   backButton: {
     border: "none",
     backgroundColor: "transparent",
@@ -1383,15 +2567,18 @@ const styles = {
     fontSize: "28px",
     cursor: "pointer"
   },
+
   topTitle: {
     flex: 1,
     margin: 0,
     fontSize: "22px",
     fontWeight: "700"
   },
+
   menuWrapper: {
     position: "relative"
   },
+
   menuButton: {
     border: "none",
     backgroundColor: "transparent",
@@ -1401,6 +2588,7 @@ const styles = {
     width: "42px",
     height: "42px"
   },
+
   dropdownMenu: {
     position: "absolute",
     right: 0,
@@ -1413,6 +2601,7 @@ const styles = {
     padding: "8px",
     zIndex: 50
   },
+
   dropdownItem: {
     width: "100%",
     border: "none",
@@ -1424,11 +2613,13 @@ const styles = {
     fontWeight: "600",
     color: "#374151"
   },
+
   listContent: {
     maxWidth: "1380px",
     margin: "0 auto",
     padding: "28px 18px 70px"
   },
+
   heroCard: {
     borderRadius: "24px",
     background: "linear-gradient(135deg, #111827, #1f2937)",
@@ -1440,6 +2631,7 @@ const styles = {
     gap: "24px",
     boxShadow: "0 22px 55px rgba(15,23,42,0.25)"
   },
+
   heroBadge: {
     display: "inline-flex",
     backgroundColor: "rgba(255,255,255,0.12)",
@@ -1450,23 +2642,27 @@ const styles = {
     fontWeight: "800",
     marginBottom: "12px"
   },
+
   heroTitle: {
     margin: "0 0 10px",
     fontSize: "34px",
     lineHeight: 1.12
   },
+
   heroText: {
     margin: 0,
     color: "rgba(255,255,255,0.78)",
     fontSize: "15px",
     lineHeight: 1.5
   },
+
   heroStats: {
     display: "grid",
     gridTemplateColumns: "repeat(4, 1fr)",
     gap: "12px",
     alignItems: "stretch"
   },
+
   statCard: {
     borderRadius: "16px",
     backgroundColor: "rgba(255,255,255,0.12)",
@@ -1476,6 +2672,7 @@ const styles = {
     flexDirection: "column",
     gap: "4px"
   },
+
   listHeader: {
     display: "flex",
     justifyContent: "space-between",
@@ -1483,16 +2680,19 @@ const styles = {
     gap: "22px",
     marginBottom: "18px"
   },
+
   pageTitle: {
     margin: 0,
     fontSize: "30px",
     fontWeight: "800"
   },
+
   pageSubtitle: {
     margin: "6px 0 0",
     color: "#6b7280",
     fontSize: "15px"
   },
+
   listHeaderActions: {
     display: "flex",
     alignItems: "center",
@@ -1500,6 +2700,7 @@ const styles = {
     flexWrap: "wrap",
     justifyContent: "flex-end"
   },
+
   filtersCard: {
     backgroundColor: "#fff",
     borderRadius: "18px",
@@ -1511,6 +2712,7 @@ const styles = {
     marginBottom: "18px",
     flexWrap: "wrap"
   },
+
   searchInputTop: {
     flex: 1,
     minWidth: "280px",
@@ -1520,11 +2722,13 @@ const styles = {
     fontSize: "14px",
     outline: "none"
   },
+
   typeFilterGroup: {
     display: "flex",
     gap: "8px",
     flexWrap: "wrap"
   },
+
   typeFilterButton: {
     border: "1px solid #d1d5db",
     backgroundColor: "#fff",
@@ -1534,11 +2738,13 @@ const styles = {
     cursor: "pointer",
     fontWeight: "800"
   },
+
   typeFilterButtonActive: {
     backgroundColor: "#111827",
     color: "#fff",
     borderColor: "#111827"
   },
+
   checkboxSmall: {
     display: "inline-flex",
     alignItems: "center",
@@ -1547,6 +2753,7 @@ const styles = {
     fontWeight: "700",
     fontSize: "13px"
   },
+
   primaryButton: {
     backgroundColor: "#d4a62a",
     color: "#fff",
@@ -1556,6 +2763,7 @@ const styles = {
     fontWeight: "800",
     cursor: "pointer"
   },
+
   primaryButtonDark: {
     backgroundColor: "#111827",
     color: "#fff",
@@ -1565,6 +2773,7 @@ const styles = {
     fontWeight: "800",
     cursor: "pointer"
   },
+
   secondaryButton: {
     backgroundColor: "#fff",
     color: "#374151",
@@ -1574,12 +2783,14 @@ const styles = {
     fontWeight: "800",
     cursor: "pointer"
   },
+
   personTableCard: {
     backgroundColor: "#fff",
     borderRadius: "18px",
     overflow: "hidden",
     boxShadow: "0 14px 34px rgba(15,23,42,0.1)"
   },
+
   personTableHeader: {
     display: "grid",
     gridTemplateColumns: "2.2fr 1fr 1.3fr 1.3fr 0.9fr 0.7fr",
@@ -1592,6 +2803,7 @@ const styles = {
     fontWeight: "900",
     textTransform: "uppercase"
   },
+
   personRow: {
     display: "grid",
     gridTemplateColumns: "2.2fr 1fr 1.3fr 1.3fr 0.9fr 0.7fr",
@@ -1602,15 +2814,18 @@ const styles = {
     cursor: "pointer",
     backgroundColor: "#fff"
   },
+
   personRowActive: {
     backgroundColor: "#fff7ed"
   },
+
   personNameCell: {
     display: "flex",
     alignItems: "center",
     gap: "12px",
     minWidth: 0
   },
+
   avatarButton: {
     width: "44px",
     height: "44px",
@@ -1622,17 +2837,20 @@ const styles = {
     cursor: "pointer",
     flex: "0 0 auto"
   },
+
   personName: {
     display: "block",
     color: "#111827",
     fontSize: "15px"
   },
+
   personSub: {
     display: "block",
     color: "#6b7280",
     fontSize: "12px",
     marginTop: "3px"
   },
+
   typeBadge: {
     display: "inline-flex",
     alignItems: "center",
@@ -1643,22 +2861,27 @@ const styles = {
     fontWeight: "900",
     whiteSpace: "nowrap"
   },
+
   clientBadge: {
     backgroundColor: "#dbeafe",
     color: "#1d4ed8"
   },
+
   ownerBadge: {
     backgroundColor: "#dcfce7",
     color: "#166534"
   },
+
   bothBadge: {
     backgroundColor: "#fef3c7",
     color: "#92400e"
   },
+
   neutralBadge: {
     backgroundColor: "#f3f4f6",
     color: "#374151"
   },
+
   contactCell: {
     display: "flex",
     flexDirection: "column",
@@ -1667,6 +2890,7 @@ const styles = {
     fontSize: "13px",
     minWidth: 0
   },
+
   captorCell: {
     display: "flex",
     alignItems: "center",
@@ -1674,6 +2898,7 @@ const styles = {
     color: "#374151",
     fontSize: "13px"
   },
+
   captorAvatar: {
     width: "28px",
     height: "28px",
@@ -1686,6 +2911,7 @@ const styles = {
     fontWeight: "900",
     fontSize: "11px"
   },
+
   temperatureBadge: {
     display: "inline-flex",
     borderRadius: "999px",
@@ -1693,18 +2919,22 @@ const styles = {
     fontSize: "12px",
     fontWeight: "900"
   },
+
   tempHot: {
     backgroundColor: "#fee2e2",
     color: "#991b1b"
   },
+
   tempWarm: {
     backgroundColor: "#fef3c7",
     color: "#92400e"
   },
+
   tempCold: {
     backgroundColor: "#e0f2fe",
     color: "#0369a1"
   },
+
   propertyCountBadge: {
     minWidth: "34px",
     height: "34px",
@@ -1716,11 +2946,13 @@ const styles = {
     justifyContent: "center",
     fontWeight: "900"
   },
+
   emptyState: {
     padding: "42px",
     textAlign: "center",
     color: "#6b7280"
   },
+
   emptyStateSmall: {
     padding: "18px",
     textAlign: "center",
@@ -1728,6 +2960,7 @@ const styles = {
     backgroundColor: "#f9fafb",
     borderRadius: "12px"
   },
+
   formShell: {
     maxWidth: "1380px",
     margin: "0 auto",
@@ -1736,11 +2969,13 @@ const styles = {
     gridTemplateColumns: "310px 1fr",
     gap: "22px"
   },
+
   formSidebar: {
     display: "flex",
     flexDirection: "column",
     gap: "16px"
   },
+
   backListButton: {
     border: "none",
     borderRadius: "999px",
@@ -1750,6 +2985,7 @@ const styles = {
     fontWeight: "900",
     cursor: "pointer"
   },
+
   profileCard: {
     backgroundColor: "#fff",
     borderRadius: "18px",
@@ -1761,6 +2997,7 @@ const styles = {
     textAlign: "center",
     gap: "10px"
   },
+
   profileAvatar: {
     width: "86px",
     height: "86px",
@@ -1773,6 +3010,7 @@ const styles = {
     fontSize: "30px",
     fontWeight: "900"
   },
+
   sidebarSummary: {
     backgroundColor: "#fff",
     borderRadius: "18px",
@@ -1782,11 +3020,13 @@ const styles = {
     flexDirection: "column",
     gap: "14px"
   },
+
   formContent: {
     display: "flex",
     flexDirection: "column",
     gap: "18px"
   },
+
   formSection: {
     backgroundColor: "#fff",
     borderRadius: "18px",
@@ -1794,25 +3034,30 @@ const styles = {
     boxShadow: "0 12px 30px rgba(15,23,42,0.08)",
     border: "1px solid #eef2f7"
   },
+
   sectionHeader: {
     marginBottom: "20px"
   },
+
   rowTriple: {
     display: "grid",
     gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
     gap: "16px",
     marginBottom: "16px"
   },
+
   fieldContent: {
     display: "flex",
     flexDirection: "column",
     gap: "7px"
   },
+
   label: {
     color: "#374151",
     fontSize: "13px",
     fontWeight: "800"
   },
+
   lineInput: {
     width: "100%",
     boxSizing: "border-box",
@@ -1823,6 +3068,7 @@ const styles = {
     outline: "none",
     backgroundColor: "#fff"
   },
+
   lineSelect: {
     width: "100%",
     boxSizing: "border-box",
@@ -1833,6 +3079,7 @@ const styles = {
     outline: "none",
     backgroundColor: "#fff"
   },
+
   textarea: {
     width: "100%",
     minHeight: "120px",
@@ -1844,6 +3091,7 @@ const styles = {
     outline: "none",
     resize: "vertical"
   },
+
   checkLabel: {
     display: "inline-flex",
     alignItems: "center",
@@ -1852,17 +3100,20 @@ const styles = {
     fontWeight: "700",
     marginBottom: "14px"
   },
+
   activityInputRow: {
     display: "grid",
     gridTemplateColumns: "1fr auto",
     gap: "12px",
     marginBottom: "14px"
   },
+
   activitiesBox: {
     display: "flex",
     flexDirection: "column",
     gap: "10px"
   },
+
   activityItem: {
     display: "flex",
     justifyContent: "space-between",
@@ -1872,6 +3123,7 @@ const styles = {
     borderRadius: "12px",
     border: "1px solid #eef2f7"
   },
+
   removeActivityButton: {
     border: "none",
     backgroundColor: "#fee2e2",
@@ -1881,6 +3133,7 @@ const styles = {
     cursor: "pointer",
     fontWeight: "800"
   },
+
   emptyPropertyBox: {
     display: "flex",
     alignItems: "center",
@@ -1890,10 +3143,12 @@ const styles = {
     border: "1px dashed #d1d5db",
     borderRadius: "14px"
   },
+
   propertyListClean: {
     display: "flex",
     flexDirection: "column"
   },
+
   propertyCleanItem: {
     display: "grid",
     gridTemplateColumns: "70px 1fr auto",
@@ -1902,6 +3157,7 @@ const styles = {
     padding: "16px",
     borderBottom: "1px solid #eeeeee"
   },
+
   propertyIconLarge: {
     width: "58px",
     height: "58px",
@@ -1914,24 +3170,29 @@ const styles = {
     fontSize: "30px",
     fontWeight: "900"
   },
+
   propertyCleanInfo: {
     display: "flex",
     flexDirection: "column",
     gap: "4px"
   },
+
   propertyCleanTitle: {
     fontSize: "15px",
     color: "#374151"
   },
+
   propertyPrice: {
     color: "#d4a62a",
     fontWeight: "900"
   },
+
   propertyAddress: {
     margin: 0,
     color: "#6b7280",
     fontSize: "13px"
   },
+
   propertyCodeBadge: {
     backgroundColor: "#eff6ff",
     color: "#1d4ed8",
@@ -1940,9 +3201,11 @@ const styles = {
     fontWeight: "800",
     fontSize: "12px"
   },
+
   propertyActionsClean: {
     paddingTop: "16px"
   },
+
   propertyActionButton: {
     border: "none",
     backgroundColor: "#111827",
@@ -1952,6 +3215,7 @@ const styles = {
     cursor: "pointer",
     fontWeight: "900"
   },
+
   formActions: {
     display: "flex",
     justifyContent: "flex-end",
@@ -1960,6 +3224,7 @@ const styles = {
     bottom: "14px",
     zIndex: 20
   },
+
   saveButton: {
     border: "none",
     backgroundColor: "#16a34a",
@@ -1970,6 +3235,7 @@ const styles = {
     fontWeight: "900",
     boxShadow: "0 12px 24px rgba(22,163,74,0.25)"
   },
+
   deleteButton: {
     border: "none",
     backgroundColor: "#dc2626",
@@ -1979,6 +3245,7 @@ const styles = {
     cursor: "pointer",
     fontWeight: "900"
   },
+
   modalOverlay: {
     position: "fixed",
     inset: 0,
@@ -1988,6 +3255,7 @@ const styles = {
     justifyContent: "center",
     zIndex: 100
   },
+
   quickViewModal: {
     width: "min(760px, calc(100vw - 32px))",
     maxHeight: "calc(100vh - 48px)",
@@ -1998,6 +3266,7 @@ const styles = {
     boxShadow: "0 30px 80px rgba(0,0,0,0.28)",
     position: "relative"
   },
+
   modalCloseButton: {
     position: "absolute",
     right: "18px",
@@ -2010,12 +3279,14 @@ const styles = {
     cursor: "pointer",
     fontSize: "22px"
   },
+
   quickHeader: {
     display: "flex",
     gap: "16px",
     alignItems: "center",
     marginBottom: "22px"
   },
+
   quickAvatar: {
     width: "72px",
     height: "72px",
@@ -2028,27 +3299,33 @@ const styles = {
     fontSize: "26px",
     fontWeight: "900"
   },
+
   quickTitle: {
     margin: 0,
     fontSize: "26px"
   },
+
   quickSub: {
     margin: "6px 0 0",
     color: "#6b7280"
   },
+
   quickInfoGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(4, 1fr)",
     gap: "12px",
     marginBottom: "20px"
   },
+
   quickSection: {
     borderTop: "1px solid #e5e7eb",
     paddingTop: "18px"
   },
+
   emptyLinkedText: {
     color: "#6b7280"
   },
+
   linkedPropertyItem: {
     display: "flex",
     justifyContent: "space-between",
@@ -2056,12 +3333,14 @@ const styles = {
     padding: "12px 0",
     borderBottom: "1px solid #f1f5f9"
   },
+
   quickActions: {
     display: "flex",
     justifyContent: "flex-end",
     gap: "12px",
     marginTop: "22px"
   },
+
   whatsappButton: {
     textDecoration: "none",
     backgroundColor: "#16a34a",

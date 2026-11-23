@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import publicApi from "../services/publicApi";
+import { trackGenerateLead } from "../services/analytics";
 import "./SiteFinancingSimulator.css";
 
 function formatCurrency(value) {
@@ -177,6 +178,8 @@ export default function SiteFinancingSimulator() {
       });
 
       console.log("Lead criado com sucesso:", response.data);
+
+      trackGenerateLead({ source: "simulador_financiamento" });
 
       setFeedback(
         "Pré-análise enviada com sucesso! Nossa equipe vai avaliar as melhores condições para você."

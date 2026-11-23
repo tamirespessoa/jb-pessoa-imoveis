@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { trackGenerateLead, trackWhatsAppClick } from "../services/analytics";
 import { io } from "socket.io-client";
 
 const SOCKET_URL =
@@ -83,6 +84,8 @@ export default function SiteChatWidget() {
 
       const res = await api.post("/chat", payload);
 
+      trackGenerateLead({ source: "chat_site" });
+
       setConversation(res.data);
       setMessages(res.data.messages || []);
       setShowQuickPanel(false);
@@ -120,6 +123,8 @@ export default function SiteChatWidget() {
   }
 
   function openWhatsApp() {
+    trackWhatsAppClick({ location: "chat_widget" });
+
     window.open(
       "https://wa.me/5511983416160?text=Olá! Gostaria de atendimento sobre imóveis.",
       "_blank"

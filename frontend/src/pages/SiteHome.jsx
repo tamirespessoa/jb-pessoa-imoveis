@@ -18,6 +18,7 @@ import FeaturedProperties from "../components/site/FeaturedProperties";
 import SiteChatWidget from "../components/SiteChatWidget";
 import SiteFinancingSimulator from "../components/SiteFinancingSimulator";
 import publicApi from "../services/publicApi";
+import { trackGenerateLead } from "../services/analytics";
 import logo from "../assets/logo-jb.png";
 import "./SiteHome.css";
 
@@ -87,6 +88,8 @@ export default function SiteHome() {
         source: "SITE_HOME",
         sourceDetail: "Formulário da página inicial"
       });
+
+      trackGenerateLead({ source: "formulario_home" });
 
       setLeadStatus("Contato enviado. Nossa equipe falará com você em breve.");
       setLeadForm({ name: "", email: "", phone: "", message: "" });

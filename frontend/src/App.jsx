@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 
 import "./App.css";
+import { trackPageView } from "./services/analytics";
 
 // SISTEMA
 import Login from "./pages/Login";
@@ -37,6 +38,17 @@ function ProtectedRoute({ logged, children }) {
   }
 
   return children;
+}
+
+// Envia page_view ao GA4 a cada navegação entre páginas públicas (/site/*).
+function RouteTracker() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    trackPageView(pathname);
+  }, [pathname]);
+
+  return null;
 }
 
 function AppRoutes({ logged, setLogged }) {
@@ -111,5 +123,10 @@ function AppRoutes({ logged, setLogged }) {
 export default function App() {
   const [logged, setLogged] = useState(!!localStorage.getItem("token"));
 
-  return <AppRoutes logged={logged} setLogged={setLogged} />;
+  return (
+    <>
+      <RouteTracker />
+      <AppRoutes logged={logged} setLogged={setLogged} />
+    </>
+  );
 }

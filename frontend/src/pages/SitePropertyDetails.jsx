@@ -1,7 +1,8 @@
 import SiteWatermark from "../components/SiteWatermark";
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import publicApi from "../services/publicApi";
+import { trackGenerateLead, trackViewItem } from "../services/analytics";
 import SiteChatWidget from "../components/SiteChatWidget";
 import logo from "../assets/logo-jb.png";
 import "./SitePropertyDetails.css";
@@ -102,6 +103,7 @@ function getWhatsAppLink(property) {
 
 export default function SitePropertyDetails() {
   const { id } = useParams();
+  const location = useLocation();
 
   const [property, setProperty] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
@@ -156,6 +158,13 @@ export default function SitePropertyDetails() {
     }
   }, [id]);
 
+  // GA4: visualização individual do imóvel (uma vez por navegação)
+  useEffect(() => {
+    if (property) {
+      trackViewItem(property, { navigationKey: location.key });
+    }
+  }, [property, location.key]);
+
   function handleLeadChange(event) {
     const { name, value } = event.target;
 
@@ -194,6 +203,8 @@ export default function SitePropertyDetails() {
         sourceDetail: property?.code || property?.title || id,
         needsFinancing: property?.financed ?? null
       });
+
+      trackGenerateLead({ source: "formulario_imovel" });
 
       setLeadStatus("Contato enviado com sucesso. Um corretor falará com você em breve.");
       setLeadForm({
