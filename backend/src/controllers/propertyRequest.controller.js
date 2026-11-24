@@ -53,37 +53,47 @@ async function createPropertyRequest(req, res) {
       });
     }
 
+    // O modelo PropertyRequest (prisma/schema.prisma) não possui colunas para
+    // finalidade, bairro, características, valor e descrição. Esses dados são
+    // gravados em `message` (texto legível) e `address`, sem alterar o banco.
+    const formatNumber = (value) =>
+      value !== undefined && value !== null && value !== ""
+        ? Number(value)
+        : null;
+
+    const purposeLabel =
+      String(purpose).toUpperCase() === "ALUGUEL" ? "Aluguel" : "Venda";
+
+    const messageLines = [
+      `Finalidade: ${purposeLabel}`,
+      `Bairro: ${neighborhood}`,
+      formatNumber(bedrooms) !== null
+        ? `Quartos: ${formatNumber(bedrooms)}`
+        : null,
+      formatNumber(bathrooms) !== null
+        ? `Banheiros: ${formatNumber(bathrooms)}`
+        : null,
+      formatNumber(parkingSpots) !== null
+        ? `Vagas: ${formatNumber(parkingSpots)}`
+        : null,
+      formatNumber(area) !== null ? `Área: ${formatNumber(area)} m²` : null,
+      price ? `Valor: ${price}` : null,
+      description ? `Descrição: ${description}` : null
+    ].filter(Boolean);
+
+    const fullAddress = [address, neighborhood].filter(Boolean).join(" - ");
+
     const request = await prisma.propertyRequest.create({
       data: {
         ownerName,
+        name: ownerName,
         phone,
         whatsapp: whatsapp || null,
         email,
         propertyType,
-        purpose,
+        address: fullAddress || null,
         city,
-        neighborhood,
-        address: address || null,
-        bedrooms:
-          bedrooms !== undefined && bedrooms !== null && bedrooms !== ""
-            ? Number(bedrooms)
-            : null,
-        bathrooms:
-          bathrooms !== undefined && bathrooms !== null && bathrooms !== ""
-            ? Number(bathrooms)
-            : null,
-        parkingSpots:
-          parkingSpots !== undefined &&
-          parkingSpots !== null &&
-          parkingSpots !== ""
-            ? Number(parkingSpots)
-            : null,
-        area:
-          area !== undefined && area !== null && area !== ""
-            ? Number(area)
-            : null,
-        price: price || null,
-        description: description || null,
+        message: messageLines.join("\n"),
         status: status || "PENDENTE"
       }
     });
